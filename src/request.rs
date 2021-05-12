@@ -16,20 +16,33 @@ pub fn parse<'a>(input: &'a str) -> Result<Request<'a>, Error> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Request<'a> {
     Check(Option<Box<Request<'a>>>),
-    Reference(Cow<'a, str>),
+    Rest(Cow<'a, str>),
 }
 
 fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
-    /*
+    if input == "" {
+        return Err(nom::Err::Error(Error {
+            input: input.into(),
+            kind: ErrorKind::Incomplete(nom::Needed::Unknown),
+            backtrace: vec![],
+        }));
+    }
+
     nom::branch::alt((
-            nom::combinator::value(Action::Check, nom::bytes::complete::tag("check")),
-            nom::combinator::map(
-                nom::bytes::complete::take_till(|c: char| c == ' '),
-                |path: &str| Action::Path(path.into()),
+        nom::combinator::map(
+            nom::sequence::separated_pair(
+                nom::bytes::complete::tag("check"),
+                nom::character::complete::space0,
+                nom::combinator::opt(request),
             ),
-            nom::combinator::value(Action::Path("/".into()), nom::bytes::complete::tag("/")),
-        ))*/
-    nom::combinator::value(Request::Check(None), nom::bytes::complete::tag("check"))(input)
+            |(_, request): (_, Option<Request<'a>>)| {
+                Request::Check(request.map(|request| Box::new(request)))
+            },
+        ),
+        nom::combinator::map(nom::combinator::rest, |rest: &str| {
+            Request::Rest(rest.into())
+        }),
+    ))(input)
 }
 
 #[test]
@@ -38,13 +51,13 @@ fn test_request() {
         ("check", Request::Check(None)),
         (
             "check git@github.com:vim/vim.git",
-            Request::Check(Some(Box::new(Request::Reference(
+            Request::Check(Some(Box::new(Request::Rest(
                 "git@github.com:vim/vim.git".into(),
             )))),
         ),
         (
             "git@github.com:jago-contributors/jago.git",
-            Request::Reference("git@github.com:jago-community/jago.git".into()),
+            Request::Rest("git@github.com:jago-community/jago.git".into()),
         ),
     ];
 
@@ -55,14 +68,14 @@ fn test_request() {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     input: String,
     kind: ErrorKind,
     backtrace: Vec<Error>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
     Parse(nom::error::ErrorKind),
     Incomplete(nom::Needed),
