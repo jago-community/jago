@@ -1,4 +1,11 @@
+mod request;
+
 fn main() {
+    let source = "git@github.com:jago-community/jago.git";
+    check(source);
+}
+
+fn check(source: &str) {
     let home = dirs::home_dir().unwrap();
 
     let identity = std::env::var("IDENTITY")
@@ -22,7 +29,6 @@ fn main() {
         };
     }
 
-    let source = "git@github.com:jago-community/jago.git";
     let path = cache.join(source);
 
     if let Err(error) = git2::Repository::open(&path) {
@@ -74,6 +80,4 @@ fn main() {
             }
         };
     }
-
-    println!("Hello, world!");
 }

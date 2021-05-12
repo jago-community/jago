@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 git2 = "0.13.19"
 dirs = "3.0.2"
+nom = "6.1.2"
