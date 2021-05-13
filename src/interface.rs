@@ -1,8 +1,12 @@
 mod serve;
 
+use bytes::Bytes;
+
 use crate::input::Input;
 
-pub async fn handle<'a>(input: Input<'a>) -> Result<(), Error> {
+pub async fn handle<'a>(input: Input<'a>) -> Result<Bytes, Error> {
+    let mut output = Bytes::new();
+
     match input {
         Input::Check(Some(inner)) => {
             match inner.as_ref() {
@@ -20,7 +24,7 @@ pub async fn handle<'a>(input: Input<'a>) -> Result<(), Error> {
             };
         }
         Input::Check(None) => {
-            println!("check everything");
+            output = check("git@github.com:jago-community/jago.git")?;
         }
         Input::Serve(_) => {
             serve::handle().await?;
@@ -30,10 +34,19 @@ pub async fn handle<'a>(input: Input<'a>) -> Result<(), Error> {
         }
     };
 
-    Ok(())
+    Ok(output)
 }
 
-fn check(maybe_reference: &str) -> Result<(), Error> {
+#[test]
+fn test_handle() {
+    let got = tokio_test::block_on(handle(Input::Check(None))).unwrap();
+    let want = include_str!("../jago");
+
+    assert_eq!(got, want);
+}
+
+fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
+    let address = crate::address::parse(maybe_address)?;
     let home = dirs::home_dir().unwrap();
 
     let identity = std::env::var("IDENTITY")
@@ -57,7 +70,7 @@ fn check(maybe_reference: &str) -> Result<(), Error> {
         };
     }
 
-    let path = cache.join(maybe_reference);
+    let path = cache.join(address.source());
 
     if let Err(error) = git2::Repository::open(&path) {
         match error.code() {
@@ -94,7 +107,7 @@ fn check(maybe_reference: &str) -> Result<(), Error> {
                 let mut builder = git2::build::RepoBuilder::new();
                 builder.fetch_options(fo);
 
-                match builder.clone(&maybe_reference, &cache.join(&path)) {
+                match builder.clone(&address.source(), &cache.join(&path)) {
                     Err(error) => {
                         eprintln!("unexpected error while cloning repository: {}", error);
                         std::process::exit(1);
@@ -109,13 +122,18 @@ fn check(maybe_reference: &str) -> Result<(), Error> {
         };
     }
 
-    Ok(())
+    println!("got here, maybe check path: {:?}", address.path());
+
+    // if empty path, check for file with same name as repository
+
+    Ok(bytes::Bytes::new())
 }
 
 #[derive(Debug)]
 pub enum Error {
     Repository(git2::Error),
     Serve(serve::Error),
+    Address(crate::address::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -123,6 +141,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Repository(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
+            Error::Address(error) => write!(f, "{}", error),
         }
     }
 }
@@ -132,6 +151,7 @@ impl std::error::Error for Error {
         match self {
             Error::Repository(error) => Some(error),
             Error::Serve(error) => Some(error),
+            Error::Address(error) => Some(error),
         }
     }
 }
@@ -145,5 +165,11 @@ impl From<git2::Error> for Error {
 impl From<serve::Error> for Error {
     fn from(error: serve::Error) -> Self {
         Self::Serve(error)
+    }
+}
+
+impl From<crate::address::Error> for Error {
+    fn from(error: crate::address::Error) -> Self {
+        Self::Address(error)
     }
 }

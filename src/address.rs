@@ -17,6 +17,16 @@ pub struct Address<'a> {
     path: Option<&'a str>,
 }
 
+impl<'a> Address<'a> {
+    pub fn source(&self) -> &'a str {
+        self.source
+    }
+
+    pub fn path(&self) -> Option<&'a str> {
+        self.path
+    }
+}
+
 fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
     nom::combinator::map(
         nom::sequence::pair(source, nom::combinator::rest),

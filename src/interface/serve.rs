@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{http::StatusCode, Body, Request, Response, Server};
 
+use crate::input::Input;
+
 pub async fn handle() -> Result<(), Error> {
     println!(
         "You are now in \"terminal insert\" mode. Below are some examples of what do to:\n\n\
@@ -44,15 +46,26 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
         crate::input::parse(&path[..])
     };
 
-    match maybe_input {
-        Ok(input) => Ok(Response::builder()
-            .body(Body::from(format!("{:?}", input)))
-            .unwrap()),
-        Err(error) => Ok(Response::builder()
+    let input = match maybe_input {
+        Ok(input) => input,
+        Err(error) => {
+            return Ok(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from(format!("error parsing request: {}", error)))
+                .unwrap())
+        }
+    };
+
+    if let Input::Serve(_) = input {
+        return Ok(Response::builder()
             .status(StatusCode::BAD_REQUEST)
-            .body(Body::from(format!("error parsing request: {}", error)))
-            .unwrap()),
+            .body(Body::from(format!("already serving")))
+            .unwrap());
     }
+
+    Ok(Response::builder()
+        .body(Body::from(format!("{:?}", input)))
+        .unwrap())
 }
 
 #[derive(Debug)]

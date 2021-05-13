@@ -1,4 +1,4 @@
-function! s:Handle(...) abort
+function! JHandle(...) abort
     let kind = substitute(a:1, '\s\+$', '', '')
 
     if kind == "open"
@@ -25,11 +25,11 @@ function! s:Handle(...) abort
     endif
 endfunction
 
-nmap <silent> <Leader>c :call s:Handle("check")<CR>
-nmap <silent> <Leader>C :call s:Handle("build")<CR>
-nmap <silent> <Leader>t :call s:Handle("test")<CR>
-nmap <silent> <Leader>T :call s:Handle("test -- --nocapture")<CR>
-nmap <silent> <Leader>r :call s:Handle("serve")<CR>
-nmap <silent> <Leader>g :call s:Handle("open")<CR>
+nmap <silent> <Leader>c :call JHandle("check")<CR>
+nmap <silent> <Leader>C :call JHandle("build")<CR>
+nmap <silent> <Leader>t :call JHandle("test")<CR>
+nmap <silent> <Leader>T :call JHandle("test -- --nocapture")<CR>
+nmap <silent> <Leader>r :call JHandle("serve")<CR>
+nmap <silent> <Leader>g :call JHandle("open")<CR>
 
-command -nargs=? J :call s:Handle("run", <f-args>)
+command -nargs=? J :call JHandle("run", <f-args>)
