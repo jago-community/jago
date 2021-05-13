@@ -1,0 +1,2 @@
+- Parse {name}.git in address.rs
+- Read files from parsed address (make test pass)
