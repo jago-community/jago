@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-pub fn parse<'a>(input: &'a str) -> Result<Request<'a>, Error> {
-    let (_, parsed) = request(input).map_err(|error: nom::Err<Error>| match error {
+pub fn parse<'a>(content: &'a str) -> Result<Input<'a>, Error> {
+    let (_, parsed) = input(content).map_err(|error: nom::Err<Error>| match error {
         nom::Err::Error(error) | nom::Err::Failure(error) => error,
         nom::Err::Incomplete(needed) => Error {
-            input: input.into(),
+            input: content.into(),
             kind: ErrorKind::Incomplete(needed),
             backtrace: vec![],
         },
@@ -14,22 +14,22 @@ pub fn parse<'a>(input: &'a str) -> Result<Request<'a>, Error> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Request<'a> {
-    Check(Option<Box<Request<'a>>>),
-    Serve(Option<Box<Request<'a>>>),
+pub enum Input<'a> {
+    Check(Option<Box<Input<'a>>>),
+    Serve(Option<Box<Input<'a>>>),
     Rest(Cow<'a, str>),
 }
 
-impl Default for Request<'_> {
+impl Default for Input<'_> {
     fn default() -> Self {
         Self::Check(None)
     }
 }
 
-fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
-    if input == "" {
+fn input<'a>(content: &'a str) -> nom::IResult<&'a str, Input<'a>, Error> {
+    if content == "" {
         return Err(nom::Err::Error(Error {
-            input: input.into(),
+            input: content.into(),
             kind: ErrorKind::Incomplete(nom::Needed::Unknown),
             backtrace: vec![],
         }));
@@ -40,47 +40,45 @@ fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
             nom::sequence::separated_pair(
                 nom::bytes::complete::tag("serve"),
                 nom::character::complete::space0,
-                nom::combinator::opt(request),
+                nom::combinator::opt(input),
             ),
-            |(_, request): (_, Option<Request<'a>>)| {
-                Request::Serve(request.map(|request| Box::new(request)))
+            |(_, request): (_, Option<Input<'a>>)| {
+                Input::Serve(request.map(|request| Box::new(request)))
             },
         ),
         nom::combinator::map(
             nom::sequence::separated_pair(
                 nom::bytes::complete::tag("check"),
                 nom::character::complete::space0,
-                nom::combinator::opt(request),
+                nom::combinator::opt(input),
             ),
-            |(_, request): (_, Option<Request<'a>>)| {
-                Request::Check(request.map(|request| Box::new(request)))
+            |(_, request): (_, Option<Input<'a>>)| {
+                Input::Check(request.map(|request| Box::new(request)))
             },
         ),
-        nom::combinator::map(nom::combinator::rest, |rest: &str| {
-            Request::Rest(rest.into())
-        }),
-    ))(input)
+        nom::combinator::map(nom::combinator::rest, |rest: &str| Input::Rest(rest.into())),
+    ))(content)
 }
 
 #[test]
 fn test_request() {
     let cases = vec![
-        ("check", Request::Check(None)),
-        ("serve", Request::Serve(None)),
+        ("check", Input::Check(None)),
+        ("serve", Input::Serve(None)),
         (
             "check git@github.com:vim/vim.git",
-            Request::Check(Some(Box::new(Request::Rest(
+            Input::Check(Some(Box::new(Input::Rest(
                 "git@github.com:vim/vim.git".into(),
             )))),
         ),
         (
-            "git@github.com:jago-contributors/jago.git",
-            Request::Rest("git@github.com:jago-community/jago.git".into()),
+            "git@github.com:jago-community/jago.git",
+            Input::Rest("git@github.com:jago-community/jago.git".into()),
         ),
     ];
 
     for (arguments, want) in cases {
-        let (_, got) = request(arguments).unwrap();
+        let (_, got) = input(arguments).unwrap();
 
         assert_eq!(got, want);
     }

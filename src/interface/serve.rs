@@ -38,15 +38,15 @@ pub async fn handle() -> Result<(), Error> {
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     let path = req.uri().path();
 
-    let maybe_request = if path == "/" {
+    let maybe_input = if path == "/" {
         Ok(Default::default())
     } else {
-        crate::request::parse(&path[..])
+        crate::input::parse(&path[..])
     };
 
-    match maybe_request {
-        Ok(request) => Ok(Response::builder()
-            .body(Body::from(format!("{:?}", request)))
+    match maybe_input {
+        Ok(input) => Ok(Response::builder()
+            .body(Body::from(format!("{:?}", input)))
             .unwrap()),
         Err(error) => Ok(Response::builder()
             .status(StatusCode::BAD_REQUEST)

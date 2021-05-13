@@ -1,5 +1,6 @@
+mod address;
+mod input;
 mod interface;
-mod request;
 
 #[tokio::main]
 async fn main() {
@@ -14,8 +15,8 @@ async fn main() {
         }
     };
 
-    let request = match request::parse(&argument) {
-        Ok(request) => request,
+    let input = match input::parse(&argument) {
+        Ok(input) => input,
         Err(error) => {
             eprintln!("error handling request: {}", error);
             std::process::exit(1);
@@ -24,7 +25,7 @@ async fn main() {
 
     let mut code = 0;
 
-    if let Err(error) = interface::handle(request).await {
+    if let Err(error) = interface::handle(input).await {
         eprintln!("error handling request {}", error);
         code = 1;
     }

@@ -1,14 +1,14 @@
 mod serve;
 
-use crate::request::Request;
+use crate::input::Input;
 
-pub async fn handle<'a>(request: Request<'a>) -> Result<(), Error> {
-    match request {
-        Request::Check(Some(inner)) => {
+pub async fn handle<'a>(input: Input<'a>) -> Result<(), Error> {
+    match input {
+        Input::Check(Some(inner)) => {
             match inner.as_ref() {
-                &Request::Rest(ref maybe_source) => match check(maybe_source) {
+                &Input::Rest(ref maybe_reference) => match check(maybe_reference) {
                     Err(error) => {
-                        eprintln!("check {} failed: {}", maybe_source, error);
+                        eprintln!("check {} failed: {}", maybe_reference, error);
                     }
                     _ => {
                         println!("all good");
@@ -19,13 +19,13 @@ pub async fn handle<'a>(request: Request<'a>) -> Result<(), Error> {
                 }
             };
         }
-        Request::Check(None) => {
+        Input::Check(None) => {
             println!("check everything");
         }
-        Request::Serve(_) => {
+        Input::Serve(_) => {
             serve::handle().await?;
         }
-        Request::Rest(ref maybe_path) => {
+        Input::Rest(ref maybe_path) => {
             println!("handle {}", maybe_path);
         }
     };
@@ -33,7 +33,7 @@ pub async fn handle<'a>(request: Request<'a>) -> Result<(), Error> {
     Ok(())
 }
 
-fn check(source: &str) -> Result<(), Error> {
+fn check(maybe_reference: &str) -> Result<(), Error> {
     let home = dirs::home_dir().unwrap();
 
     let identity = std::env::var("IDENTITY")
@@ -57,7 +57,7 @@ fn check(source: &str) -> Result<(), Error> {
         };
     }
 
-    let path = cache.join(source);
+    let path = cache.join(maybe_reference);
 
     if let Err(error) = git2::Repository::open(&path) {
         match error.code() {
@@ -94,7 +94,7 @@ fn check(source: &str) -> Result<(), Error> {
                 let mut builder = git2::build::RepoBuilder::new();
                 builder.fetch_options(fo);
 
-                match builder.clone(&source, &cache.join(&path)) {
+                match builder.clone(&maybe_reference, &cache.join(&path)) {
                     Err(error) => {
                         eprintln!("unexpected error while cloning repository: {}", error);
                         std::process::exit(1);
