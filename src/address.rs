@@ -14,6 +14,8 @@ pub fn parse<'a>(content: &'a str) -> Result<Address<'a>, Error> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Address<'a> {
     source: &'a str,
+    parent: &'a str,
+    name: &'a str,
     path: Option<&'a str>,
 }
 
@@ -30,8 +32,10 @@ impl<'a> Address<'a> {
 fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
     nom::combinator::map(
         nom::sequence::pair(source, nom::combinator::rest),
-        |(source, path)| Address {
+        |((source, parent, name), path)| Address {
             source,
+            parent,
+            name,
             path: if path == "" { None } else { Some(&path[1..]) },
         },
     )(i)
@@ -40,31 +44,44 @@ fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
 #[test]
 fn test_address() {
     assert_eq!(
-        address("git@github.com:jago-contributors/jago.git/usage").unwrap(),
+        address("git@github.com:jago-community/jago.git/usage").unwrap(),
         (
             "",
             Address {
-                source: "git@github.com:jago-contributors/jago.git",
+                source: "git@github.com:jago-community/jago.git",
+                parent: "jago-community",
+                name: "jago",
                 path: Some("usage"),
             }
         )
     );
 }
 
-fn source<'a>(i: &'a str) -> nom::IResult<&'a str, &'a str, Error> {
-    nom::combinator::recognize(nom::sequence::tuple((
-        actor,
-        host,
-        segment_hard,
-        segment_soft,
-    )))(i)
+fn source<'a>(i: &'a str) -> nom::IResult<&'a str, (&'a str, &'a str, &'a str), Error> {
+    let parser = |x| nom::sequence::tuple((actor, host, segment_hard, segment_soft))(x);
+
+    let (i, source) = nom::combinator::recognize(parser)(i)?;
+
+    let (_, (_, _, parent, name)) = parser(source)?;
+
+    Ok((
+        i,
+        (source, parent, name.strip_suffix(".git").unwrap_or(name)),
+    ))
 }
 
 #[test]
 fn test_source() {
     assert_eq!(
         source("git@github.com:jago-community/jago.git/usage").unwrap(),
-        ("/usage", "git@github.com:jago-community/jago.git")
+        (
+            "/usage",
+            (
+                "git@github.com:jago-community/jago.git",
+                "jago-community",
+                "jago"
+            )
+        )
     );
 }
 
