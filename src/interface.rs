@@ -38,8 +38,17 @@ pub async fn handle<'a>(input: Input<'a>) -> Result<Bytes, Error> {
 }
 
 #[test]
-#[ignore]
 fn test_handle() {
+    {
+        // avoid pass phrase checking for keys
+        std::fs::create_dir_all(dirs::home_dir().unwrap().join("cache/jago")).unwrap();
+        std::fs::copy(
+            dirs::home_dir().unwrap().join("local/jago/jago"),
+            dirs::home_dir().unwrap().join("cache/jago/jago"),
+        )
+        .unwrap();
+    }
+
     let got = tokio_test::block_on(handle(Input::Check(None))).unwrap();
     let want = include_str!("../jago");
 
