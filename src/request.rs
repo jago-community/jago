@@ -16,7 +16,14 @@ pub fn parse<'a>(input: &'a str) -> Result<Request<'a>, Error> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Request<'a> {
     Check(Option<Box<Request<'a>>>),
+    Serve(Option<Box<Request<'a>>>),
     Rest(Cow<'a, str>),
+}
+
+impl Default for Request<'_> {
+    fn default() -> Self {
+        Self::Check(None)
+    }
 }
 
 fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
@@ -29,6 +36,16 @@ fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
     }
 
     nom::branch::alt((
+        nom::combinator::map(
+            nom::sequence::separated_pair(
+                nom::bytes::complete::tag("serve"),
+                nom::character::complete::space0,
+                nom::combinator::opt(request),
+            ),
+            |(_, request): (_, Option<Request<'a>>)| {
+                Request::Serve(request.map(|request| Box::new(request)))
+            },
+        ),
         nom::combinator::map(
             nom::sequence::separated_pair(
                 nom::bytes::complete::tag("check"),
@@ -49,6 +66,7 @@ fn request<'a>(input: &'a str) -> nom::IResult<&'a str, Request<'a>, Error> {
 fn test_request() {
     let cases = vec![
         ("check", Request::Check(None)),
+        ("serve", Request::Serve(None)),
         (
             "check git@github.com:vim/vim.git",
             Request::Check(Some(Box::new(Request::Rest(

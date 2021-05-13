@@ -1,27 +1,36 @@
+mod serve;
+
 use crate::request::Request;
 
-pub fn handle<'a>(request: Request<'a>) {
+pub async fn handle<'a>(request: Request<'a>) -> Result<(), Error> {
     match request {
-        Request::Check(Some(inner)) => match inner.as_ref() {
-            &Request::Rest(ref maybe_source) => match check(maybe_source) {
-                Err(error) => {
-                    eprintln!("check {} failed: {}", maybe_source, error);
-                }
+        Request::Check(Some(inner)) => {
+            match inner.as_ref() {
+                &Request::Rest(ref maybe_source) => match check(maybe_source) {
+                    Err(error) => {
+                        eprintln!("check {} failed: {}", maybe_source, error);
+                    }
+                    _ => {
+                        println!("all good");
+                    }
+                },
                 _ => {
-                    println!("all good");
+                    eprintln!("unexpected pattern following check: {:?}", inner);
                 }
-            },
-            _ => {
-                eprintln!("unexpected pattern following check: {:?}", inner);
-            }
-        },
-        Request::Rest(ref maybe_path) => {
-            println!("handle {}", maybe_path);
+            };
         }
         Request::Check(None) => {
             println!("check everything");
         }
-    }
+        Request::Serve(_) => {
+            serve::handle().await?;
+        }
+        Request::Rest(ref maybe_path) => {
+            println!("handle {}", maybe_path);
+        }
+    };
+
+    Ok(())
 }
 
 fn check(source: &str) -> Result<(), Error> {
@@ -104,14 +113,16 @@ fn check(source: &str) -> Result<(), Error> {
 }
 
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     Repository(git2::Error),
+    Serve(serve::Error),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::Repository(error) => write!(f, "{}", error),
+            Error::Serve(error) => write!(f, "{}", error),
         }
     }
 }
@@ -120,6 +131,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Repository(error) => Some(error),
+            Error::Serve(error) => Some(error),
         }
     }
 }
@@ -127,5 +139,11 @@ impl std::error::Error for Error {
 impl From<git2::Error> for Error {
     fn from(error: git2::Error) -> Self {
         Self::Repository(error)
+    }
+}
+
+impl From<serve::Error> for Error {
+    fn from(error: serve::Error) -> Self {
+        Self::Serve(error)
     }
 }
