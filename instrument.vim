@@ -11,9 +11,13 @@ function! Handle(...) abort
             throw "upgrade vim to version 8.1 or higher"
         endif
 
-        let rest = a:0 == 2 ? substitute(a:2, '\s\+$', '', '') : ''
+        if a:0 == 2 && a:2 == 1
+            call inputsave()
+            let rest = input('Rest: ')
+            call inputrestore()
+        endif
 
-        let args = kind .' '. rest
+        let args = kind .' "'. rest . '"'
 
         execute cmd 'cargo' args
     endif
@@ -23,6 +27,6 @@ nmap <silent> <Leader>c :call Handle("check")<CR>
 nmap <silent> <Leader>C :call Handle("build")<CR>
 nmap <silent> <Leader>t :call Handle("test")<CR>
 nmap <silent> <Leader>T :call Handle("test -- --nocapture")<CR>
-nmap <silent> <Leader>r :call Handle("run")<CR>
-nmap <silent> <Leader>rs :call Handle("run", "serve")<CR>
+nmap <silent> <Leader>r :call Handle("run", 1)<CR>
+nmap <silent> <Leader>rs :call Handle("serve")<CR>
 nmap <silent> <Leader>g :call Handle("open")<CR>
