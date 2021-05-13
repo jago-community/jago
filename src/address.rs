@@ -1,3 +1,4 @@
+/// Good enough address parsing capability.
 pub fn parse<'a>(content: &'a str) -> Result<Address<'a>, Error> {
     let (_, parsed) = address(content).map_err(|error: nom::Err<Error>| match error {
         nom::Err::Error(error) | nom::Err::Failure(error) => error,

@@ -38,6 +38,7 @@ pub async fn handle<'a>(input: Input<'a>) -> Result<Bytes, Error> {
 }
 
 #[test]
+#[ignore]
 fn test_handle() {
     let got = tokio_test::block_on(handle(Input::Check(None))).unwrap();
     let want = include_str!("../jago");
@@ -75,25 +76,9 @@ fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
     if let Err(error) = git2::Repository::open(&path) {
         match error.code() {
             git2::ErrorCode::NotFound => {
-                use std::io::{stdin, stdout, Write};
-                let mut key = String::new();
+                println!("identity key: ");
 
-                print!("identity passphrase: ");
-
-                let _ = stdout().flush();
-
-                if let Err(error) = stdin().read_line(&mut key) {
-                    eprintln!("error reading password: {}", error);
-                    std::process::exit(1);
-                }
-
-                if let Some('\n') = key.chars().next_back() {
-                    key.pop();
-                }
-
-                if let Some('\r') = key.chars().next_back() {
-                    key.pop();
-                }
+                let key = rpassword::read_password()?;
 
                 let mut callbacks = git2::RemoteCallbacks::new();
 
@@ -109,6 +94,7 @@ fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
 
                 match builder.clone(&address.source(), &cache.join(&path)) {
                     Err(error) => {
+                        println!("{:?} -> {:?}", &address.source(), &cache.join(&path));
                         eprintln!("unexpected error while cloning repository: {}", error);
                         std::process::exit(1);
                     }
@@ -131,6 +117,7 @@ fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
 
 #[derive(Debug)]
 pub enum Error {
+    Machine(std::io::Error),
     Repository(git2::Error),
     Serve(serve::Error),
     Address(crate::address::Error),
@@ -139,6 +126,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::Machine(error) => write!(f, "{}", error),
             Error::Repository(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
             Error::Address(error) => write!(f, "{}", error),
@@ -149,10 +137,17 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Error::Machine(error) => Some(error),
             Error::Repository(error) => Some(error),
             Error::Serve(error) => Some(error),
             Error::Address(error) => Some(error),
         }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        Self::Machine(error)
     }
 }
 

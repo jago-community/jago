@@ -1,10 +1,18 @@
 mod address;
+mod environment;
 mod input;
 mod interface;
 
 #[tokio::main]
 async fn main() {
     let start = std::time::Instant::now();
+
+    match environment::populate() {
+        Err(error) => {
+            eprintln!("error populating environment: {}\n\n", error);
+        }
+        _ => {}
+    };
 
     let mut arguments = std::env::args().skip(1);
 
