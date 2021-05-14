@@ -1,0 +1,20 @@
+[package]
+name = "inspiration"
+version = "0.1.0"
+authors = ["Isaac Snow <isaacjsnow@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.5.0", features = ["full"] }
+tokio-util = { version = "0.6.6", features = ["full"] }
+bytes = "1.0.1"
+futures = "0.3.15"
+headers = "0.3.4"
+http = "0.2.4"
+hyper = { version = "0.14.7", features = ["stream"] }
+percent-encoding = "2.1.0"
+mime_guess = "2.0.3"
+tracing = "0.1.26"
+http-range = "0.1.4"
