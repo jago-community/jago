@@ -28,6 +28,10 @@ impl<'a> Address<'a> {
     pub fn path(&self) -> Option<&'a str> {
         self.path
     }
+
+    pub fn name(&self) -> &'a str {
+        self.name
+    }
 }
 
 fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {

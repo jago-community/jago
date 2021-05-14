@@ -56,28 +56,37 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
         }
     };
 
-    if let Input::Serve(_) = input {
+    if let &Input::Serve(_) = &input {
         return Ok(Response::builder()
             .status(StatusCode::BAD_REQUEST)
             .body(Body::from(format!("already serving")))
             .unwrap());
     }
 
-    Ok(Response::builder()
-        .body(Body::from(format!("{:?}", input)))
-        .unwrap())
+    Ok(match super::handle_core(&input) {
+        Ok(maybe_output) => match maybe_output {
+            Some(output) => Response::builder().body(Body::from(output)).unwrap(),
+            None => Response::builder()
+                .body(Body::from(format!("{:?}", input)))
+                .unwrap(),
+        },
+        Err(error) => Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::from(format!("{}", error)))
+            .unwrap(),
+    })
 }
 
 #[derive(Debug)]
 pub enum Error {
-    Io(std::io::Error),
+    Machine(std::io::Error),
     Process(tokio::task::JoinError),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Io(error) => write!(f, "{}", error),
+            Error::Machine(error) => write!(f, "{}", error),
             Error::Process(error) => write!(f, "{}", error),
         }
     }
@@ -86,7 +95,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Io(err) => Some(err),
+            Error::Machine(err) => Some(err),
             Error::Process(err) => Some(err),
         }
     }
@@ -94,7 +103,7 @@ impl std::error::Error for Error {
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
-        Error::Io(error)
+        Error::Machine(error)
     }
 }
 

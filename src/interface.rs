@@ -1,11 +1,23 @@
+mod gather;
 mod serve;
 
 use bytes::Bytes;
 
 use crate::input::Input;
 
-pub async fn handle<'a>(input: Input<'a>) -> Result<Bytes, Error> {
-    let mut output = Bytes::new();
+pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
+    match input {
+        Input::Serve(_) => {
+            serve::handle().await?;
+        }
+        input @ _ => return handle_core(&input),
+    };
+
+    Ok(None)
+}
+
+pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
+    let mut output = None;
 
     match input {
         Input::Check(Some(inner)) => {
@@ -27,7 +39,7 @@ pub async fn handle<'a>(input: Input<'a>) -> Result<Bytes, Error> {
             output = check("git@github.com:jago-community/jago.git")?;
         }
         Input::Serve(_) => {
-            serve::handle().await?;
+            return Err(Error::NestedServe);
         }
         Input::Rest(ref maybe_path) => {
             println!("handle {}", maybe_path);
@@ -49,13 +61,13 @@ fn test_handle() {
         .unwrap();
     }
 
-    let got = tokio_test::block_on(handle(Input::Check(None))).unwrap();
+    let got = tokio_test::block_on(handle(&Input::Check(None))).unwrap();
     let want = include_str!("../jago");
 
-    assert_eq!(got, want);
+    assert_eq!(got, Some(bytes::Bytes::from(want)));
 }
 
-fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
+fn check(maybe_address: &str) -> Result<Option<bytes::Bytes>, Error> {
     let address = crate::address::parse(maybe_address)?;
     let home = dirs::home_dir().unwrap();
 
@@ -117,11 +129,35 @@ fn check(maybe_address: &str) -> Result<bytes::Bytes, Error> {
         };
     }
 
-    println!("got here, maybe check path: {:?}", address.path());
+    let location = match address.path() {
+        Some(rest) => path.join(&rest),
+        None => std::path::PathBuf::from(address.name()),
+    };
+
+    if location.exists() {
+        return content(&location).map(|bytes| Some(bytes));
+    }
 
     // if empty path, check for file with same name as repository
 
-    Ok(bytes::Bytes::new())
+    Ok(None)
+}
+
+fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
+    use std::io::Read;
+
+    let metadata = std::fs::metadata(path)?;
+
+    // check is_dir
+
+    let mut buffer = vec![];
+
+    let file = std::fs::File::open(path)?;
+    let mut reader = std::io::BufReader::new(file);
+
+    reader.read_to_end(&mut buffer)?;
+
+    Ok(buffer.into())
 }
 
 #[derive(Debug)]
@@ -130,11 +166,13 @@ pub enum Error {
     Repository(git2::Error),
     Serve(serve::Error),
     Address(crate::address::Error),
+    NestedServe,
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::NestedServe => write!(f, "can't nest serve requests"),
             Error::Machine(error) => write!(f, "{}", error),
             Error::Repository(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
@@ -150,6 +188,7 @@ impl std::error::Error for Error {
             Error::Repository(error) => Some(error),
             Error::Serve(error) => Some(error),
             Error::Address(error) => Some(error),
+            Error::NestedServe => None,
         }
     }
 }

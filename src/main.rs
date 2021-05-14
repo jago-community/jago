@@ -33,8 +33,8 @@ async fn main() {
 
     let mut code = 0;
 
-    if let Err(error) = interface::handle(input).await {
-        eprintln!("error handling request {}", error);
+    if let Err(error) = interface::handle(&input).await {
+        eprintln!("error handling input {}", error);
         code = 1;
     }
 
