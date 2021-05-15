@@ -1,2 +1,3 @@
-- Parse {name}.git in address.rs
-- Read files from parsed address (make test pass)
+- try git operation without password first, then request and try again if it fails
+- store ssh key password if needed with https://docs.rs/ripasso/0.5.1/ripasso/
+- containerize and deploy
