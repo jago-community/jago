@@ -48,18 +48,29 @@ fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
 
 #[test]
 fn test_address() {
-    assert_eq!(
-        address("git@github.com:jago-community/jago.git/usage").unwrap(),
+    let cases = vec![
         (
-            "",
+            "git@github.com:jago-community/jago.git/usage",
             Address {
                 source: "git@github.com:jago-community/jago.git",
                 parent: "jago-community",
                 name: "jago",
                 path: Some("usage"),
-            }
-        )
-    );
+            },
+        ),
+        (
+            "/start",
+            Address {
+                source: "git@github.com:jago-community/jago.git",
+                parent: "jago-community",
+                name: "jago",
+                path: Some("usage"),
+            },
+        ),
+    ];
+    for (input, want) in cases {
+        assert_eq!(address(input).unwrap(), ("", want));
+    }
 }
 
 fn source<'a>(i: &'a str) -> nom::IResult<&'a str, (&'a str, &'a str, &'a str), Error> {

@@ -43,7 +43,7 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
     let maybe_input = if path == "/" {
         Ok(Default::default())
     } else {
-        crate::input::parse(&path[..])
+        dbg!(crate::input::parse(&path[..]))
     };
 
     let input = match maybe_input {
