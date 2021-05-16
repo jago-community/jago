@@ -1,0 +1,3 @@
+- `process` file contains current command to run. When saved, it will start a job in the background. When saved again it will stop the process and start another one.
+- Key protected pages. Email but just send someone a link instead. Web page is served with encrypted text.  - Pass phrase protected
+  - public/private key protected but requires jago installed
