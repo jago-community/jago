@@ -1,4 +1,7 @@
+- in progress
+    - containerize and deploy
+    - handle base routes in docker
+
 - ensure instrument.vim contains all basic vim configuration from ~/.vimrc
 - try git operation without password first, then request and try again if it fails
 - store ssh key password if needed with https://docs.rs/ripasso/0.5.1/ripasso/
-- containerize and deploy

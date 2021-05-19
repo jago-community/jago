@@ -2,6 +2,7 @@ mod address;
 mod environment;
 mod input;
 mod interface;
+mod parse;
 
 #[tokio::main]
 async fn main() {

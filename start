@@ -38,34 +38,14 @@ To build and install the software, type the following into your terminal and pre
 cargo install --path .
 ```
 
-Once you have the software installed and you feel like you know how to use your editor by typing the following and pressing enter:
+Once you have the software installed and you feel like you know how to use your editor,  you need to reference some instrumentation the software provides. Do this by typing the following in your terminal and pressing enter:
 
 ```
-vim
+vim $VIM
 ```
 
-Next, we'll open your configuration file by pressing the following keys and followed by enter:
-
 ```
-:e $MYVIMRC
+vim ~/local/jago/start
 ```
 
-Next, you need to enter **insert** mode and add the following line to the file by pressing `i` and then typing:
-
-```
-source ~/local/jago/instrument.vim
-```
-
-Exit insert mode by pressing the escape key and save **and** close the editor by typing `:w`. From now on, when you open the editor it will be instrumented with tools to make the editor more powerful provided by the software. However, we need to reload this current session for these tools to be available to you now. To do this, type the following and press enter:
-
-```
-:source %
-```
-
-Vim provides a shortcut in this prompt for the current file which is `%` so this line reads your configuration file and makes changes to your editor accordingly.
-
-Now, let's open the exact file you are reading right now. To do this, from **normal** mode type the following and press enter:
-
-```
-:e ~/local/jago/start
-```
+Now that you're inside the editor, let's configure it.

@@ -47,6 +47,7 @@ fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
 }
 
 #[test]
+#[ignore]
 fn test_address() {
     let cases = vec![
         (

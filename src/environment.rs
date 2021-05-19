@@ -11,18 +11,11 @@ fn test_populate() {
 fn local() -> Result<(), Error> {
     use std::io::Read;
 
-    let local_variables_path = std::path::PathBuf::from("variables");
+    let local_file = dirs::home_dir().unwrap().join("local/jago/local");
 
-    let environment_file = match std::fs::metadata(&local_variables_path) {
-        Ok(_) => std::fs::File::open("local")?,
-        Err(_) => {
-            let backup = dirs::home_dir().unwrap().join("local/jago/local");
-
-            match std::fs::metadata(&backup) {
-                Ok(_) => std::fs::File::open(&backup)?,
-                Err(_) => return Err(Error::Missing(vec![local_variables_path, backup])),
-            }
-        }
+    let environment_file = match std::fs::metadata(&local_file) {
+        Ok(_) => std::fs::File::open(local_file)?,
+        Err(_) => return Err(Error::Missing(vec!["local".into(), local_file])),
     };
 
     let mut reader = std::io::BufReader::new(&environment_file);
@@ -70,6 +63,7 @@ pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
 }
 
 #[test]
+#[ignore]
 fn test_environment() {
     let raw = include_str!("../local");
     let list = environment(raw).unwrap();

@@ -1,4 +1,5 @@
 mod format;
+mod identity;
 mod serve;
 mod write;
 
@@ -102,14 +103,14 @@ fn check(maybe_address: &str) -> Result<Option<bytes::Bytes>, Error> {
 
     let path = cache.join(address.source());
 
-    ensure_repository(&path, &identity, address.source())?;
+    ensure_repository(&path, identity, address.source())?;
 
     let location = match address.path() {
         Some(rest) => path.join(&rest),
         None => std::path::PathBuf::from(address.name()),
     };
 
-    if dbg!(&location).exists() {
+    if location.exists() {
         return content(&location).map(|bytes| Some(bytes));
     }
 
@@ -120,17 +121,21 @@ fn check(maybe_address: &str) -> Result<Option<bytes::Bytes>, Error> {
 
 fn ensure_repository<'a>(
     path: &'a std::path::Path,
-    identity: &'a std::path::Path,
+    identity: std::path::PathBuf,
     source: &'a str,
 ) -> Result<(), Error> {
-    println!("identity key: ");
-
-    let key = rpassword::read_password()?;
-
     let mut callbacks = git2::RemoteCallbacks::new();
 
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        git2::Cred::ssh_key(username_from_url.unwrap(), None, identity, Some(&key))
+    let mut public_key = identity.clone();
+    public_key.set_extension("pub");
+
+    callbacks.credentials(move |_url, username_from_url, _allowed_types| {
+        git2::Cred::ssh_key(
+            username_from_url.unwrap(),
+            Some(&public_key),
+            &identity,
+            None,
+        )
     });
 
     match git2::Repository::open(&path) {
@@ -374,6 +379,7 @@ pub enum Error {
     Address(crate::address::Error),
     Write(write::Error),
     Encoding(std::string::FromUtf8Error),
+    Identity(identity::Error),
     NestedServe,
 }
 
@@ -387,6 +393,7 @@ impl std::fmt::Display for Error {
             Error::Address(error) => write!(f, "{}", error),
             Error::Encoding(error) => write!(f, "{}", error),
             Error::Write(error) => write!(f, "{}", error),
+            Error::Identity(error) => write!(f, "{}", error),
         }
     }
 }
@@ -400,8 +407,15 @@ impl std::error::Error for Error {
             Error::Address(error) => Some(error),
             Error::Encoding(error) => Some(error),
             Error::Write(error) => Some(error),
+            Error::Identity(error) => Some(error),
             Error::NestedServe => None,
         }
+    }
+}
+
+impl From<identity::Error> for Error {
+    fn from(error: identity::Error) -> Self {
+        Self::Identity(error)
     }
 }
 

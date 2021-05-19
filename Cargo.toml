@@ -17,6 +17,9 @@ http = "0.2.4"
 rpassword = "5.0.1"
 shellexpand = "2.1.0"
 pulldown-cmark = "0.8.0"
+openssl = { version = "0.10.34", features = ["vendored"] }
+lazy_static = "1.4.0"
+ssh2 = "0.9.1"
 
 [dev-dependencies]
 tokio-test = "0.4.1"
