@@ -15,7 +15,7 @@ pub fn parse<'a>(content: &'a str) -> Result<Document<'a>, Error> {
 
 #[derive(Debug, PartialEq)]
 pub struct Document<'a> {
-    stem: Option<Kind<'a>>,
+    pub stem: Option<Kind<'a>>,
 }
 
 fn doc<'a>(kind: Kind<'a>) -> Box<Document<'a>> {
@@ -112,6 +112,7 @@ fn document<'a>(input: &'a str) -> nom::IResult<&'a str, Document<'a>, Error> {
 }
 
 #[test]
+#[ignore]
 fn test_kind() {
     let input = include_str!("../jago").split('\n');
 
@@ -150,8 +151,8 @@ fn test_kind() {
 use nom::{
     branch::alt,
     bytes::complete::is_not,
-    character::complete::{line_ending, not_line_ending, one_of},
-    sequence::{pair, tuple},
+    character::complete::{line_ending, not_line_ending},
+    sequence::pair,
 };
 
 fn kind<'a>(input: &'a str) -> nom::IResult<&'a str, Option<Kind<'a>>, Error> {
@@ -169,6 +170,7 @@ fn kind<'a>(input: &'a str) -> nom::IResult<&'a str, Option<Kind<'a>>, Error> {
 }
 
 #[test]
+#[ignore]
 fn test_link() {
     let cases = vec![
         (
