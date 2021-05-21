@@ -44,6 +44,7 @@ pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
             return Err(Error::NestedServe);
         }
         Input::Rest(ref maybe_path) => {
+            println!("here");
             output = check(maybe_path).or_else(|_| {
                 check(&format!(
                     "git@github.com:jago-community/jago.git{}",
@@ -140,6 +141,11 @@ fn ensure_repository<'a>(
 
     match git2::Repository::open(&path) {
         Ok(repository) => {
+            println!("coin flip");
+            if rand::random() {
+                println!("not checking");
+                return Ok((/*trust*/));
+            }
             let remote_name = "origin";
             let remote_branch = "main";
             let mut remote = repository.find_remote(remote_name)?;
@@ -362,7 +368,7 @@ fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
     let output = vec![];
     let mut writer = std::io::BufWriter::new(output);
 
-    write::html(
+    crate::document::html(
         &mut writer,
         path.file_stem().and_then(|stem| stem.to_str()),
         &buffer,
@@ -380,6 +386,7 @@ pub enum Error {
     Write(write::Error),
     Encoding(std::string::FromUtf8Error),
     Identity(identity::Error),
+    Document(crate::document::Error),
     NestedServe,
 }
 
@@ -394,6 +401,7 @@ impl std::fmt::Display for Error {
             Error::Encoding(error) => write!(f, "{}", error),
             Error::Write(error) => write!(f, "{}", error),
             Error::Identity(error) => write!(f, "{}", error),
+            Error::Document(error) => write!(f, "{}", error),
         }
     }
 }
@@ -408,6 +416,7 @@ impl std::error::Error for Error {
             Error::Encoding(error) => Some(error),
             Error::Write(error) => Some(error),
             Error::Identity(error) => Some(error),
+            Error::Document(error) => Some(error),
             Error::NestedServe => None,
         }
     }
@@ -416,6 +425,12 @@ impl std::error::Error for Error {
 impl From<identity::Error> for Error {
     fn from(error: identity::Error) -> Self {
         Self::Identity(error)
+    }
+}
+
+impl From<crate::document::Error> for Error {
+    fn from(error: crate::document::Error) -> Self {
+        Self::Document(error)
     }
 }
 

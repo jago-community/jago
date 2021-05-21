@@ -1,11 +1,18 @@
 use std::borrow::Cow;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Expression<'a> {
-    Break,
-    String(Cow<'a, str>),
-    Link(Cow<'a, str>, Cow<'a, str>),
-    Combination(Vec<Expression<'a>>),
+use super::Expression;
+
+pub fn unwrapped<'a>(input: &'a str) -> Result<Expression<'a>, Error> {
+    let (_, output) = expression(input).map_err(|error: nom::Err<Error>| match error {
+        nom::Err::Error(error) | nom::Err::Failure(error) => error,
+        nom::Err::Incomplete(needed) => Error {
+            input: input.into(),
+            kind: ErrorKind::Incomplete(needed),
+            backtrace: vec![],
+        },
+    })?;
+
+    Ok(output)
 }
 
 /*
@@ -42,6 +49,7 @@ Of random company",
             Expression::Combination(vec![
                 Expression::String("Intro, Jago".into()),
                 Expression::Break,
+                Expression::Break,
                 Expression::String("Of random company".into()),
             ]),
         ),
@@ -61,17 +69,20 @@ Other:
             Expression::Combination(vec![
                 Expression::String("Intro, Jago".into()),
                 Expression::Break,
+                Expression::Break,
                 Expression::String("Of random company".into()),
+                Expression::Break,
                 Expression::Break,
                 Expression::String("Pertinent:".into()),
                 Expression::Break,
-                Expression::Combination(vec![
-                    Expression::Link("Terms of service.".into(), "terms-of-service".into()),
-                    Expression::Break,
-                    Expression::Link("Privacy policy.".into(), "privacy-policy".into()),
-                ]),
+                Expression::Break,
+                Expression::Link("Terms of service.".into(), "terms-of-service".into()),
+                Expression::Break,
+                Expression::Link("Privacy policy.".into(), "privacy-policy".into()),
+                Expression::Break,
                 Expression::Break,
                 Expression::String("Other:".into()),
+                Expression::Break,
                 Expression::Break,
                 Expression::Link("Random.".into(), "random-kind".into()),
             ]),
@@ -88,105 +99,11 @@ use nom::{
     branch::alt,
     character::complete::{line_ending, not_line_ending},
     combinator::map,
-    multi::fold_many0,
+    multi::many0,
 };
 
 fn expression<'a>(input: &'a str) -> nom::IResult<&'a str, Expression<'a>, Error> {
-    dbg!(&input);
-    let (input, mut expressions) =
-        fold_many0(single, vec![], |mut output: Vec<Expression<'_>>, this| {
-            match this {
-                Expression::Break => match output.last_mut() {
-                    None => {}
-                    Some(Expression::Break) => {}
-                    Some(Expression::Combination(sequence)) => {
-                        sequence.push(this);
-                    }
-                    _ => {
-                        //let mut fence = output.len() - 1;
-                        //let mut group = vec![this];
-                        //let mut broke = false;
-
-                        //loop {
-                        //if fence == 0 {
-                        //break;
-                        //}
-                        //match output.get(fence) {
-                        //Some(Expression::Break) => {
-                        //if broke {
-                        //break;
-                        //}
-
-                        //broke = true;
-                        //}
-                        //_ => {
-                        //broke = false;
-                        //}
-                        //};
-                        //fence -= 1;
-                        //}
-
-                        //dbg!(fence);
-                        //dbg!(output.len());
-                        //dbg!(&output);
-                        //dbg!(&group);
-
-                        //for _ in 0..fence {
-                        //if let Some(expression) = output.pop() {
-                        //group.push(expression);
-                        //}
-                        //}
-
-                        //let expression = if group.len() == 1 {
-                        //group.pop().unwrap()
-                        //} else {
-                        //Expression::Combination(group)
-                        //};
-
-                        //output.push(expression);
-
-                        //let last = output.pop().unwrap();
-                        //output.push(Expression::Combination(vec![last, this]));
-                    }
-                },
-                _ => output.push(this),
-            };
-
-            /*
-            match output.last_mut() {
-                Some(Expression::Combination(combination)) => {
-                    combination.push(this);
-                }
-                Some(Expression::Break) => match this {
-                    Expression::Break => {
-                        // Much like opinions of others, not all new lines are worth consuming.
-                        // They do however help inform the structure at hand.
-                    }
-                    _ => output.push(Expression::Combination(vec![this])),
-                },
-                _ => output.push(this),
-            };
-            */
-
-            /*
-            match this {
-                Expression::Break => match output.last() {
-                    Some(Expression::Break) => match output.last_mut() {
-                        Some(Expression::Break) => {
-                        }
-                        Some(Expression::Combination(inner)) => {
-                            inner.push(this);
-                        }
-                        _ => output.push(this),
-                    },
-                    _ => output.push(this),
-                },
-                _ => output.push(this),
-            };
-            */
-
-            output
-        })(input)?;
+    let (input, mut expressions) = many0(single)(input)?;
 
     let expression = match expressions.len() {
         1 => expressions.pop().unwrap(),
