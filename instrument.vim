@@ -8,6 +8,30 @@ function! JHandle(...) abort
     if kind == "open"
         execute ':silent !open http://localhost:1342'
         redraw!
+    elseif kind == "container-deploy"
+        if has('terminal')
+            let cmd = 'vertical terminal'
+        else
+            throw "upgrade vim to version 8.1 or higher"
+        endif
+
+        execute cmd 'kubectl apply -f stack/deployment.yml'
+    elseif kind == "container-push"
+        let commit_hash = system('git rev-parse --short HEAD')
+        let commit_hash = substitute(commit_hash, '\_s*$', '', '')
+        call setreg("v", commit_hash)
+
+        let tag = 'gcr.io/jago-277604/jago:' . commit_hash
+
+        let _res = system('docker tag jago-serve ' . tag)
+
+        if has('terminal')
+            let cmd = 'vertical terminal'
+        else
+            throw "upgrade vim to version 8.1 or higher"
+        endif
+
+        execute cmd 'docker push ' . tag
     elseif kind == "container-build"
         if has('terminal')
             let cmd = 'vertical terminal'
@@ -81,6 +105,7 @@ nmap <silent> <Leader>g :call JHandle("open")<CR>
 
 nmap <silent> <Leader>db :call JHandle("container-build")<CR>
 nmap <silent> <Leader>ds :call JHandle("container-serve")<CR>
+nmap <silent> <Leader>dp :call JHandle("container-push")<CR>
 nmap <silent> <Leader>dd :call JHandle("container-delete")<CR>
 
 command -nargs=? J :call JHandle("run", <f-args>)

@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jago
+  labels:
+    app: jago
+spec:
+  selector:
+    matchLabels:
+      app: jago
+      tier: web
+  template:
+    metadata:
+      labels:
+        app: jago
+        tier: web
+    spec:
+      containers:
+      - name: jago
+        image: gcr.io/jago-277604/jago:b426673
+        ports:
+        - containerPort: 1342

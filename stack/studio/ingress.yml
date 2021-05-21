@@ -1,0 +1,13 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: studio
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: jago-studio-ip
+    networking.gke.io/managed-certificates: jago-studio-certificate
+  labels:
+    app: jago
+spec:
+  backend:
+    serviceName: jago
+    servicePort: 1342

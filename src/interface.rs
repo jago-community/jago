@@ -4,6 +4,7 @@ mod serve;
 mod write;
 
 use bytes::Bytes;
+use either::Either;
 
 use crate::input::Input;
 
@@ -24,31 +25,31 @@ pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
     match input {
         Input::Check(Some(inner)) => {
             match inner.as_ref() {
-                &Input::Rest(ref maybe_reference) => match check(maybe_reference) {
-                    Err(error) => {
-                        eprintln!("check {} failed: {}", maybe_reference, error);
+                &Input::Rest(ref maybe_reference) => {
+                    match check(Either::Right(dbg!(maybe_reference))) {
+                        Err(error) => {
+                            eprintln!("check {} failed: {}", maybe_reference, error);
+                        }
+                        _ => {
+                            println!("all good");
+                        }
                     }
-                    _ => {
-                        println!("all good");
-                    }
-                },
+                }
                 _ => {
                     eprintln!("unexpected pattern following check: {:?}", inner);
                 }
             };
         }
         Input::Check(None) => {
-            output = check("git@github.com:jago-community/jago.git")?;
+            output = check(Either::Left("/jago"))?;
         }
         Input::Serve(_) => {
             return Err(Error::NestedServe);
         }
         Input::Rest(ref maybe_path) => {
-            println!("here");
-            output = check(maybe_path).or_else(|_| {
-                check(&format!(
-                    "git@github.com:jago-community/jago.git{}",
-                    maybe_path
+            output = check(Either::Left(maybe_path)).or_else(|_| {
+                check(Either::Right(
+                    maybe_path.strip_prefix("/").unwrap_or(maybe_path),
                 ))
             })?;
         }
@@ -76,19 +77,8 @@ fn test_handle() {
     assert_eq!(got, Some(bytes::Bytes::from(want)));
 }
 
-fn check(maybe_address: &str) -> Result<Option<bytes::Bytes>, Error> {
-    let address = crate::address::parse(maybe_address)?;
-
+fn check(maybe_address: Either<&str, &str>) -> Result<Option<bytes::Bytes>, Error> {
     let home = dirs::home_dir().unwrap();
-
-    let identity = std::env::var("IDENTITY")
-        .or_else(
-            |_: std::env::VarError| -> Result<String, Box<dyn std::error::Error>> {
-                Ok(String::from(".ssh/id_rsa"))
-            },
-        )
-        .map(|identity| home.join(identity))
-        .unwrap();
 
     let cache = home.join("cache");
 
@@ -102,22 +92,35 @@ fn check(maybe_address: &str) -> Result<Option<bytes::Bytes>, Error> {
         };
     }
 
-    let path = cache.join(address.source());
+    let path = match maybe_address {
+        Either::Right(rest) => {
+            let address = crate::address::parse(rest)?;
+            let source = address.source();
+            let identity = std::env::var("IDENTITY")
+                .or_else(
+                    |_: std::env::VarError| -> Result<String, Box<dyn std::error::Error>> {
+                        Ok(String::from(".ssh/id_rsa"))
+                    },
+                )
+                .map(|identity| home.join(identity))
+                .unwrap();
 
-    ensure_repository(&path, identity, address.source())?;
+            let path = cache.join(address.source());
 
-    let location = match address.path() {
-        Some(rest) => path.join(&rest),
-        None => std::path::PathBuf::from(address.name()),
+            ensure_repository(&path, identity, source)?;
+
+            path.join(address.path().unwrap_or(address.name()))
+        }
+        Either::Left(rest) => home
+            .join("local/jago")
+            .join(rest.strip_prefix("/").unwrap_or(rest)),
     };
 
-    if location.exists() {
-        return content(&location).map(|bytes| Some(bytes));
+    if path.exists() {
+        return content(&path).map(|bytes| Some(bytes));
     }
 
-    // if empty path, check for file with same name as repository
-
-    Ok(None)
+    Err(Error::WeirdPath(path, WhyWeird::NotThere))
 }
 
 fn ensure_repository<'a>(
@@ -180,6 +183,22 @@ fn ensure_repository<'a>(
 
     Ok(())
 }
+
+// BEGIN git@github.com:rust-lang/git2-rs@master/examples/pull.rs
+
+/*
+ * libgit2 "pull" example - shows how to pull remote data into a local branch.
+ *
+ * Written by the libgit2 contributors
+ *
+ * To the extent possible under law, the author(s) have dedicated all copyright
+ * and related and neighboring rights to this software to the public domain
+ * worldwide. This software is distributed without any warranty.
+ *
+ * You should have received a copy of the CC0 Public Domain Dedication along
+ * with this software. If not, see
+ * <http://creativecommons.org/publicdomain/zero/1.0/>.
+ */
 
 fn fetch_remote<'a>(
     repo: &'a git2::Repository,
@@ -311,7 +330,7 @@ fn merge_remote<'a>(
     // 1. do a merge analysis
     let analysis = repo.merge_analysis(&[&fetch_commit])?;
 
-    // 2. Do the appopriate merge
+    // 2. Do the appropriate merge
     if analysis.0.is_fast_forward() {
         println!("Doing a fast forward");
         // do a fast forward
@@ -349,17 +368,41 @@ fn merge_remote<'a>(
     Ok(())
 }
 
+// END git@github.com:rust-lang/git2-rs@master/examples/pull.rs
+
 fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
     use std::io::Read;
 
     let metadata = std::fs::metadata(path)?;
 
-    // check is_dir
+    let file = match metadata.is_file() {
+        true => std::fs::File::open(path)?,
+        false => {
+            let name = match path.file_name() {
+                Some(name) => name,
+                None => return Err(Error::WeirdPath(path.into(), WhyWeird::NoName)),
+            };
+
+            let path = path.join(name).to_path_buf();
+
+            let metadata = std::fs::metadata(&path)
+                .map_err(|error| Error::WeirdPath(path.clone(), WhyWeird::Machine(error)))?;
+
+            match metadata.is_file() {
+                true => std::fs::File::open(path)?,
+                false => {
+                    return Err(Error::WeirdPath(
+                        path.to_path_buf(),
+                        WhyWeird::RepeatedDirectoryName,
+                    ))
+                }
+            }
+        }
+    };
+
+    let mut reader = std::io::BufReader::new(file);
 
     let mut buffer = vec![];
-
-    let file = std::fs::File::open(path)?;
-    let mut reader = std::io::BufReader::new(file);
 
     reader.read_to_end(&mut buffer)?;
 
@@ -387,7 +430,17 @@ pub enum Error {
     Encoding(std::string::FromUtf8Error),
     Identity(identity::Error),
     Document(crate::document::Error),
+    WeirdPath(std::path::PathBuf, WhyWeird),
     NestedServe,
+}
+
+#[derive(Debug)]
+pub enum WhyWeird {
+    // Technically, fine. Just don't want to deal with walking yet.
+    RepeatedDirectoryName,
+    NoName,
+    NotThere,
+    Machine(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -402,6 +455,19 @@ impl std::fmt::Display for Error {
             Error::Write(error) => write!(f, "{}", error),
             Error::Identity(error) => write!(f, "{}", error),
             Error::Document(error) => write!(f, "{}", error),
+            Error::WeirdPath(path, why) => {
+                write!(f, "weird path: {}\n\n", path.display())?;
+
+                match why {
+                    WhyWeird::RepeatedDirectoryName => write!(
+                        f,
+                        "nesting directory names is fine, I just haven't felt the need to walk yet"
+                    ),
+                    WhyWeird::NoName => write!(f, "if a file has no name, does it really exist?"),
+                    WhyWeird::NotThere => write!(f, "not found"),
+                    WhyWeird::Machine(error) => write!(f, "rage againsT {}", error),
+                }
+            }
         }
     }
 }
@@ -417,6 +483,10 @@ impl std::error::Error for Error {
             Error::Write(error) => Some(error),
             Error::Identity(error) => Some(error),
             Error::Document(error) => Some(error),
+            Error::WeirdPath(_, why) => match why {
+                WhyWeird::Machine(error) => Some(error),
+                _ => None,
+            },
             Error::NestedServe => None,
         }
     }
