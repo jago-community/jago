@@ -107,5 +107,6 @@ nmap <silent> <Leader>db :call JHandle("container-build")<CR>
 nmap <silent> <Leader>ds :call JHandle("container-serve")<CR>
 nmap <silent> <Leader>dp :call JHandle("container-push")<CR>
 nmap <silent> <Leader>dd :call JHandle("container-delete")<CR>
+nmap <silent> <Leader>du :call JHandle("container-deploy")<CR>
 
 command -nargs=? J :call JHandle("run", <f-args>)
