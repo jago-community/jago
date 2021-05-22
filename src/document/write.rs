@@ -12,12 +12,12 @@ Of random company
 
 Pertinent:
 
-[Terms of service.](..)
-[Privacy policy.](..)
+[Terms of service.](%)
+[Privacy policy.](%)
 
 Other:
 
-[Random.](..kind)";
+[Random.](%-kind)";
     let input = super::parse::unwrapped(input).unwrap();
 
     let want = "Intro, Jago<br/><br/>\

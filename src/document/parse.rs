@@ -35,11 +35,11 @@ fn test_expression() {
         ("Intro, Jago", Expression::String("Intro, Jago".into())),
         ("[a](link)", Expression::Link("a".into(), "link".into())),
         (
-            "[Terms of service.](..)",
+            "[Terms of service.](%)",
             Expression::Link("Terms of service.".into(), "terms-of-service".into()),
         ),
         (
-            "[Random.](..kind)",
+            "[Random.](%-kind)",
             Expression::Link("Random.".into(), "random-kind".into()),
         ),
         (
@@ -60,12 +60,12 @@ Of random company
 
 Pertinent:
 
-[Terms of service.](..)
-[Privacy policy.](..)
+[Terms of service.](%)
+[Privacy policy.](%)
 
 Other:
 
-[Random.](..kind)",
+[Random.](%-kind)",
             Expression::Combination(vec![
                 Expression::String("Intro, Jago".into()),
                 Expression::Break,
@@ -138,12 +138,16 @@ fn test_link() {
     let cases = vec![
         ("[a](link)", ("a".into(), "link".into())),
         (
-            "[Terms of service.](..)",
+            "[Terms of service.](%)",
             ("Terms of service.".into(), "terms-of-service".into()),
         ),
         (
-            "[Random.](..kind)",
+            "[Random.](%-kind)",
             ("Random.".into(), "random-kind".into()),
+        ),
+        (
+            "[Random.org](bounty/%)",
+            ("Random.org".into(), "bounty/random.org".into()),
         ),
     ];
 
@@ -166,30 +170,23 @@ fn link<'a>(input: &'a str) -> nom::IResult<&'a str, (Cow<'a, str>, Cow<'a, str>
 
     // TODO: make expand optional so it doesn't fail here.
     //
-    let (_, destination) = expand(destination, text)?;
+    let destination = expand(destination, text).map_err(|error| nom::Err::Failure(error))?;
 
     Ok((input, (text.into(), destination.into())))
 }
 
-use nom::combinator::rest;
-
-fn expand<'a>(input: &'a str, context: &'a str) -> nom::IResult<&'a str, Cow<'a, str>, Error> {
+fn expand<'a>(input: &'a str, context: &'a str) -> Result<Cow<'a, str>, Error> {
     use unicode_segmentation::UnicodeSegmentation;
 
-    alt((
-        map(pair(tag(".."), rest), |(_, rest): (_, &str)| {
-            let context = context.unicode_words().collect::<Vec<&str>>();
-            let rest = rest.unicode_words().collect::<Vec<&str>>();
-            let words = [context, rest].concat();
-            words
-                .iter()
-                .map(|word| word.to_lowercase())
-                .collect::<Vec<_>>()
-                .join("-")
-                .into()
-        }),
-        map(rest, |rest: &str| rest.into()),
-    ))(input)
+    let words = context
+        .unicode_words()
+        .map(|word| word.to_lowercase())
+        .collect::<Vec<_>>()
+        .join("-");
+
+    let output = input.replace("%", &words);
+
+    Ok(output.into())
 }
 
 #[derive(Debug, PartialEq, Clone)]
