@@ -46,6 +46,10 @@ pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
         Input::Serve(_) => {
             return Err(Error::NestedServe);
         }
+        Input::Prepare => {
+            let root = dirs::home_dir().unwrap().join("local/jago");
+            std::fs::copy(root.join("jago"), root.join("README.md"))?;
+        }
         Input::Rest(ref maybe_path) => {
             output = check(Either::Left(maybe_path)).or_else(|_| {
                 check(Either::Right(

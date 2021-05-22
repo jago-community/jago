@@ -17,6 +17,7 @@ pub fn parse<'a>(content: &'a str) -> Result<Input<'a>, Error> {
 pub enum Input<'a> {
     Check(Option<Box<Input<'a>>>),
     Serve(Option<Box<Input<'a>>>),
+    Prepare,
     Rest(Cow<'a, str>),
 }
 
@@ -56,6 +57,7 @@ fn input<'a>(content: &'a str) -> nom::IResult<&'a str, Input<'a>, Error> {
                 Input::Check(request.map(|request| Box::new(request)))
             },
         ),
+        nom::combinator::map(nom::bytes::complete::tag("prepare"), |_| Input::Prepare),
         nom::combinator::map(nom::combinator::rest, |rest: &str| Input::Rest(rest.into())),
     ))(content)
 }
