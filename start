@@ -41,11 +41,21 @@ cargo install --path .
 Once you have the software installed and you feel like you know how to use your editor,  you need to reference some instrumentation the software provides. Do this by typing the following in your terminal and pressing enter:
 
 ```
-vim $VIM
-```
-
-```
 vim ~/local/jago/start
 ```
 
 Now that you're inside the editor, let's configure it.
+
+Open your configuration file by pressing `:` then typing the following and pressing enter:
+
+```
+e $MYVIMRC
+```
+
+Now, you need to add a new line with a reference to the instrumentation files in this project. To do this, press `o` and then type the following:
+
+```
+source $HOME/local/jago/instrument.vim
+```
+
+To save the file, exit insert mode by pressing escape and then type `:w` and press enter.
