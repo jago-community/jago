@@ -6,6 +6,7 @@ mod write;
 use bytes::Bytes;
 use either::Either;
 
+use crate::document;
 use crate::input::Input;
 
 pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
@@ -375,8 +376,6 @@ fn merge_remote<'a>(
 // END git@github.com:rust-lang/git2-rs@master/examples/pull.rs
 
 fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
-    use std::io::Read;
-
     let metadata = std::fs::metadata(path)?;
 
     let file = match metadata.is_file() {
@@ -404,24 +403,22 @@ fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
         }
     };
 
-    let mut reader = std::io::BufReader::new(file);
-
-    let mut buffer = vec![];
-
-    reader.read_to_end(&mut buffer)?;
-
-    let buffer = String::from_utf8(buffer)?;
+    let reader = std::io::BufReader::new(file);
 
     let output = vec![];
     let mut writer = std::io::BufWriter::new(output);
 
-    crate::document::html(
+    document::html(
+        reader,
         &mut writer,
         path.file_stem().and_then(|stem| stem.to_str()),
-        &buffer,
     )?;
 
-    Ok(Bytes::from(writer.buffer().to_owned()))
+    let buffer = writer.into_inner()?;
+
+    println!("{}", std::str::from_utf8(&buffer).unwrap());
+
+    Ok(Bytes::from(buffer))
 }
 
 #[derive(Debug)]
@@ -433,8 +430,9 @@ pub enum Error {
     Write(write::Error),
     Encoding(std::string::FromUtf8Error),
     Identity(identity::Error),
-    Document(crate::document::Error),
+    Document(document::Error),
     WeirdPath(std::path::PathBuf, WhyWeird),
+    Post(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
     NestedServe,
 }
 
@@ -459,6 +457,7 @@ impl std::fmt::Display for Error {
             Error::Write(error) => write!(f, "{}", error),
             Error::Identity(error) => write!(f, "{}", error),
             Error::Document(error) => write!(f, "{}", error),
+            Error::Post(error) => write!(f, "{}", error),
             Error::WeirdPath(path, why) => {
                 write!(f, "weird path: {}\n\n", path.display())?;
 
@@ -487,6 +486,7 @@ impl std::error::Error for Error {
             Error::Write(error) => Some(error),
             Error::Identity(error) => Some(error),
             Error::Document(error) => Some(error),
+            Error::Post(error) => Some(error),
             Error::WeirdPath(_, why) => match why {
                 WhyWeird::Machine(error) => Some(error),
                 _ => None,
@@ -502,8 +502,8 @@ impl From<identity::Error> for Error {
     }
 }
 
-impl From<crate::document::Error> for Error {
-    fn from(error: crate::document::Error) -> Self {
+impl From<document::Error> for Error {
+    fn from(error: document::Error) -> Self {
         Self::Document(error)
     }
 }
@@ -517,6 +517,12 @@ impl From<std::io::Error> for Error {
 impl From<std::string::FromUtf8Error> for Error {
     fn from(error: std::string::FromUtf8Error) -> Self {
         Self::Encoding(error)
+    }
+}
+
+impl From<std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>> for Error {
+    fn from(error: std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>) -> Self {
+        Self::Post(error)
     }
 }
 

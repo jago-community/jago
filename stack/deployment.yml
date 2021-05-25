@@ -17,6 +17,9 @@ spec:
     spec:
       containers:
       - name: jago
-        image: gcr.io/jago-277604/jago:d3d88b6
+        image: gcr.io/jago-277604/jago:83a8c64
         ports:
         - containerPort: 1342
+      volumes:
+      - name: cache-volume
+        emptyDir: {}

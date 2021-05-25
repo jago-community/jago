@@ -33,4 +33,6 @@ ENV IDENTITY /root/local/jago/keys/id_rsa
 
 RUN jago check
 
+VOLUME ["/root/cache"]
+
 CMD ["/root/local/jago/action"]

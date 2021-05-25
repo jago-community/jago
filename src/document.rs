@@ -1,7 +1,11 @@
 mod parse;
+mod syntax;
 mod write;
 
-use std::{borrow::Cow, io::Write};
+use std::{
+    borrow::Cow,
+    io::{Read, Write},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression<'a> {
@@ -11,10 +15,10 @@ pub enum Expression<'a> {
     Combination(Vec<Expression<'a>>),
 }
 
-pub fn html<'a, W: Write>(
+pub fn html<'a, R: Read, W: Write>(
+    reader: R,
     writer: &mut W,
     context: Option<&'a str>,
-    input: &'a str,
 ) -> Result<(), Error> {
     write!(
         writer,
@@ -26,7 +30,7 @@ pub fn html<'a, W: Write>(
             <body>",
         context = context.unwrap_or("Jago")
     )?;
-    write::html(writer, parse::unwrapped(input)?)?;
+    syntax::write(reader, writer)?;
     write!(writer, "</body></html>",)?;
     Ok(())
 }
@@ -35,6 +39,7 @@ pub fn html<'a, W: Write>(
 pub enum Error {
     Parse(parse::Error),
     Write(write::Error),
+    Syntax(syntax::Error),
     /* Rage */ Machine(std::io::Error),
 }
 
@@ -43,6 +48,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Parse(error) => write!(f, "{}", error),
             Error::Write(error) => write!(f, "{}", error),
+            Error::Syntax(error) => write!(f, "{}", error),
             Error::Machine(error) => write!(f, "{}", error),
         }
     }
@@ -53,8 +59,15 @@ impl std::error::Error for Error {
         match self {
             Error::Write(error) => Some(error),
             Error::Parse(error) => Some(error),
+            Error::Syntax(error) => Some(error),
             Error::/* Rage */Machine(error) => Some(error),
         }
+    }
+}
+
+impl From<syntax::Error> for Error {
+    fn from(error: syntax::Error) -> Self {
+        Self::Syntax(error)
     }
 }
 
