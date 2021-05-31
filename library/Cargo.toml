@@ -1,5 +1,5 @@
 [package]
-name = "inspiration"
+name = "library"
 version = "0.1.0"
 authors = ["Isaac Snow <isaacjsnow@gmail.com>"]
 edition = "2018"

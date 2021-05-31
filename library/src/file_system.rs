@@ -47,7 +47,7 @@ use tokio::io::AsyncSeekExt;
 use tokio_util::io::poll_read_buf;
 
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     BadPath,
     Machine(std::io::Error),
     Headers(hyper::header::ToStrError),
@@ -88,7 +88,7 @@ impl From<hyper::header::ToStrError> for Error {
     }
 }
 
-fn sanitize_path(base: impl AsRef<Path>, tail: &str) -> Result<PathBuf, Error> {
+pub fn sanitize_path(base: impl AsRef<Path>, tail: &str) -> Result<PathBuf, Error> {
     let mut buf = PathBuf::from(base.as_ref());
     let p = match percent_decode_str(tail).decode_utf8() {
         Ok(p) => p,
@@ -113,7 +113,7 @@ fn sanitize_path(base: impl AsRef<Path>, tail: &str) -> Result<PathBuf, Error> {
 }
 
 #[derive(Debug)]
-struct Conditionals {
+pub struct Conditionals {
     if_modified_since: Option<IfModifiedSince>,
     if_unmodified_since: Option<IfUnmodifiedSince>,
     if_range: Option<IfRange>,
@@ -175,7 +175,7 @@ impl Conditionals {
     }
 }
 
-fn conditionals(request: &hyper::Request<Body>, size: u64) -> Result<Conditionals, Error> {
+pub fn conditionals(request: &hyper::Request<Body>) -> Result<Conditionals, Error> {
     let headers = request.headers();
 
     Ok(Conditionals {
@@ -220,7 +220,13 @@ impl File {
 
 // Silly wrapper since Arc<PathBuf> doesn't implement AsRef<Path> ;_;
 #[derive(Clone, Debug)]
-struct ArcPath(Arc<PathBuf>);
+pub struct ArcPath(Arc<PathBuf>);
+
+impl Into<ArcPath> for &'_ Path {
+    fn into(self) -> ArcPath {
+        ArcPath(Arc::new(self.to_path_buf()))
+    }
+}
 
 impl AsRef<Path> for ArcPath {
     fn as_ref(&self) -> &Path {
@@ -234,10 +240,11 @@ impl From<File> for hyper::Response<Body> {
     }
 }
 
-fn file_reply(
-    path: ArcPath,
+pub fn file_reply(
+    path: impl Into<ArcPath>,
     conditionals: Conditionals,
 ) -> impl Future<Output = Result<File, Error>> + Send {
+    let path = path.into();
     TkFile::open(path.clone()).then(move |res| match res {
         Ok(f) => Either::Left(file_conditional(f, path, conditionals)),
         Err(err) => Either::Right(future::err(Error::Machine(err))),

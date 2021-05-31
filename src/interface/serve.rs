@@ -1,8 +1,12 @@
-use std::convert::Infallible;
-use std::net::SocketAddr;
+use std::{convert::Infallible, net::SocketAddr};
 
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{http::StatusCode, Body, Request, Response, Server};
+use hyper::{
+    http::StatusCode,
+    service::{make_service_fn, service_fn},
+    Body, Request, Response, Server,
+};
+
+//use warp::Filter;
 
 use crate::input::Input;
 
@@ -16,6 +20,20 @@ pub async fn handle() -> Result<(), Error> {
         - Quit by navigating back to running pane, ensure \"terminal insert\" mode by pressing `i`, then `<control-c>`\n\
         - You can close this pane but if you do not quit the process it will continue in the background. To close the pane, enter normal mode and type `:q`.",
     );
+
+    //let input = warp::path::full()
+    //.map(|path: warp::path::FullPath| path.as_str().to_owned())
+    //.map(|path| crate::input::parse(path));
+
+    //let write_input = input.map(|input| format!("{:?}", input));
+
+    //let routes = warp::get().and(write_input);
+
+    // Note that composing filters for many routes may increase compile times (because it uses a lot of generics).
+    // If you wish to use dynamic dispatch instead and speed up compile times while
+    // making it slightly slower at runtime, you can use Filter::boxed().
+
+    //warp::serve(routes).run(([0, 0, 0, 0], 1342)).await;
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 1342));
 

@@ -32,7 +32,7 @@ pub fn html<'a, R: Read, W: Write>(
             <body>",
         context = context.unwrap_or("Jago")
     )?;
-    syntax::write(reader, writer)?;
+    syntax::write(reader, writer, context)?;
     write!(writer, "</body></html>",)?;
     Ok(())
 }

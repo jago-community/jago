@@ -9,7 +9,16 @@ use either::Either;
 use crate::document;
 use crate::input::Input;
 
-pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
+type Context = Option<hyper::Request<hyper::Body>>;
+
+type Output = Bytes;
+
+//pub enum Output {
+//Bytes(Bytes),
+//File(library::file_system::File),
+//}
+
+pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Output>, Error> {
     match input {
         Input::Serve(_) => {
             serve::handle().await?;
@@ -20,22 +29,20 @@ pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
     Ok(None)
 }
 
-pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Bytes>, Error> {
+pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Output>, Error> {
     let mut output = None;
 
     match input {
         Input::Check(Some(inner)) => {
             match inner.as_ref() {
-                &Input::Rest(ref maybe_reference) => {
-                    match check(Either::Right(dbg!(maybe_reference))) {
-                        Err(error) => {
-                            eprintln!("check {} failed: {}", maybe_reference, error);
-                        }
-                        _ => {
-                            println!("all good");
-                        }
+                &Input::Rest(ref maybe_reference) => match check(Either::Right(maybe_reference)) {
+                    Err(error) => {
+                        eprintln!("check {} failed: {}", maybe_reference, error);
                     }
-                }
+                    _ => {
+                        println!("all good");
+                    }
+                },
                 _ => {
                     eprintln!("unexpected pattern following check: {:?}", inner);
                 }
@@ -82,7 +89,7 @@ fn test_handle() {
     assert_eq!(got, Some(bytes::Bytes::from(want)));
 }
 
-fn check(maybe_address: Either<&str, &str>) -> Result<Option<bytes::Bytes>, Error> {
+fn check(maybe_address: Either<&str, &str>) -> Result<Option<Output>, Error> {
     let home = dirs::home_dir().unwrap();
 
     let cache = home.join("cache");
@@ -121,11 +128,27 @@ fn check(maybe_address: Either<&str, &str>) -> Result<Option<bytes::Bytes>, Erro
             .join(rest.strip_prefix("/").unwrap_or(rest)),
     };
 
+    //if crate::image::is_supported(&path) {
+    //return file_stream(&path, context).map(|file| Some(Output::File(filer));
     if path.exists() {
         return content(&path).map(|bytes| Some(bytes));
     }
 
     Err(Error::WeirdPath(path, WhyWeird::NotThere))
+}
+
+fn file_stream(
+    path: &std::path::Path,
+    context: Context,
+) -> Result<library::file_system::File, Error> {
+    let request = match context {
+        Some(request) => request,
+        _ => return Err(Error::BadContext),
+    };
+
+    let conditionals = library::file_system::conditionals(&request)?;
+
+    unimplemented!()
 }
 
 fn ensure_repository<'a>(
@@ -375,7 +398,7 @@ fn merge_remote<'a>(
 
 // END git@github.com:rust-lang/git2-rs@master/examples/pull.rs
 
-fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
+fn content(path: &std::path::Path) -> Result<Bytes, Error> {
     let metadata = std::fs::metadata(path)?;
 
     let file = match metadata.is_file() {
@@ -416,8 +439,6 @@ fn content(path: &std::path::Path) -> Result<bytes::Bytes, Error> {
 
     let buffer = writer.into_inner()?;
 
-    println!("{}", std::str::from_utf8(&buffer).unwrap());
-
     Ok(Bytes::from(buffer))
 }
 
@@ -433,6 +454,8 @@ pub enum Error {
     Document(document::Error),
     WeirdPath(std::path::PathBuf, WhyWeird),
     Post(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
+    FileSystem(library::file_system::Error),
+    BadContext,
     NestedServe,
 }
 
@@ -449,6 +472,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::NestedServe => write!(f, "can't nest serve requests"),
+            Error::BadContext => write!(f, "tried an operation without needed context"),
             Error::Machine(error) => write!(f, "{}", error),
             Error::Repository(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
@@ -458,6 +482,7 @@ impl std::fmt::Display for Error {
             Error::Identity(error) => write!(f, "{}", error),
             Error::Document(error) => write!(f, "{}", error),
             Error::Post(error) => write!(f, "{}", error),
+            Error::FileSystem(error) => write!(f, "{}", error),
             Error::WeirdPath(path, why) => {
                 write!(f, "weird path: {}\n\n", path.display())?;
 
@@ -487,11 +512,13 @@ impl std::error::Error for Error {
             Error::Identity(error) => Some(error),
             Error::Document(error) => Some(error),
             Error::Post(error) => Some(error),
+            Error::FileSystem(error) => Some(error),
             Error::WeirdPath(_, why) => match why {
                 WhyWeird::Machine(error) => Some(error),
                 _ => None,
             },
             Error::NestedServe => None,
+            Error::BadContext => None,
         }
     }
 }
@@ -505,6 +532,12 @@ impl From<identity::Error> for Error {
 impl From<document::Error> for Error {
     fn from(error: document::Error) -> Self {
         Self::Document(error)
+    }
+}
+
+impl From<library::file_system::Error> for Error {
+    fn from(error: library::file_system::Error) -> Self {
+        Self::FileSystem(error)
     }
 }
 

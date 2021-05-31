@@ -7,6 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+library = { path = "./library" }
 git2 = "0.13.19"
 dirs = "3.0.2"
 nom = "6.1.2"
@@ -23,6 +24,15 @@ ssh2 = "0.9.1"
 unicode-segmentation = "1.7.1"
 rand = "0.8.3"
 either = "1.6.1"
+image = "0.23.14"
+warp = "0.3.1"
+uuid = { version = "0.8.2", features = ["v4"] }
+futures = "0.3.15"
+headers = "0.3.4"
+tracing = "0.1.26"
+mime_guess = "2.0.3"
+tokio-util = "0.6.7"
+ignore = "0.4.17"
 
 [dev-dependencies]
 tokio-test = "0.4.1"

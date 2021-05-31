@@ -1,18 +1,100 @@
-use std::borrow::Cow;
-
 use std::io::{Read, Write};
 
-pub fn write<'a, R: Read, W: Write>(mut reader: R, writer: &mut W) -> Result<(), Error> {
-    use pulldown_cmark::{html, Parser};
+pub fn write<'a, R: Read, W: Write>(
+    mut reader: R,
+    writer: &mut W,
+    context: Option<&'a str>,
+) -> Result<(), Error> {
+    use pulldown_cmark::{html, Event, Parser};
 
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
-    let parser = Parser::new(&input);
+    unimplemented!()
 
-    html::write_html(writer, parser)?;
+    //let parser = Parser::new(&input)
+    //.map(|event| match event {
+    //Event::Code(code) => parse_code(&code).map(|(_, output)| match output {
+    //Code::NameToSentence => {
+    //let sentence = context.or(Some("")).map(to_sentence).unwrap();
+    //write!(writer, "{}", sentence);
+    //true
+    //}
+    //Code::Text => false,
+    //}),
+    //_ => {
+    //dbg!(&event);
+    //Some(false)
+    //}
+    //})
+    //.filter_map(|x| x)
+    //.filter(|captured| captured);
 
-    Ok(())
+    //html::write_html(writer, parser)?;
+
+    //Ok(())
+}
+
+//fn parse<'a>(input: &'a str) -> Result<CowStr<'a>, Error> {
+//let (_, output) = parse_code(input).map_err(|error: nom::Err<Error>| match error {
+//nom::Err::Error(error) | nom::Err::Failure(error) => error,
+//nom::Err::Incomplete(needed) => Error::Parse(ParseError {
+//input: input.into(),
+//kind: ParseErrorKind::Incomplete(needed),
+//backtrace: vec![],
+//}),
+//})?;
+
+//Ok(output.into())
+//}
+
+use nom::{
+    branch::alt,
+    bytes::complete::{is_not, tag},
+    combinator::value,
+    sequence::delimited,
+    IResult,
+};
+
+fn parse_code<'a>(input: &'a str) -> IResult<&'a str, Code, ParseError> {
+    delimited(
+        tag("`"),
+        alt((
+            value(Code::NameToSentence, tag("%!A a.")),
+            value(Code::Text, is_not("`")),
+        )),
+        tag("`"),
+    )(input)
+}
+
+#[derive(Clone)]
+enum Code {
+    NameToSentence,
+    Text,
+}
+
+fn to_sentence<'a>(input: &'a str) -> String {
+    use unicode_segmentation::UnicodeSegmentation;
+
+    let mut output = String::new();
+
+    let mut words = input.unicode_words();
+
+    if let Some(first) = words.next() {
+        let mut parts = first.graphemes(true);
+        if let Some(first) = parts.next() {
+            output.push_str(&first.to_uppercase());
+        }
+        for part in parts {
+            output.push_str(part);
+        }
+    }
+
+    for word in words {
+        output.push_str(word);
+    }
+
+    output
 }
 
 #[derive(Debug)]

@@ -65,7 +65,7 @@ function! JHandle(...) abort
             call add(input, a:000[index-1])
         endfor
 
-        let rest = len(input) > 0 ? ' "' . join(input, ' ') . '"' : ''
+        let rest = len(input) > 0 ? ' ' . join(input, ' ') : ''
 
         let args = kind . rest
 
@@ -108,5 +108,7 @@ nmap <silent> <Leader>ds :call JHandle("container-serve")<CR>
 nmap <silent> <Leader>dp :call JHandle("container-push")<CR>
 nmap <silent> <Leader>dd :call JHandle("container-delete")<CR>
 nmap <silent> <Leader>du :call JHandle("container-deploy")<CR>
+
+nnoremap <Leader>? :echo "Hello, world!"<CR>
 
 command -nargs=? J :call JHandle("run", <f-args>)
