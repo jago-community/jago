@@ -46,25 +46,32 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
             .unwrap());
     }
 
+    let context = dirs::home_dir().unwrap();
+
     let path = request.uri().path();
-    let path = &path[1..];
 
-    let context = dirs::home_dir().unwrap().join("local/jago");
+    let input = &path[1..];
 
-    let path = Arc::new(context.join(path));
+    let maybe_path = if let Ok(address) = crate::address::parse(input) {
+        if let Err(error) = crate::cache::ensure(address) {
+            return Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::from(format!("{}", error)))
+                .unwrap());
+        }
 
-    if !path.starts_with(context) {
-        return Ok(Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::from(
-                "Out of bounds. if you know what you're doing, stop it.",
-            ))
-            .unwrap());
-    }
+        context.join("cache").join(input)
+    } else {
+        context.join("local/jago").join(input)
+    };
+
+    dbg!(&maybe_path);
+
+    let path = Arc::new(maybe_path);
 
     let mut body = std::io::BufWriter::new(vec![]);
 
-    if let Err(error) = crate::source::read(&mut body, path.clone()) {
+    if let Err(error) = crate::source::read(&mut body, path) {
         Ok(Response::builder()
             .body(Body::from(format!("{}", error)))
             .unwrap())
@@ -88,6 +95,7 @@ pub enum Error {
     Machine(std::io::Error),
     Serve(hyper::Error),
     Source(crate::source::Error),
+    Cache(crate::cache::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -96,6 +104,7 @@ impl std::fmt::Display for Error {
             Error::Machine(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
             Error::Source(error) => write!(f, "{}", error),
+            Error::Cache(error) => write!(f, "{}", error),
         }
     }
 }
@@ -106,6 +115,7 @@ impl std::error::Error for Error {
             Error::Machine(error) => Some(error),
             Error::Serve(error) => Some(error),
             Error::Source(error) => Some(error),
+            Error::Cache(error) => Some(error),
         }
     }
 }
@@ -125,5 +135,11 @@ impl From<hyper::Error> for Error {
 impl From<crate::source::Error> for Error {
     fn from(error: crate::source::Error) -> Self {
         Self::Source(error)
+    }
+}
+
+impl From<crate::cache::Error> for Error {
+    fn from(error: crate::cache::Error) -> Self {
+        Self::Cache(error)
     }
 }

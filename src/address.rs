@@ -20,17 +20,21 @@ pub struct Address<'a> {
     path: Option<&'a str>,
 }
 
+use std::path::PathBuf;
+
 impl<'a> Address<'a> {
+    pub fn join_context(&self, context: PathBuf) -> PathBuf {
+        let path = context.join(self.source);
+
+        if let Some(rest) = self.path {
+            path.join(rest)
+        } else {
+            path
+        }
+    }
+
     pub fn source(&self) -> &'a str {
         self.source
-    }
-
-    pub fn path(&self) -> Option<&'a str> {
-        self.path
-    }
-
-    pub fn name(&self) -> &'a str {
-        self.name
     }
 }
 

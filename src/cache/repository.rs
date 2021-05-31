@@ -1,161 +1,17 @@
-mod format;
-mod identity;
-mod serve;
-mod write;
+use crate::address::Address;
 
-use bytes::Bytes;
-use either::Either;
+pub fn ensure<'a>(address: Address<'a>) -> Result<(), Error> {
+    let context = dirs::home_dir().unwrap().join("cache");
 
-use crate::document;
-use crate::input::Input;
-
-type Context = Option<hyper::Request<hyper::Body>>;
-
-type Output = Bytes;
-
-//pub enum Output {
-//Bytes(Bytes),
-//File(library::file_system::File),
-//}
-
-pub async fn handle<'a>(input: &'a Input<'a>) -> Result<Option<Output>, Error> {
-    match input {
-        Input::Serve(_) => {
-            serve::handle().await?;
-        }
-        input @ _ => return handle_core(&input),
-    };
-
-    Ok(None)
-}
-
-pub fn handle_core<'a>(input: &'a Input<'a>) -> Result<Option<Output>, Error> {
-    let mut output = None;
-
-    match input {
-        Input::Check(Some(inner)) => {
-            match inner.as_ref() {
-                &Input::Rest(ref maybe_reference) => match check(Either::Right(maybe_reference)) {
-                    Err(error) => {
-                        eprintln!("check {} failed: {}", maybe_reference, error);
-                    }
-                    _ => {
-                        println!("all good");
-                    }
-                },
-                _ => {
-                    eprintln!("unexpected pattern following check: {:?}", inner);
-                }
-            };
-        }
-        Input::Check(None) => {
-            output = check(Either::Left("/jago"))?;
-        }
-        Input::Serve(_) => {
-            return Err(Error::NestedServe);
-        }
-        Input::Prepare => {
-            let root = dirs::home_dir().unwrap().join("local/jago");
-            std::fs::copy(root.join("jago"), root.join("README.md"))?;
-        }
-        Input::Rest(ref maybe_path) => {
-            output = check(Either::Left(maybe_path)).or_else(|_| {
-                check(Either::Right(
-                    maybe_path.strip_prefix("/").unwrap_or(maybe_path),
-                ))
-            })?;
-        }
-    };
-
-    Ok(output)
-}
-
-#[test]
-#[ignore]
-fn test_handle() {
-    {
-        // avoid pass phrase checking for keys
-        std::fs::create_dir_all(dirs::home_dir().unwrap().join("cache/jago")).unwrap();
-        std::fs::copy(
-            dirs::home_dir().unwrap().join("local/jago/jago"),
-            dirs::home_dir().unwrap().join("cache/jago/jago"),
+    let identity = std::env::var("IDENTITY")
+        .or_else(
+            |_: std::env::VarError| -> Result<String, Box<dyn std::error::Error>> {
+                Ok(String::from(".ssh/id_rsa"))
+            },
         )
+        .map(|identity| context.join(identity))
         .unwrap();
-    }
 
-    let got = tokio_test::block_on(handle(&Input::Check(None))).unwrap();
-    let want = include_str!("../jago");
-
-    assert_eq!(got, Some(bytes::Bytes::from(want)));
-}
-
-fn check(maybe_address: Either<&str, &str>) -> Result<Option<Output>, Error> {
-    let home = dirs::home_dir().unwrap();
-
-    let cache = home.join("cache");
-
-    if !cache.exists() {
-        match std::fs::create_dir_all(&cache) {
-            Err(error) => {
-                eprintln!("unexpected error while opening repository: {}", error);
-                std::process::exit(1);
-            }
-            _ => {}
-        };
-    }
-
-    let path = match maybe_address {
-        Either::Right(rest) => {
-            let address = crate::address::parse(rest)?;
-            let source = address.source();
-            let identity = std::env::var("IDENTITY")
-                .or_else(
-                    |_: std::env::VarError| -> Result<String, Box<dyn std::error::Error>> {
-                        Ok(String::from(".ssh/id_rsa"))
-                    },
-                )
-                .map(|identity| home.join(identity))
-                .unwrap();
-
-            let path = cache.join(address.source());
-
-            ensure_repository(&path, identity, source)?;
-
-            path.join(address.path().unwrap_or(address.name()))
-        }
-        Either::Left(rest) => home
-            .join("local/jago")
-            .join(rest.strip_prefix("/").unwrap_or(rest)),
-    };
-
-    //if crate::image::is_supported(&path) {
-    //return file_stream(&path, context).map(|file| Some(Output::File(filer));
-    if path.exists() {
-        return content(&path).map(|bytes| Some(bytes));
-    }
-
-    Err(Error::WeirdPath(path, WhyWeird::NotThere))
-}
-
-fn file_stream(
-    path: &std::path::Path,
-    context: Context,
-) -> Result<library::file_system::File, Error> {
-    let request = match context {
-        Some(request) => request,
-        _ => return Err(Error::BadContext),
-    };
-
-    let conditionals = library::file_system::conditionals(&request)?;
-
-    unimplemented!()
-}
-
-fn ensure_repository<'a>(
-    path: &'a std::path::Path,
-    identity: std::path::PathBuf,
-    source: &'a str,
-) -> Result<(), Error> {
     let mut callbacks = git2::RemoteCallbacks::new();
 
     let mut public_key = identity.clone();
@@ -170,12 +26,16 @@ fn ensure_repository<'a>(
         )
     });
 
-    match git2::Repository::open(&path) {
+    let path = address.join_context(context);
+
+    let source = address.source();
+
+    match git2::Repository::discover(&path) {
         Ok(repository) => {
             println!("coin flip");
             if rand::random() {
                 println!("not checking");
-                return Ok((/*trust*/));
+                return Ok(());
             }
             let remote_name = "origin";
             let remote_branch = "main";
@@ -192,7 +52,9 @@ fn ensure_repository<'a>(
                     let mut builder = git2::build::RepoBuilder::new();
                     builder.fetch_options(fo);
 
-                    match builder.clone(source, path) {
+                    println!("cloning: {} -> {}", source, path.display());
+
+                    match builder.clone(source, &path) {
                         Err(error) => {
                             println!("{:?} -> {:?}", source, path);
                             eprintln!("unexpected error while cloning repository: {}", error);
@@ -398,104 +260,19 @@ fn merge_remote<'a>(
 
 // END git@github.com:rust-lang/git2-rs@master/examples/pull.rs
 
-fn content(path: &std::path::Path) -> Result<Bytes, Error> {
-    let metadata = std::fs::metadata(path)?;
-
-    let file = match metadata.is_file() {
-        true => std::fs::File::open(path)?,
-        false => {
-            let name = match path.file_name() {
-                Some(name) => name,
-                None => return Err(Error::WeirdPath(path.into(), WhyWeird::NoName)),
-            };
-
-            let path = path.join(name).to_path_buf();
-
-            let metadata = std::fs::metadata(&path)
-                .map_err(|error| Error::WeirdPath(path.clone(), WhyWeird::Machine(error)))?;
-
-            match metadata.is_file() {
-                true => std::fs::File::open(path)?,
-                false => {
-                    return Err(Error::WeirdPath(
-                        path.to_path_buf(),
-                        WhyWeird::RepeatedDirectoryName,
-                    ))
-                }
-            }
-        }
-    };
-
-    let reader = std::io::BufReader::new(file);
-
-    let output = vec![];
-    let mut writer = std::io::BufWriter::new(output);
-
-    document::html(
-        reader,
-        &mut writer,
-        path.file_stem().and_then(|stem| stem.to_str()),
-    )?;
-
-    let buffer = writer.into_inner()?;
-
-    Ok(Bytes::from(buffer))
-}
-
 #[derive(Debug)]
 pub enum Error {
     Machine(std::io::Error),
     Repository(git2::Error),
-    Serve(serve::Error),
     Address(crate::address::Error),
-    Write(write::Error),
-    Encoding(std::string::FromUtf8Error),
-    Identity(identity::Error),
-    Document(document::Error),
-    WeirdPath(std::path::PathBuf, WhyWeird),
-    Post(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
-    FileSystem(library::file_system::Error),
-    BadContext,
-    NestedServe,
-}
-
-#[derive(Debug)]
-pub enum WhyWeird {
-    // Technically, fine. Just don't want to deal with walking yet.
-    RepeatedDirectoryName,
-    NoName,
-    NotThere,
-    Machine(std::io::Error),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::NestedServe => write!(f, "can't nest serve requests"),
-            Error::BadContext => write!(f, "tried an operation without needed context"),
             Error::Machine(error) => write!(f, "{}", error),
             Error::Repository(error) => write!(f, "{}", error),
-            Error::Serve(error) => write!(f, "{}", error),
             Error::Address(error) => write!(f, "{}", error),
-            Error::Encoding(error) => write!(f, "{}", error),
-            Error::Write(error) => write!(f, "{}", error),
-            Error::Identity(error) => write!(f, "{}", error),
-            Error::Document(error) => write!(f, "{}", error),
-            Error::Post(error) => write!(f, "{}", error),
-            Error::FileSystem(error) => write!(f, "{}", error),
-            Error::WeirdPath(path, why) => {
-                write!(f, "weird path: {}\n\n", path.display())?;
-
-                match why {
-                    WhyWeird::RepeatedDirectoryName => write!(
-                        f,
-                        "nesting directory names is fine, I just haven't felt the need to walk yet"
-                    ),
-                    WhyWeird::NoName => write!(f, "if a file has no name, does it really exist?"),
-                    WhyWeird::NotThere => write!(f, "not found"),
-                    WhyWeird::Machine(error) => write!(f, "rage againsT {}", error),
-                }
-            }
         }
     }
 }
@@ -505,39 +282,8 @@ impl std::error::Error for Error {
         match self {
             Error::Machine(error) => Some(error),
             Error::Repository(error) => Some(error),
-            Error::Serve(error) => Some(error),
             Error::Address(error) => Some(error),
-            Error::Encoding(error) => Some(error),
-            Error::Write(error) => Some(error),
-            Error::Identity(error) => Some(error),
-            Error::Document(error) => Some(error),
-            Error::Post(error) => Some(error),
-            Error::FileSystem(error) => Some(error),
-            Error::WeirdPath(_, why) => match why {
-                WhyWeird::Machine(error) => Some(error),
-                _ => None,
-            },
-            Error::NestedServe => None,
-            Error::BadContext => None,
         }
-    }
-}
-
-impl From<identity::Error> for Error {
-    fn from(error: identity::Error) -> Self {
-        Self::Identity(error)
-    }
-}
-
-impl From<document::Error> for Error {
-    fn from(error: document::Error) -> Self {
-        Self::Document(error)
-    }
-}
-
-impl From<library::file_system::Error> for Error {
-    fn from(error: library::file_system::Error) -> Self {
-        Self::FileSystem(error)
     }
 }
 
@@ -547,33 +293,9 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<std::string::FromUtf8Error> for Error {
-    fn from(error: std::string::FromUtf8Error) -> Self {
-        Self::Encoding(error)
-    }
-}
-
-impl From<std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>> for Error {
-    fn from(error: std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>) -> Self {
-        Self::Post(error)
-    }
-}
-
 impl From<git2::Error> for Error {
     fn from(error: git2::Error) -> Self {
         Self::Repository(error)
-    }
-}
-
-impl From<serve::Error> for Error {
-    fn from(error: serve::Error) -> Self {
-        Self::Serve(error)
-    }
-}
-
-impl From<write::Error> for Error {
-    fn from(error: write::Error) -> Self {
-        Self::Write(error)
     }
 }
 
