@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  serve:
+    build:
+      dockerfile: container/serve/Dockerfile
+      context: ..
+    ports:
+      - "1342:1342"
+    volumes:
+      - cache:/root/cache
+  repository-serve:
+    build:
+      dockerfile: container/repository/Dockerfile
+      context: ..
+    restart: always
+    ports:
+      - "1001:80"
+    volumes:
+      - remote:/var/www/git
+volumes:
+  cache:
+  remote:

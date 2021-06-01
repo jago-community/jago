@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker compose -f ~/local/jago/container/compose.yml down
+docker compose -f ~/local/jago/container/compose.yml rm
