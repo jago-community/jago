@@ -19,10 +19,53 @@ pub fn read<'a, W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Erro
     Ok(())
 }
 
-pub fn read_directory<W: Write>(target: &mut W, directory: Arc<PathBuf>) -> Result<(), Error> {
+macro_rules! write_start {
+    ( $( $target:expr, $context:expr )* ) => {
+        write!(
+            $(
+                $target
+            )*,
+            "<!doctype html>\
+            <html>\
+                <head>\
+                    <meta charset=\"utf-8\">\
+                    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
+                    <title>{context}</title>\
+
+                    <style>
+                        * {{
+                            max-width: 100%;
+                        }}
+                    </style>
+                </head>\
+                <body>",
+            context = $($context)*.unwrap_or("Jago")
+        )
+    };
+}
+
+macro_rules! write_end {
+    ( $( $target:expr )* ) => {
+        write!(
+            $($target)*,
+            "</body></html>"
+        )
+    };
+}
+
+macro_rules! write_document {
+    ( $( $target:expr, $input:expr )* ) => {{
+        let parser = Parser::new_ext($($input)*, Options::all());
+        html::write_html($($target)*, parser)
+    }};
+}
+
+pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Result<(), Error> {
+    write_start!(target, directory.file_name().and_then(|name| name.to_str()))?;
+
     let context = directory.file_name();
 
-    let mut buffer = String::new();
+    let mut buffer = String::from("Directory:\n\n");
 
     let walker = WalkBuilder::new(directory.as_ref())
         .hidden(false)
@@ -39,7 +82,7 @@ pub fn read_directory<W: Write>(target: &mut W, directory: Arc<PathBuf>) -> Resu
         }
 
         if context == path.file_name() {
-            read_file(target, Arc::new(path.to_path_buf()))?;
+            read_file(&mut target, Arc::new(path.to_path_buf()))?;
         }
 
         let parent = match path.parent() {
@@ -47,15 +90,20 @@ pub fn read_directory<W: Write>(target: &mut W, directory: Arc<PathBuf>) -> Resu
             None => return Err(Error::NoParent(path.to_path_buf())),
         };
 
-        let path = path.strip_prefix(parent)?;
+        let title = path.strip_prefix(parent)?;
 
-        buffer.push_str(&format!("- [{path}]({path})\n", path = path.display()));
+        let context = dirs::home_dir().unwrap();
+
+        let cleaned = path
+            .strip_prefix(context.join("cache"))
+            .unwrap_or(path.strip_prefix(context.join("local/jago"))?);
+
+        buffer.push_str(&format!("- [{}]({})\n", title.display(), cleaned.display()));
     }
 
-    let parser = Parser::new_ext(&buffer, Options::all());
-    html::write_html(target, parser)?;
+    write_document!(&mut target, &buffer)?;
 
-    Ok(())
+    write_end!(target).map_err(Error::from)
 }
 
 fn read_file<W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Error> {
@@ -67,34 +115,20 @@ fn read_file<W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Error> 
 }
 
 fn read_image<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
-    let image = image::io::Reader::open(path)?;
-    let format = match image.format() {
-        Some(format) => format,
-        None => return Err(Error::NoImageFormat(path.to_path_buf())),
-    };
-    let image = image.decode()?;
+    let mut buffer = vec![];
 
-    image.write_to(target, format).map_err(Error::from)
+    let file = std::fs::File::open(path)?;
+    let mut reader = std::io::BufReader::new(file);
+
+    reader.read_to_end(&mut buffer)?;
+
+    target.write_all(&buffer).map_err(Error::from)
 }
 
 fn read_document<W: Write>(mut target: W, path: Arc<PathBuf>) -> Result<(), Error> {
     let file = std::fs::File::open(path.as_ref())?;
 
-    write!(
-        target,
-        "<!doctype html>\
-        <html>\
-            <head>\
-                <meta charset=\"utf-8\">\
-                <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-                <title>{context}</title>\
-            </head>\
-            <body>",
-        context = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("Jago")
-    )?;
+    write_start!(target, path.file_name().and_then(|name| name.to_str()))?;
 
     let mut reader = std::io::BufReader::new(file);
 
@@ -103,25 +137,21 @@ fn read_document<W: Write>(mut target: W, path: Arc<PathBuf>) -> Result<(), Erro
 
     if let Some(extension) = path.extension() {
         if extension == "md" {
-            let parser = Parser::new_ext(&input, Options::all());
-            html::write_html(&mut target, parser)?;
+            write_document!(&mut target, &input)?;
         } else {
             write!(target, "<pre>{}</pre>", input)?;
         }
     } else {
-        let parser = Parser::new_ext(&input, Options::all());
-        html::write_html(&mut target, parser)?;
+        write_document!(&mut target, &input)?;
     }
 
-    write!(target, "</body></html>").map_err(Error::from)
+    write_end!(target).map_err(Error::from)
 }
 
 #[derive(Debug)]
 pub enum Error {
     Machine(std::io::Error),
     Write(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
-    Image(image::error::ImageError),
-    NoImageFormat(PathBuf),
     NoParent(PathBuf),
     CleanPath(std::path::StripPrefixError),
     Walk(ignore::Error),
@@ -132,8 +162,6 @@ impl std::fmt::Display for Error {
         match self {
             Error::Machine(error) => write!(f, "{}", error),
             Error::Write(error) => write!(f, "{}", error),
-            Error::Image(error) => write!(f, "{}", error),
-            Error::NoImageFormat(path) => write!(f, "no image format for: {}", path.display()),
             Error::NoParent(path) => write!(f, "no parent for path: {}", path.display()),
             Error::CleanPath(error) => write!(f, "{}", error),
             Error::Walk(error) => write!(f, "{}", error),
@@ -146,8 +174,6 @@ impl std::error::Error for Error {
         match self {
             Error::Machine(error) => Some(error),
             Error::Write(error) => Some(error),
-            Error::Image(error) => Some(error),
-            Error::NoImageFormat(_) => None,
             Error::NoParent(_) => None,
             Error::CleanPath(error) => Some(error),
             Error::Walk(error) => Some(error),
@@ -164,12 +190,6 @@ impl From<std::io::Error> for Error {
 impl From<std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>> for Error {
     fn from(error: std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>) -> Self {
         Self::Write(error)
-    }
-}
-
-impl From<image::error::ImageError> for Error {
-    fn from(error: image::error::ImageError) -> Self {
-        Self::Image(error)
     }
 }
 

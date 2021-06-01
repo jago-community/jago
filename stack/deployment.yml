@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: jago
-        image: gcr.io/jago-277604/jago:d7f85c5
+        image: gcr.io/jago-277604/jago:8e18d00
         ports:
         - containerPort: 1342
       volumes:

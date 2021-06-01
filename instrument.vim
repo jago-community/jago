@@ -49,7 +49,9 @@ function! JHandle(...) abort
             throw "upgrade vim to version 8.1 or higher"
         endif
 
-        execute cmd 'docker run -v ~/cache:/root/cache --publish 1342:1342 --name jago-serve jago-serve'
+        let cache = expand('$HOME') . '/cache'
+
+        execute cmd 'docker run -v ' . cache . ' --publish 1342:1342 --name jago-serve jago-serve'
     elseif kind == "container-delete"
         " nothing
     else

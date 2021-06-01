@@ -53,19 +53,17 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
     let input = &path[1..];
 
     let maybe_path = if let Ok(address) = crate::address::parse(input) {
-        if let Err(error) = crate::cache::ensure(address) {
+        if let Err(error) = crate::cache::ensure(&address) {
             return Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)
                 .body(Body::from(format!("{}", error)))
                 .unwrap());
         }
 
-        context.join("cache").join(input)
+        address.full(context.join("cache"))
     } else {
         context.join("local/jago").join(input)
     };
-
-    dbg!(&maybe_path);
 
     let path = Arc::new(maybe_path);
 

@@ -23,7 +23,7 @@ pub struct Address<'a> {
 use std::path::PathBuf;
 
 impl<'a> Address<'a> {
-    pub fn join_context(&self, context: PathBuf) -> PathBuf {
+    pub fn full(&self, context: PathBuf) -> PathBuf {
         let path = context.join(self.source);
 
         if let Some(rest) = self.path {
@@ -31,6 +31,12 @@ impl<'a> Address<'a> {
         } else {
             path
         }
+    }
+
+    pub fn directory(&self, context: PathBuf) -> PathBuf {
+        let path = context.join(self.source);
+
+        path
     }
 
     pub fn source(&self) -> &'a str {

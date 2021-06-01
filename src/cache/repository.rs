@@ -1,16 +1,46 @@
 use crate::address::Address;
 
-pub fn ensure<'a>(address: Address<'a>) -> Result<(), Error> {
-    let context = dirs::home_dir().unwrap().join("cache");
+#[test]
+fn test_ensure() {
+    fn clear<'a>(address: &'a Address<'a>) -> Result<(), Error> {
+        let context = dirs::home_dir().unwrap();
+        let path = address.directory(context.join("cache"));
+        let metadata = std::fs::metadata(&path)?;
 
-    let identity = std::env::var("IDENTITY")
-        .or_else(
-            |_: std::env::VarError| -> Result<String, Box<dyn std::error::Error>> {
-                Ok(String::from(".ssh/id_rsa"))
-            },
-        )
-        .map(|identity| context.join(identity))
+        if metadata.is_file() {
+            std::fs::remove_file(&path).map_err(Error::from)
+        } else {
+            std::fs::remove_dir_all(&path).map_err(Error::from)
+        }
+    }
+
+    use crate::address;
+
+    let address = address::parse("git@github.com:jago-community/jago.git/favicon.ico").unwrap();
+
+    clear(&address).unwrap();
+    ensure(&address).unwrap();
+
+    let mut target = std::io::BufWriter::new(vec![]);
+    let path = std::sync::Arc::new(address.full(dirs::home_dir().unwrap().join("cache")));
+    let _ = crate::source::read(&mut target, path).unwrap();
+    let buffer = target.into_inner().unwrap();
+
+    let reader = image::io::Reader::new(std::io::Cursor::new(buffer))
+        .with_guessed_format()
         .unwrap();
+
+    let format = reader.format().unwrap();
+
+    assert_eq!(format, image::ImageFormat::Ico);
+
+    reader.decode().unwrap();
+}
+
+pub fn ensure<'a>(address: &'a Address<'a>) -> Result<(), Error> {
+    let context = dirs::home_dir().unwrap();
+
+    let identity = context.join("local/jago/keys/id_rsa");
 
     let mut callbacks = git2::RemoteCallbacks::new();
 
@@ -26,11 +56,11 @@ pub fn ensure<'a>(address: Address<'a>) -> Result<(), Error> {
         )
     });
 
-    let path = address.join_context(context);
+    let path = address.directory(context.join("cache"));
 
     let source = address.source();
 
-    match git2::Repository::discover(&path) {
+    match git2::Repository::open(&path) {
         Ok(repository) => {
             println!("coin flip");
             if rand::random() {
@@ -56,8 +86,7 @@ pub fn ensure<'a>(address: Address<'a>) -> Result<(), Error> {
 
                     match builder.clone(source, &path) {
                         Err(error) => {
-                            println!("{:?} -> {:?}", source, path);
-                            eprintln!("unexpected error while cloning repository: {}", error);
+                            eprintln!("Unexpected error while cloning repository: {}", error);
                             std::process::exit(1);
                         }
                         _ => {}

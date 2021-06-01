@@ -9,10 +9,10 @@ pub fn ensure<'a>(input: impl Into<Input<'a>>) -> Result<(), Error> {
 }
 
 pub enum Input<'a> {
-    Repository(Address<'a>),
+    Repository(&'a Address<'a>),
 }
 
-impl<'a> Into<Input<'a>> for Address<'a> {
+impl<'a> Into<Input<'a>> for &'a Address<'a> {
     fn into(self) -> Input<'a> {
         Input::Repository(self)
     }
