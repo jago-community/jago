@@ -30,6 +30,7 @@ COPY . /root/local/jago
 COPY --from=builder /usr/src/jago/target/release/jago /usr/bin/jago
 
 ENV IDENTITY /root/local/jago/keys/id_rsa
+ENV JAGO git@github.com:jago-community/jago.git
 
 VOLUME ["/root/cache"]
 

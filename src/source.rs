@@ -37,9 +37,13 @@ macro_rules! write_start {
         if let Some(path) = $($style)* {
             let context = dirs::home_dir().unwrap();
 
-            let cleaned = path
-                .strip_prefix(context.join("cache"))
-                .unwrap_or(path.strip_prefix(context.join("local/jago"))?);
+            let cleaned = match path.strip_prefix(context.join("cache")) {
+                Ok(cleaned) => cleaned,
+                _ => match path.strip_prefix(context.join("local/jago")) {
+                    Ok(cleaned) => cleaned,
+                    Err(error) => return Err(Error::from(error)),
+                },
+            };
 
             write!($($target)*, "<link rel=\"stylesheet\" href=\"{}\">", cleaned.display())?;
         }
@@ -86,7 +90,7 @@ pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Resul
         maybe_style_path
     )?;
 
-    let context = directory.file_name();
+    let context = directory.file_stem();
 
     let mut buffer = String::from(
         "<details>\n\
@@ -120,9 +124,13 @@ pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Resul
 
         let context = dirs::home_dir().unwrap();
 
-        let cleaned = path
-            .strip_prefix(context.join("cache"))
-            .unwrap_or(path.strip_prefix(context.join("local/jago"))?);
+        let cleaned = match path.strip_prefix(context.join("cache")) {
+            Ok(cleaned) => cleaned,
+            _ => match path.strip_prefix(context.join("local/jago")) {
+                Ok(cleaned) => cleaned,
+                Err(error) => return Err(Error::from(error)),
+            },
+        };
 
         buffer.push_str(&format!("- [{}]({})\n", title.display(), cleaned.display()));
     }

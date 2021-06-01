@@ -52,7 +52,12 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let input = &path[1..];
 
-    let maybe_path = if let Ok(address) = crate::address::parse(input) {
+    let input = match std::env::var("JAGO") {
+        Ok(jago) if jago.len() > 0 => [&jago, input].join("/"),
+        _ => input.into(),
+    };
+
+    let maybe_path = if let Ok(address) = crate::address::parse(&input) {
         if let Err(error) = crate::cache::ensure(&address) {
             return Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)

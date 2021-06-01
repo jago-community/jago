@@ -36,36 +36,41 @@ fn local() -> Result<(), Error> {
 }
 
 use nom::{
+    branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, not_line_ending},
+    character::complete::{alpha1, line_ending, not_line_ending},
+    combinator::map,
     multi::many0,
     sequence::separated_pair,
     IResult,
 };
 
 pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
-    let (_, variables) = many0(variable)(i).map_err(|error: nom::Err<ParseError>| {
-        Error::Parse(match error {
-            nom::Err::Incomplete(needed) => ParseError {
-                input: i.into(),
-                kind: ParseErrorKind::Incomplete(needed),
-                backtrace: vec![],
-            },
-            nom::Err::Error(error) | nom::Err::Failure(error) => ParseError {
-                input: i.into(),
-                kind: error.kind,
-                backtrace: vec![],
-            },
-        })
-    })?;
+    let (_, variables) = many0(alt((map(variable, Some), map(comment, |_| dbg!(None)))))(i)
+        .map_err(|error: nom::Err<ParseError>| {
+            Error::Parse(match error {
+                nom::Err::Incomplete(needed) => ParseError {
+                    input: i.into(),
+                    kind: ParseErrorKind::Incomplete(needed),
+                    backtrace: vec![],
+                },
+                nom::Err::Error(error) | nom::Err::Failure(error) => ParseError {
+                    input: i.into(),
+                    kind: error.kind,
+                    backtrace: vec![],
+                },
+            })
+        })?;
 
-    Ok(variables)
+    println!("{:?}", variables);
+
+    Ok(variables.iter().filter_map(|tuple| *tuple).collect())
 }
 
 #[test]
-#[ignore]
 fn test_environment() {
     let raw = include_str!("../local");
+    dbg!(&raw);
     let list = environment(raw).unwrap();
 
     assert!(list.len() > 0);
@@ -73,7 +78,7 @@ fn test_environment() {
     let mut sane = false;
 
     for (key, value) in list {
-        if key == "IDENTITY" {
+        if key == "JAGO" {
             assert!(value != "$HOME");
             sane = true;
         }
@@ -82,8 +87,22 @@ fn test_environment() {
     assert!(sane);
 }
 
+use nom::sequence::pair;
+
 pub fn variable<'a>(i: &'a str) -> IResult<&'a str, (&'a str, &'a str), ParseError> {
-    separated_pair(alpha1, tag("="), not_line_ending)(i)
+    map(
+        pair(
+            separated_pair(alpha1, tag("="), not_line_ending),
+            line_ending,
+        ),
+        |(key_value, _)| key_value,
+    )(i)
+}
+
+use nom::{combinator::value, sequence::tuple};
+
+pub fn comment<'a>(i: &'a str) -> IResult<&'a str, (), ParseError> {
+    value((), tuple((tag("#"), not_line_ending, tag("\n"))))(i)
 }
 
 #[derive(Debug)]
