@@ -20,7 +20,7 @@ pub fn read<'a, W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Erro
 }
 
 macro_rules! write_start {
-    ( $( $target:expr, $context:expr )* ) => {
+    ( $( $target:expr, $context:expr, $style:expr )* ) => {{
         write!(
             $(
                 $target
@@ -30,18 +30,26 @@ macro_rules! write_start {
                 <head>\
                     <meta charset=\"utf-8\">\
                     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-                    <title>{context}</title>\
-
-                    <style>
-                        * {{
-                            max-width: 100%;
-                        }}
-                    </style>
-                </head>\
-                <body>",
+                    <title>{context}</title>",
             context = $($context)*.unwrap_or("Jago")
+        )?;
+
+        if let Some(path) = $($style)* {
+            let context = dirs::home_dir().unwrap();
+
+            let cleaned = path
+                .strip_prefix(context.join("cache"))
+                .unwrap_or(path.strip_prefix(context.join("local/jago"))?);
+
+            write!($($target)*, "<link rel=\"stylesheet\" href=\"{}\">", cleaned.display())?;
+        }
+
+
+        write!(
+            $($target)*,
+            "</head><body>"
         )
-    };
+    }};
 }
 
 macro_rules! write_end {
@@ -61,11 +69,29 @@ macro_rules! write_document {
 }
 
 pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Result<(), Error> {
-    write_start!(target, directory.file_name().and_then(|name| name.to_str()))?;
+    let maybe_style_path = {
+        let mut style_path = directory.as_ref().to_path_buf();
+        style_path.set_extension("css");
+
+        if std::fs::metadata(&style_path).is_ok() {
+            Some(style_path)
+        } else {
+            None
+        }
+    };
+
+    write_start!(
+        target,
+        directory.file_name().and_then(|name| name.to_str()),
+        maybe_style_path
+    )?;
 
     let context = directory.file_name();
 
-    let mut buffer = String::from("Directory:\n\n");
+    let mut buffer = String::from(
+        "<details>\n\
+        <summary>Directory:</summary>\n\n",
+    );
 
     let walker = WalkBuilder::new(directory.as_ref())
         .hidden(false)
@@ -101,20 +127,27 @@ pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Resul
         buffer.push_str(&format!("- [{}]({})\n", title.display(), cleaned.display()));
     }
 
+    buffer.push_str("</details>");
+
     write_document!(&mut target, &buffer)?;
 
     write_end!(target).map_err(Error::from)
 }
 
 fn read_file<W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Error> {
-    if crate::image::is_supported(path.as_ref()) {
-        return read_image(target, path.as_ref());
+    let is_special = path
+        .extension()
+        .map(|extension| extension == "css")
+        .unwrap_or(false);
+
+    if is_special || crate::image::is_supported(path.as_ref()) {
+        return read_content(target, path.as_ref());
     }
 
     read_document(target, path)
 }
 
-fn read_image<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
+fn read_content<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
     let mut buffer = vec![];
 
     let file = std::fs::File::open(path)?;
@@ -128,7 +161,22 @@ fn read_image<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
 fn read_document<W: Write>(mut target: W, path: Arc<PathBuf>) -> Result<(), Error> {
     let file = std::fs::File::open(path.as_ref())?;
 
-    write_start!(target, path.file_name().and_then(|name| name.to_str()))?;
+    let maybe_style_path = {
+        let mut style_path = path.as_ref().to_path_buf();
+        style_path.set_extension("css");
+
+        if std::fs::metadata(&style_path).is_ok() {
+            Some(style_path)
+        } else {
+            None
+        }
+    };
+
+    write_start!(
+        target,
+        path.file_name().and_then(|name| name.to_str()),
+        maybe_style_path
+    )?;
 
     let mut reader = std::io::BufReader::new(file);
 
