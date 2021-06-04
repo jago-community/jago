@@ -1,0 +1,4 @@
+PubkeyAuthentication       yes
+PasswordAuthentication     no
+AuthorizedKeysCommand      /home/shell/scripts/authenticate
+AuthorizedKeysCommandUser  shell

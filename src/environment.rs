@@ -46,8 +46,8 @@ use nom::{
 };
 
 pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
-    let (_, variables) = many0(alt((map(variable, Some), map(comment, |_| dbg!(None)))))(i)
-        .map_err(|error: nom::Err<ParseError>| {
+    let (_, variables) = many0(alt((map(variable, Some), map(comment, |_| None))))(i).map_err(
+        |error: nom::Err<ParseError>| {
             Error::Parse(match error {
                 nom::Err::Incomplete(needed) => ParseError {
                     input: i.into(),
@@ -60,9 +60,8 @@ pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
                     backtrace: vec![],
                 },
             })
-        })?;
-
-    println!("{:?}", variables);
+        },
+    )?;
 
     Ok(variables.iter().filter_map(|tuple| *tuple).collect())
 }
@@ -70,7 +69,6 @@ pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
 #[test]
 fn test_environment() {
     let raw = include_str!("../local");
-    dbg!(&raw);
     let list = environment(raw).unwrap();
 
     assert!(list.len() > 0);

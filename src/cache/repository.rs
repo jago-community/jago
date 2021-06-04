@@ -2,7 +2,7 @@ use crate::address::Address;
 
 #[test]
 fn test_ensure() {
-    fn clear<'a>(address: &'a Address<'a>) -> Result<(), Error> {
+    fn clear<'a>(address: &'a Address) -> Result<(), Error> {
         let context = dirs::home_dir().unwrap();
         let path = address.directory(context.join("cache"));
         let metadata = std::fs::metadata(&path)?;
@@ -37,7 +37,7 @@ fn test_ensure() {
     reader.decode().unwrap();
 }
 
-pub fn ensure<'a>(address: &'a Address<'a>) -> Result<(), Error> {
+pub fn ensure<'a>(address: &'a Address) -> Result<(), Error> {
     let context = dirs::home_dir().unwrap();
 
     let identity = context.join("local/jago/keys/id_rsa");
@@ -84,7 +84,7 @@ pub fn ensure<'a>(address: &'a Address<'a>) -> Result<(), Error> {
 
                     println!("cloning: {} -> {}", source, path.display());
 
-                    match builder.clone(source, &path) {
+                    match builder.clone(source.as_ref(), &path) {
                         Err(error) => {
                             eprintln!("Unexpected error while cloning repository: {}", error);
                             std::process::exit(1);

@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 /// Good enough address parsing capability.
-pub fn parse<'a>(content: &'a str) -> Result<Address<'a>, Error> {
+pub fn parse<'a>(content: &'a str) -> Result<Address, Error> {
     let (_, parsed) = address(content).map_err(|error: nom::Err<Error>| match error {
         nom::Err::Error(error) | nom::Err::Failure(error) => error,
         nom::Err::Incomplete(needed) => Error {
-            input: content.into(),
+            input: content.to_string(),
             kind: ErrorKind::Incomplete(needed),
             backtrace: vec![],
         },
@@ -12,21 +14,21 @@ pub fn parse<'a>(content: &'a str) -> Result<Address<'a>, Error> {
     Ok(parsed)
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Address<'a> {
-    source: &'a str,
-    parent: &'a str,
-    name: &'a str,
-    path: Option<&'a str>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Address {
+    source: String,
+    parent: String,
+    name: String,
+    path: Option<String>,
 }
 
 use std::path::PathBuf;
 
-impl<'a> Address<'a> {
+impl Address {
     pub fn full(&self, context: PathBuf) -> PathBuf {
-        let path = context.join(self.source);
+        let path = context.join(&self.source);
 
-        if let Some(rest) = self.path {
+        if let Some(rest) = &self.path {
             path.join(rest)
         } else {
             path
@@ -34,26 +36,30 @@ impl<'a> Address<'a> {
     }
 
     pub fn directory(&self, context: PathBuf) -> PathBuf {
-        let path = context.join(self.source);
+        let path = context.join(&self.source);
 
         path
     }
 
-    pub fn source(&self) -> &'a str {
-        self.source
+    pub fn source(&self) -> Cow<'_, String> {
+        Cow::Borrowed(&self.source)
     }
 }
 
-fn address<'a>(i: &'a str) -> nom::IResult<&'a str, Address<'a>, Error> {
+fn address<'a>(input: &'a str) -> nom::IResult<&'a str, Address, Error> {
     nom::combinator::map(
         nom::sequence::pair(source, nom::combinator::rest),
         |((source, parent, name), path)| Address {
-            source,
-            parent,
-            name,
-            path: if path == "" { None } else { Some(&path[1..]) },
+            source: source.into(),
+            parent: parent.into(),
+            name: name.into(),
+            path: if path == "" {
+                None
+            } else {
+                Some(path[1..].to_string())
+            },
         },
-    )(i)
+    )(input)
 }
 
 #[test]
@@ -63,24 +69,24 @@ fn test_address() {
         (
             "git@github.com:jago-community/jago.git/usage",
             Address {
-                source: "git@github.com:jago-community/jago.git",
-                parent: "jago-community",
-                name: "jago",
-                path: Some("usage"),
+                source: "git@github.com:jago-community/jago.git".into(),
+                parent: "jago-community".into(),
+                name: "jago".into(),
+                path: Some("usage".into()),
             },
         ),
         (
             "/start",
             Address {
-                source: "git@github.com:jago-community/jago.git",
-                parent: "jago-community",
-                name: "jago",
-                path: Some("usage"),
+                source: "git@github.com:jago-community/jago.git".into(),
+                parent: "jago-community".into(),
+                name: "jago".into(),
+                path: Some("usage".into()),
             },
         ),
     ];
     for (input, want) in cases {
-        assert_eq!(address(input).unwrap(), ("", want));
+        assert_eq!(address(input.into()).unwrap(), ("", want));
     }
 }
 

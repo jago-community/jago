@@ -1,15 +1,46 @@
-use crate::action::serve;
+use std::path::PathBuf;
+
+use crate::{
+    action::{serve, write},
+    address::{self, Address},
+    cache,
+};
+
+use bytes::Bytes;
+
+#[test]
+fn test_handle() {
+    use tokio_test::block_on;
+
+    let _ = std::fs::remove_file("/tmp/test_handle");
+
+    let input = "program write /tmp/test_handle some stuff";
+    let want = "some stuff";
+
+    let mut arguments = input.split(" ").map(String::from);
+    let context = parse(&mut arguments).unwrap();
+
+    block_on(async { handle(context).await }).unwrap();
+
+    let got = std::fs::read_to_string("/tmp/test_handle").unwrap();
+
+    assert_eq!(got, want);
+
+    std::fs::remove_file("/tmp/test_handle").unwrap();
+}
 
 pub async fn handle(context: Context) -> Result<(), Error> {
-    println!("context {:?}", context);
     match context.action {
-        Some(action) => match action {
+        Some(ref action) => match action {
             Action::Serve => serve::handle().await?,
+            Action::Store => {}
+            Action::Cache(address) => cache::ensure(address).map_err(Error::from)?,
+            Action::Write(target, input) => write::handle(target, input)?,
         },
         None => {
             println!("print help");
         }
-    };
+    }
     Ok(())
 }
 
@@ -21,6 +52,9 @@ pub struct Context {
 #[derive(Debug, PartialEq)]
 pub enum Action {
     Serve,
+    Store,
+    Cache(Address),
+    Write(PathBuf, Bytes),
 }
 
 #[test]
@@ -31,7 +65,8 @@ fn test_parse() {
     ];
 
     for (input, want) in cases {
-        let got = parse(&mut input.split(" ").map(String::from)).unwrap();
+        let mut arguments = input.split(" ").map(String::from);
+        let got = parse(&mut arguments).unwrap();
         assert_eq!(got.action, want);
     }
 }
@@ -46,6 +81,19 @@ pub fn parse<I: Iterator<Item = String>>(input: &mut I) -> Result<Context, Error
             "serve" => {
                 action = Some(Action::Serve);
             }
+            "cache" => {
+                let maybe_address: String = input.collect();
+                let mut address = address::parse(&maybe_address)?;
+                address = address.clone();
+                action = Some(Action::Cache(address));
+            }
+            "store" => {
+                action = Some(Action::Store);
+            }
+            "write" => {
+                let (target, body) = write::parse(input)?;
+                action = Some(Action::Write(target, body));
+            }
             _ => {}
         };
     }
@@ -57,6 +105,9 @@ pub fn parse<I: Iterator<Item = String>>(input: &mut I) -> Result<Context, Error
 pub enum Error {
     Machine(std::io::Error),
     Serve(serve::Error),
+    Cache(cache::Error),
+    Address(address::Error),
+    Write(write::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -64,6 +115,9 @@ impl std::fmt::Display for Error {
         match self {
             Error::Machine(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
+            Error::Cache(error) => write!(f, "{}", error),
+            Error::Address(error) => write!(f, "{}", error),
+            Error::Write(error) => write!(f, "{}", error),
         }
     }
 }
@@ -73,6 +127,9 @@ impl std::error::Error for Error {
         match self {
             Error::Machine(error) => Some(error),
             Error::Serve(error) => Some(error),
+            Error::Cache(error) => Some(error),
+            Error::Address(error) => Some(error),
+            Error::Write(error) => Some(error),
         }
     }
 }
@@ -86,5 +143,23 @@ impl From<std::io::Error> for Error {
 impl From<serve::Error> for Error {
     fn from(error: serve::Error) -> Self {
         Self::Serve(error)
+    }
+}
+
+impl From<cache::Error> for Error {
+    fn from(error: cache::Error) -> Self {
+        Self::Cache(error)
+    }
+}
+
+impl From<address::Error> for Error {
+    fn from(error: address::Error) -> Self {
+        Self::Address(error)
+    }
+}
+
+impl From<write::Error> for Error {
+    fn from(error: write::Error) -> Self {
+        Self::Write(error)
     }
 }

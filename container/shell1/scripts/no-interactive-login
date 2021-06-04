@@ -1,0 +1,5 @@
+#!/bin/sh
+printf '%s\n' "Welcome to the platform!"
+printf '%s\n' "You've successfully authenticated, but we do not"
+printf '%s\n' "provide interactive shell access."
+exit 128

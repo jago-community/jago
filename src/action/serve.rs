@@ -1,4 +1,4 @@
-use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use std::{borrow::Cow, convert::Infallible, net::SocketAddr, sync::Arc};
 
 use hyper::{
     http::StatusCode,
@@ -53,7 +53,7 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
     let input = &path[1..];
 
     let input = match std::env::var("JAGO") {
-        Ok(jago) if jago.len() > 0 => [&jago, input].join("/"),
+        Ok(jago) if jago.len() > 0 => Cow::Owned([&jago, input].join("/")),
         _ => input.into(),
     };
 
@@ -67,7 +67,7 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
         address.full(context.join("cache"))
     } else {
-        context.join("local/jago").join(input)
+        context.join("local/jago").join(input.as_ref())
     };
 
     let path = Arc::new(maybe_path);

@@ -17,7 +17,9 @@ async fn main() {
         _ => {}
     };
 
-    let context = match context::parse(&mut std::env::args()) {
+    let mut arguments = std::env::args();
+
+    let context = match context::parse(&mut arguments) {
         Ok(context) => context,
         Err(error) => {
             eprintln!("error handling input {}", error);

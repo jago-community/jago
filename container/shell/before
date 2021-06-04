@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+exec 3>&1 4>&2
+trap 'exec 2>&4 1>&3' 0 1 2 3
+exec 1>/before.log 2>&1
+
+random_password () {
+  cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+}
+
+printf "\n\033[0;44m---> Creating SSH master user.\033[0m\n"
+
+useradd -m -d /home/marcel -G ssh marcel -s /bin/bash
+
+echo "marcel:$(random_password)" | chpasswd
+echo 'PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin"' >> /home/marcel/.profile
+
+echo "marcel ALL=NOPASSWD:/bin/rm" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/bin/mkdir" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/bin/chown" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/useradd" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/deluser" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/chpasswd" >> /etc/sudoers
+
+useradd -m -d /home/git git -s /bin/bash
+echo "git:$(random_password)" | sudo chpasswd
+
+exec "$@"

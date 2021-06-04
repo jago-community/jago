@@ -1,0 +1,23 @@
+LogLevel DEBUG3
+ListenAddress 0.0.0.0:2002
+
+AuthenticationMethods publickey
+AuthorizedKeysFile none
+AuthorizedKeysCommand /usr/local/bin/cat_keys %f %h %k %t %U %u
+AuthorizedKeysCommandUser git
+
+PermitRootLogin no
+PasswordAuthentication no
+PermitTTY no
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+PermitOpen none
+PermitTunnel no
+X11Forwarding no
+PrintMotd no
+
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+#AuthorizedKeysCommand /usr/local/bin/cat_keys %u %k
+#AuthorizedKeysCommandUser nobody
