@@ -18,6 +18,3 @@ X11Forwarding no
 PrintMotd no
 
 Subsystem sftp /usr/lib/openssh/sftp-server
-
-#AuthorizedKeysCommand /usr/local/bin/cat_keys %u %k
-#AuthorizedKeysCommandUser nobody

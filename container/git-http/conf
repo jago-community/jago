@@ -2,11 +2,11 @@
 ServerName localhost
 ServerAdmin webmaster@localhost
 
-SetEnv GIT_PROJECT_ROOT /var/www/git
+SetEnv GIT_PROJECT_ROOT /var/www/storage
 SetEnv GIT_HTTP_EXPORT_ALL
 ScriptAlias / /usr/lib/git-core/git-http-backend/
 
-Alias / /var/www/git
+Alias / /var/www/storage
 
 <Directory /usr/lib/git-core>
 Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch

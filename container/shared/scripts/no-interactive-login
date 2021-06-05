@@ -1,0 +1,5 @@
+#!/bin/sh
+
+printf '%s\n' "Hello! You've successfully authenticated, but we don't"
+printf '%s\n' "support the functionality requested."
+exit 128

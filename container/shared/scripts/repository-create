@@ -1,0 +1,35 @@
+#!/bin/bash
+
+STAGING_DIRECTORY="/home/git/staging"
+
+STORAGE_DIRECTORY="/var/lib/shell/storage"
+
+REPOSITORY_NAME=$1
+REPOSITORY_PATH="$STAGING_DIRECTORY/$REPOSITORY_NAME.git"
+
+REPOSITORY_RELATIVE_NAME=${REPOSITORY_PATH#/home/git/staging/}
+
+mkdir -p $REPOSITORY_PATH
+
+pushd $REPOSITORY_PATH > /dev/null
+
+git init --bare --quiet
+git symbolic-ref HEAD refs/heads/main
+
+touch git-daemon-export-ok
+cp hooks/post-update.sample hooks/post-update
+git update-server-info
+chown -Rf git:git "$REPOSITORY_PATH.git"
+
+echo "Git repository $REPOSITORY_RELATIVE_NAME created"
+
+popd > /dev/null
+
+REPOSITORY_CONTEXT=$(dirname $REPOSITORY_RELATIVE_NAME)
+
+mkdir "/home/git/$REPOSITORY_CONTEXT"
+
+sudo mkdir -p "$STORAGE_DIRECTORY/$REPOSITORY_CONTEXT"
+sudo mv $REPOSITORY_PATH "$STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME"
+
+ln -s $STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME /home/git/$REPOSITORY_RELATIVE_NAME

@@ -1,0 +1,52 @@
+#!/bin/bash
+set -e
+
+random_password () {
+  cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+}
+
+USER_ID=1000
+GROUP_ID=1000
+
+groupadd -g $GROUP_ID shell
+
+mkdir -p /var/lib/shell/storage
+
+printf "\n\033[0;44m---> Creating shell user.\033[0m\n"
+
+useradd -m -d /home/marcel -G shell marcel -s /usr/bin/git-shell
+
+echo "marcel:$(random_password)" | chpasswd
+echo 'PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin"' >> /home/marcel/.profile
+
+echo "marcel ALL=NOPASSWD:/bin/rm" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/bin/mkdir" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/bin/chown" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/useradd" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/deluser" >> /etc/sudoers
+echo "marcel ALL=NOPASSWD:/usr/sbin/chpasswd" >> /etc/sudoers
+
+printf "\n\033[0;44m---> Creating git user.\033[0m\n"
+
+useradd -m -d /home/git -G shell git -s /usr/bin/git-shell
+
+echo "git ALL=NOPASSWD:/bin/rm" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/bin/mkdir" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/bin/mv" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/bin/chown" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/usr/sbin/useradd" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/usr/sbin/deluser" >> /etc/sudoers
+echo "git ALL=NOPASSWD:/usr/sbin/chpasswd" >> /etc/sudoers
+
+chown -R git:shell /home/git
+chown -R git:shell /var/lib/shell/storage
+chmod 766 -R /var/lib/shell/storage
+
+for repository in /var/lib/shell/storage/*.git
+do
+    ln -s $repository /home/git/$(basename $repository)
+done
+
+echo "git:$(random_password)" | sudo chpasswd
+
+exec "$@"

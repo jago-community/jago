@@ -1,33 +1,31 @@
 version: "3.8"
 services:
-  #serve:
-    #build:
-      #dockerfile: container/serve/Dockerfile
-      #context: ..
-    #ports:
-      #- "1342:1342"
-    #volumes:
-      #- cache:/root/cache
-  shell:
+  serve:
     build:
-      dockerfile: container/shell/Dockerfile
+      dockerfile: container/serve/Dockerfile
+      context: ..
+    ports:
+      - "1342:1342"
+    volumes:
+      - cache:/root/cache
+  git-ssh:
+    build:
+      dockerfile: container/git-ssh/Dockerfile
       context: ..
     restart: always
     ports:
       - "2002:2002"
     volumes:
-      - shell:/home/git
-      - keys:/home/shell/keys
-  #repository-serve:
-    #build:
-      #dockerfile: container/repository/Dockerfile
-      #context: ..
-    #restart: always
-    #ports:
-      #- "1001:80"
-    #volumes:
-      #- remote:/var/www/git
+      - storage:/var/lib/shell/storage
+  git-http:
+    build:
+      dockerfile: container/git-http/Dockerfile
+      context: ..
+    restart: always
+    ports:
+      - "1001:80"
+    volumes:
+      - storage:/var/www/storage
 volumes:
-  #cache:
-  shell:
-  keys:
+  cache:
+  storage:

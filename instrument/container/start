@@ -5,8 +5,8 @@ if [ $1 == "1" ]; then
     docker compose -f ~/local/jago/container/compose.yml down
     docker compose -f ~/local/jago/container/compose.yml rm
 
-    docker volume rm container_remote
-    docker volume rm container_cache
+    docker volume rm container_storage
+    #docker volume rm container_cache
 
     docker compose -f ~/local/jago/container/compose.yml build
 fi

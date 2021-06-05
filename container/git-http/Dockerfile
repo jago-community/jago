@@ -3,13 +3,13 @@ FROM ubuntu:18.04
 RUN apt update 2>/dev/null \
     && apt install -y git apache2 apache2-utils 2>/dev/null \
     && a2enmod env cgi alias rewrite \
-    && mkdir /var/www/git \
-    && chown -Rfv www-data:www-data /var/www/git
+    && mkdir /var/www/storage \
+    && chown -Rfv www-data:www-data /var/www/storage
 
-COPY ./container/repository/conf /etc/apache2/sites-available/git.conf
-COPY ./container/repository/create /usr/bin/mkrepo
+COPY ./container/git-http/conf /etc/apache2/sites-available/git.conf
+COPY ./container/shared/scripts/* /usr/bin/
 
-RUN chmod +x /usr/bin/mkrepo \
+RUN chmod +x /usr/bin/repository-create \
     && a2dissite 000-default.conf \
     && a2ensite git.conf
 

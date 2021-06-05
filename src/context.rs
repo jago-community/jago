@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    action::{serve, write},
+    action::{output, serve, write},
     address::{self, Address},
     cache,
 };
@@ -36,6 +36,10 @@ pub async fn handle(context: Context) -> Result<(), Error> {
             Action::Store => {}
             Action::Cache(address) => cache::ensure(address).map_err(Error::from)?,
             Action::Write(target, input) => write::handle(target, input)?,
+            Action::Output(target, info) => {
+                write::handle(&PathBuf::from("/tmp/jago"), info)?;
+                output::handle(target)?
+            }
         },
         None => {
             println!("print help");
@@ -55,6 +59,7 @@ pub enum Action {
     Store,
     Cache(Address),
     Write(PathBuf, Bytes),
+    Output(PathBuf, Bytes),
 }
 
 #[test]
@@ -94,6 +99,10 @@ pub fn parse<I: Iterator<Item = String>>(input: &mut I) -> Result<Context, Error
                 let (target, body) = write::parse(input)?;
                 action = Some(Action::Write(target, body));
             }
+            "output" => {
+                let (target, body) = output::parse(input)?;
+                action = Some(Action::Output(target, body));
+            }
             _ => {}
         };
     }
@@ -108,6 +117,7 @@ pub enum Error {
     Cache(cache::Error),
     Address(address::Error),
     Write(write::Error),
+    Output(output::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -118,6 +128,7 @@ impl std::fmt::Display for Error {
             Error::Cache(error) => write!(f, "{}", error),
             Error::Address(error) => write!(f, "{}", error),
             Error::Write(error) => write!(f, "{}", error),
+            Error::Output(error) => write!(f, "{}", error),
         }
     }
 }
@@ -130,6 +141,7 @@ impl std::error::Error for Error {
             Error::Cache(error) => Some(error),
             Error::Address(error) => Some(error),
             Error::Write(error) => Some(error),
+            Error::Output(error) => Some(error),
         }
     }
 }
@@ -161,5 +173,11 @@ impl From<address::Error> for Error {
 impl From<write::Error> for Error {
     fn from(error: write::Error) -> Self {
         Self::Write(error)
+    }
+}
+
+impl From<output::Error> for Error {
+    fn from(error: output::Error) -> Self {
+        Self::Output(error)
     }
 }
