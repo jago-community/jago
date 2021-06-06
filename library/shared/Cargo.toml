@@ -1,0 +1,28 @@
+[package]
+name = "shared"
+version = "0.1.0"
+authors = ["Isaac Snow <isaacjsnow@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.5.0" }
+hyper = { version = "0.14.7", features = ["full"] }
+git2 = "0.13.19"
+dirs = "3.0.2"
+nom = "6.1.2"
+bytes = "1.0.1"
+http = "0.2.4"
+shellexpand = "2.1.0"
+pulldown-cmark = "0.8.0"
+openssl = { version = "0.10.34", features = ["vendored"] }
+rand = "0.8.3"
+image = "0.23.14"
+ignore = "0.4.17"
+ssh2 = "0.9.1"
+
+[dev-dependencies]
+tokio-test = "0.4.1"
+pretty_assertions = "0.7.2"
+tempfile = "3.2.0"

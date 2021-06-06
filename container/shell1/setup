@@ -1,3 +1,0 @@
-#!/bin/bash
-
-echo "$PUBLIC_KEY" >> /shell/.ssh/authorized_keys

@@ -1,3 +1,0 @@
-#!/bin/sh
-
-echo "Hello, world!\n\n(\n${SSH_ORIGINAL_COMMAND}\n)" >> ~/log

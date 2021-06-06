@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    action::{output, serve, write},
+    action::{output, server, write},
     address::{self, Address},
     cache,
 };
@@ -32,7 +32,7 @@ fn test_handle() {
 pub async fn handle(context: Context) -> Result<(), Error> {
     match context.action {
         Some(ref action) => match action {
-            Action::Serve => serve::handle().await?,
+            Action::Serve => server::handle().await?,
             Action::Store => {}
             Action::Cache(address) => cache::ensure(address).map_err(Error::from)?,
             Action::Write(target, input) => write::handle(target, input)?,
@@ -79,8 +79,6 @@ fn test_parse() {
 pub fn parse<I: Iterator<Item = String>>(input: &mut I) -> Result<Context, Error> {
     let mut action = None;
 
-    let _reference = input.next();
-
     while let Some(item) = input.next() {
         match &item[..] {
             "serve" => {
@@ -113,7 +111,7 @@ pub fn parse<I: Iterator<Item = String>>(input: &mut I) -> Result<Context, Error
 #[derive(Debug)]
 pub enum Error {
     Machine(std::io::Error),
-    Serve(serve::Error),
+    Serve(server::Error),
     Cache(cache::Error),
     Address(address::Error),
     Write(write::Error),
@@ -152,8 +150,8 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<serve::Error> for Error {
-    fn from(error: serve::Error) -> Self {
+impl From<server::Error> for Error {
+    fn from(error: server::Error) -> Self {
         Self::Serve(error)
     }
 }

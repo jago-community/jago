@@ -1,3 +1,3 @@
 pub mod output;
-pub mod serve;
+pub mod server;
 pub mod write;

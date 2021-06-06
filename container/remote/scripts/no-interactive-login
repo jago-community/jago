@@ -1,5 +1,0 @@
-#!/bin/sh
-printf '%s\n' "Welcome to the platform."
-printf '%s\n' "You've successfully authenticated, but you can't"
-printf '%s\n' "access anything this way."
-exit 128

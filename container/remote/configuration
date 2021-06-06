@@ -1,6 +1,0 @@
-RSAAuthentication yes
-PubkeyAuthentication yes
-AuthorizedKeysCommand /remote/authenticate
-AuthorizedKeysCommandUser git
-PasswordAuthentication no
-Subsystem sftp /usr/lib/ssh/sftp-server

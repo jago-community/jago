@@ -52,29 +52,34 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let input = &path[1..];
 
-    let input = match std::env::var("JAGO") {
-        Ok(jago) if jago.len() > 0 => Cow::Owned([&jago, input].join("/")),
-        _ => input.into(),
-    };
+    let maybe_path = match shared::address::parse(&input) {
+        Ok(address) => address.full(context.join("cache")),
+        Err(error) => {
+            let gonna_try_this = match std::env::var("JAGO") {
+                Ok(jago) if jago.len() > 0 => Cow::Owned([&jago, input].join("/")),
+                _ => input.into(),
+            };
 
-    let maybe_path = if let Ok(address) = crate::address::parse(&input) {
-        if let Err(error) = crate::cache::ensure(&address) {
-            return Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body(Body::from(format!("{}", error)))
-                .unwrap());
+            match shared::address::parse(&gonna_try_this) {
+                Ok(address) => address.full(context.join("cache")),
+                Err(other_error) => {
+                    return Ok(Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .body(Body::from(format!(
+                            "Error finding path:\n\n{}\n\nand\n\n{}",
+                            error, other_error
+                        )))
+                        .unwrap())
+                }
+            }
         }
-
-        address.full(context.join("cache"))
-    } else {
-        context.join("local/jago").join(input.as_ref())
     };
 
     let path = Arc::new(maybe_path);
 
     let mut body = std::io::BufWriter::new(vec![]);
 
-    if let Err(error) = crate::source::read(&mut body, path) {
+    if let Err(error) = shared::source::read(&mut body, path) {
         Ok(Response::builder()
             .body(Body::from(format!("{}", error)))
             .unwrap())
@@ -97,8 +102,8 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 pub enum Error {
     Machine(std::io::Error),
     Serve(hyper::Error),
-    Source(crate::source::Error),
-    Cache(crate::cache::Error),
+    Source(shared::source::Error),
+    Cache(shared::cache::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -135,13 +140,13 @@ impl From<hyper::Error> for Error {
     }
 }
 
-impl From<crate::source::Error> for Error {
+impl From<shared::source::Error> for Error {
     fn from(error: crate::source::Error) -> Self {
         Self::Source(error)
     }
 }
 
-impl From<crate::cache::Error> for Error {
+impl From<shared::cache::Error> for Error {
     fn from(error: crate::cache::Error) -> Self {
         Self::Cache(error)
     }

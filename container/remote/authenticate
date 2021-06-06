@@ -1,5 +1,0 @@
-#!/bin/bash
-
-echo "$SSH_ORIGINAL_COMMAND" >> /remote/log
-
-exit 1

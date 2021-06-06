@@ -1,23 +1,6 @@
-FROM rust:1.51 as builder
-WORKDIR /usr/src/jago
+FROM builder:latest as builder
 
-COPY ./library/Cargo.toml ./library/Cargo.toml
-
-RUN mkdir ./library/src && echo "fn main() {}" >> ./library/src/main.rs
-
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
-
-RUN mkdir src && echo "fn main() {}" >> src/main.rs && \
-    cargo build --release && \
-    rm src/*.rs && \
-    rm ./library/src/*.rs
-
-COPY ./library/src ./library/src
-COPY ./src ./src
-
-RUN rm ./target/release/deps/jago* && \
-    cargo build --release
+RUN cargo build --release --features log
 
 FROM debian:stable
 
