@@ -1,13 +1,12 @@
-FROM builder:latest as builder
+FROM builder as builder
 
-RUN rm ./target/release/deps/jago* \
- && cargo build --release --features serve
+RUN cargo build --features serve --release --workspace
 
 FROM debian:buster-slim
 
-RUN apt-get update && \
-    apt-get install -y openssh-client && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+ && apt-get install -y openssh-client \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY . /root/local/jago
 
@@ -18,4 +17,4 @@ ENV JAGO git@github.com:jago-community/jago.git
 
 VOLUME ["/root/cache"]
 
-CMD ["/root/local/jago/action"]
+CMD ["jago", "serve"]

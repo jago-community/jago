@@ -1,0 +1,7 @@
+According to some numbers, and mostly my slice of the pie, there are two computer languages competing to be the infrastructure of the future. The important difference in my opinion being incentive. One being developed by a capitals, the other by some people who definitely include capitalists, but they are at least marketed as primarily not for profit. Ok, look all I'm saying is there were different design choices but I'm not gonna speculate why.
+
+An interesting difference in the two is their memory management. One of the languages carries the concepts of lifetime and ownership to help determine who can see what and when. These words at least sound sort of intuitive, right?
+
+Another concept at play is the garbage collector. The garbage collector is exactly what it sounds like. It's a process that goes around in the background cleaning up information that was used by a program. Many of us can relate and depending on where and who you are your input and the cost to you varies. However, we all know it's not really free. Someone's gotta pay for it.
+
+The other languages answer to the garbage collector is to make it so that the program runs some predefined routine when some the lifetime of a piece of information runs out. This is convenient because they did it in such a way that it it more or less done for you out of the box as long as you follow some rules. This makes for a more challenging process of getting everything to line up but I'd say it's worth it over all.

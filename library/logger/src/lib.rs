@@ -1,6 +1,6 @@
 pub use log;
 
-use std::path::PathBuf;
+use std::{iter::Peekable, path::PathBuf};
 
 pub fn before() -> Result<Box<dyn Fn()>, Error> {
     let output_directory = std::env::var("OUTPUT_DIRECTORY")
@@ -17,21 +17,19 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
             flexi_logger::Naming::Numbers,
             flexi_logger::Cleanup::KeepLogFiles(5),
         )
+        .print_message()
         .start()?;
 
     Ok(Box::new(move || {
-        println!("running after");
         logger.shutdown();
     }))
 }
 
-pub fn handle<I: Iterator<Item = String>>(input: &mut I) -> Result<bool, Error> {
-    dbg!("here");
-    if let Some(first) = input.next() {
-        if dbg!(first) != "log" {
-            return Ok(false);
-        }
-    }
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<bool, Error> {
+    match input.peek() {
+        Some(next) if next == "log" => input.next(),
+        _ => return Ok(false),
+    };
 
     let level = if let Some(first) = input.next() {
         first
@@ -39,7 +37,7 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut I) -> Result<bool, Error> 
         return Ok(false);
     };
 
-    let level = dbg!(level).parse()?;
+    let level = level.parse()?;
 
     let rest = input.collect::<Vec<_>>().join(" ");
 

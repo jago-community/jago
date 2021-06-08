@@ -1,4 +1,0 @@
-#!/bin/bash
-
-# jago check git@github.com:jago-community/jago.git
-jago serve

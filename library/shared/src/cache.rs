@@ -1,5 +1,7 @@
 mod repository;
 
+use std::path::Path;
+
 use crate::address::Address;
 
 pub fn ensure<'a>(input: impl Into<Input<'a>>) -> Result<(), Error> {

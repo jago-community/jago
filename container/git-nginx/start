@@ -1,0 +1,12 @@
+#!/bin/bash
+
+STORAGE_DIRECTORY="/var/lib/shell/storage"
+
+shopt -s globstar
+for repository in "$STORAGE_DIRECTORY/*/*.git"; do
+    target=/var/www/git/${repository#$STORAGE_DIRECTORY/}
+    mkdir -p $target
+    ln -s $repository $target
+done
+
+nginx -g "daemon off;"

@@ -7,16 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default=["log"]
-log=["logger"]
-serve=["tokio", "old"]
+serve=["server"]
 
 [dependencies]
-logger = { path = "library/logger", optional = true }
-tokio = { version = "1.5.0", features = ["full"], optional = true }
-old = { path = "library/old", optional = true }
-cfg-if = "1.0.0"
-clap = "2.33.3"
+logger = { path = "library/logger" }
+server = { path = "library/server", optional = true }
+log = "0.4.14"
 
 [workspace]
-members = ["library/logger", "library/old"]
+members = [
+    "library/logger",
+    "library/server",
+    "library/shared"
+]

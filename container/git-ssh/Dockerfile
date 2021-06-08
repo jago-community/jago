@@ -1,6 +1,6 @@
-FROM builder:latest as builder
+FROM builder as builder
 
-RUN cargo build --release --features log
+RUN cargo build --release -p logger -p jago
 
 FROM debian:stable
 

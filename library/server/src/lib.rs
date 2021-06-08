@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::Infallible, net::SocketAddr, sync::Arc};
+use std::{borrow::Cow, convert::Infallible, iter::Peekable, net::SocketAddr, sync::Arc};
 
 use hyper::{
     http::StatusCode,
@@ -6,7 +6,12 @@ use hyper::{
     Body, Method, Request, Response, Server,
 };
 
-pub async fn handle() -> Result<(), Error> {
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<bool, Error> {
+    match input.peek() {
+        Some(next) if next == "serve" => input.next(),
+        _ => return Ok(false),
+    };
+
     println!(
         "You are now in \"terminal insert\" mode. Below are some examples of what do to:\n\n\
 
@@ -17,22 +22,27 @@ pub async fn handle() -> Result<(), Error> {
         - You can close this pane but if you do not quit the process it will continue in the background. To close the pane, enter normal mode and type `:q`.",
     );
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 1342));
+    let runtime = tokio::runtime::Runtime::new()?;
 
-    let make_svc =
-        make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle_request)) });
+    runtime
+        .block_on(async {
+            let addr = SocketAddr::from(([0, 0, 0, 0], 1342));
 
-    let server = Server::bind(&addr).serve(make_svc);
+            let make_svc =
+                make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle_request)) });
 
-    let server = server.with_graceful_shutdown(async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install CTRL+C signal handler");
-    });
+            let server = Server::bind(&addr).serve(make_svc);
 
-    server.await?;
+            let server = server.with_graceful_shutdown(async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("failed to install CTRL+C signal handler");
+            });
 
-    Ok(())
+            server.await
+        })
+        .map(|_| true)
+        .map_err(Error::from)
 }
 
 async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infallible> {
@@ -48,54 +58,71 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let context = dirs::home_dir().unwrap();
 
+    let mut maybe_address: Option<shared::address::Address> = None;
+
     let path = request.uri().path();
 
     let input = &path[1..];
 
     let maybe_path = match shared::address::parse(&input) {
-        Ok(address) => address.full(context.join("cache")),
-        Err(error) => {
-            let gonna_try_this = match std::env::var("JAGO") {
-                Ok(jago) if jago.len() > 0 => Cow::Owned([&jago, input].join("/")),
-                _ => input.into(),
-            };
+        Ok(address) => {
+            let path = address.full(context.join("cache"));
+            maybe_address = Some(address);
+            path
+        }
+        Err(error) => match std::env::var("JAGO") {
+            Ok(jago) if jago.len() > 0 => {
+                let gonna_try_this = Cow::Owned([&jago, input].join("/"));
 
-            match shared::address::parse(&gonna_try_this) {
-                Ok(address) => address.full(context.join("cache")),
-                Err(other_error) => {
-                    return Ok(Response::builder()
-                        .status(StatusCode::NOT_FOUND)
-                        .body(Body::from(format!(
-                            "Error finding path:\n\n{}\n\nand\n\n{}",
-                            error, other_error
-                        )))
-                        .unwrap())
+                match shared::address::parse(&gonna_try_this) {
+                    Ok(address) => {
+                        let path = address.full(context.join("cache"));
+                        maybe_address = Some(address);
+                        path
+                    }
+                    Err(other_error) => {
+                        return Ok(Response::builder()
+                            .status(StatusCode::NOT_FOUND)
+                            .body(Body::from(format!(
+                                "Error finding path:\n\n{}\n\nand\n\n{}",
+                                error, other_error
+                            )))
+                            .unwrap())
+                    }
                 }
             }
-        }
+            _ => context.join("local/jago").join(input),
+        },
     };
+
+    if let Some(address) = maybe_address {
+        if let Err(error) = shared::cache::ensure(&address) {
+            return Ok(bad_request(error.into()));
+        }
+    }
 
     let path = Arc::new(maybe_path);
 
     let mut body = std::io::BufWriter::new(vec![]);
 
-    if let Err(error) = shared::source::read(&mut body, path) {
-        Ok(Response::builder()
-            .body(Body::from(format!("{}", error)))
-            .unwrap())
+    if let Err(error) = shared::source::read(&mut body, path.clone()) {
+        Ok(bad_request(Error::from(error)))
     } else {
-        let body = match body.into_inner() {
-            Ok(body) => body,
-            Err(error) => {
-                return Ok(Response::builder()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from(format!("{}", error)))
-                    .unwrap());
-            }
-        };
-
-        Ok(Response::builder().body(Body::from(body)).unwrap())
+        match body.into_inner() {
+            Ok(body) => Ok(Response::builder().body(Body::from(body)).unwrap()),
+            Err(error) => Ok(Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from(format!("{}", error)))
+                .unwrap()),
+        }
     }
+}
+
+fn bad_request(error: Error) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(Body::from(format!("{}", error)))
+        .unwrap()
 }
 
 #[derive(Debug)]
@@ -141,13 +168,13 @@ impl From<hyper::Error> for Error {
 }
 
 impl From<shared::source::Error> for Error {
-    fn from(error: crate::source::Error) -> Self {
+    fn from(error: shared::source::Error) -> Self {
         Self::Source(error)
     }
 }
 
 impl From<shared::cache::Error> for Error {
-    fn from(error: crate::cache::Error) -> Self {
+    fn from(error: shared::cache::Error) -> Self {
         Self::Cache(error)
     }
 }

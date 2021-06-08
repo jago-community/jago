@@ -1,4 +1,6 @@
 #!/bin/bash
 set -e
 
-jago output /etc/ssh/keys cmd2=$SSH2_ORIGINAL_COMMAND cmd=$SSH_ORIGINAL_COMMAND $@
+#jago output /etc/ssh/keys cmd2=$SSH2_ORIGINAL_COMMAND cmd=$SSH_ORIGINAL_COMMAND $@
+
+cat /etc/ssh/keys
