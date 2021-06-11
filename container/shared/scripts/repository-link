@@ -4,6 +4,7 @@ context=$(dirname $1)
 name=$(basename $1)
 
 if [ "$name" != ".git" ]; then
-    mkdir -p "$TARGET_DIRECTORY/$(basename $context)"
-    ln -s $1 "$TARGET_DIRECTORY/$(basename $context)/$name"
+    target="$TARGET_DIRECTORY/$(basename $context)"
+    mkdir -p $target
+    ln -s $1 "$target/$name"
 fi
