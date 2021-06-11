@@ -42,10 +42,10 @@ chown -R git:shell /home/git
 chown -R git:shell /var/lib/shell/storage
 chmod 766 -R /var/lib/shell/storage
 
-for repository in /var/lib/shell/storage/*/*.git
-do
-    ln -s $repository /home/git/$(basename $repository)
-done
+#for repository in /var/lib/shell/storage/*/*.git
+#do
+    #ln -s $repository /home/git/$(basename $repository)
+#done
 
 echo "git:$(random_password)" | sudo chpasswd
 

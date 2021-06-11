@@ -25,6 +25,9 @@ COPY container/shared/scripts /home/git/git-shell-commands
 COPY container/git-ssh/start /usr/local/bin/start
 RUN chmod +x /usr/local/bin/start
 
+ENV STORAGE_DIRECTORY /var/lib/shell/storage
+ENV TARGET_DIRECTORY /home/git
+
 ENTRYPOINT ["/usr/local/bin/start"]
 
 COPY container/git-ssh/keys /etc/ssh/keys

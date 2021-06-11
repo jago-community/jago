@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+find $STORAGE_DIRECTORY -name "*.git" -print0 \
+    | xargs -0 -n 1 -r $TARGET_DIRECTORY/git-shell-commands/repository-link
+
 service ssh start
 service ssh status
 

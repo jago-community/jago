@@ -1,0 +1,12 @@
+#!/bin/bash
+set -ex
+
+STORAGE_DIRECTORY=${STORAGE_DIRECTORY:-"~/storage"}
+TARGET_DIRECTORY=${TARGET_DIRECTORY:-"~/target"}
+
+find $STORAGE_DIRECTORY -name "*.git" -print0 \
+    | xargs -0 -n 1 -r $TARGET_DIRECTORY/git-shell-commands/repository-link
+
+spawn-fcgi -M 666 -s /var/run/fcgiwrap.socket /usr/sbin/fcgiwrap
+
+nginx -g 'daemon off;'

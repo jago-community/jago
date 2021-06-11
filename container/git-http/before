@@ -1,5 +1,0 @@
-#!/bin/bash
-set -ex
-
-ls /var/lib/shell/storage
-ln -s /var/lib/shell/storage/* /var/www/git/

@@ -1,32 +1,29 @@
-FROM ubuntu:18.04
+FROM builder as builder
 
-RUN apt update 2>/dev/null \
- && apt install -y git apache2 apache2-utils 2>/dev/null \
- && a2enmod env cgi alias rewrite \
- && mkdir /var/www/git \
- && chown -Rfv www-data:www-data /var/www/git \
- && chown -Rfv www-data:www-data /var/lib/shell/storage
+RUN cargo build --release -p logger -p jago
 
-COPY container/git-http/before /usr/local/bin/before
-RUN chmod +x /usr/local/bin/before
-RUN /usr/local/bin/before
+FROM nginx:1.21.0
 
-COPY ./container/git-http/conf /etc/apache2/sites-available/git.conf
-COPY ./container/shared/scripts/* /usr/bin/
+COPY --from=builder /usr/src/jago/target/release/jago /usr/bin/jago
 
-RUN chmod +x /usr/bin/repository-create \
- && a2dissite 000-default.conf \
- && a2ensite git.conf
+RUN apt-get update \
+ && apt-get install nginx git nano fcgiwrap apache2-utils -y \
+ && ln -sf /dev/stdout /var/log/nginx/access.log \
+ && ln -sf /dev/stderr /var/log/nginx/error.log \
+ && git config --system http.receivepack true \
+ && git config --system http.uploadpack true \
+ && adduser git --home /var/lib/git \
+ && adduser nginx www-data \
+ && chown -R www-data:www-data /var/lib/git
 
-RUN git config --system http.receivepack true \
- && git config --system http.uploadpack true
+COPY container/shared/scripts /var/lib/git/git-shell-commands
 
-ENV APACHE_RUN_USER www-data
-ENV APACHE_RUN_GROUP www-data
-ENV APACHE_LOG_DIR /var/log/apache2
-ENV APACHE_LOCK_DIR /var/lock/apache2
-ENV APACHE_PID_FILE /var/run/apache2.pid
+COPY container/git-http/git.conf /etc/nginx/conf.d/default.conf
 
-CMD /usr/sbin/apache2ctl -D FOREGROUND
+ENV STORAGE_DIRECTORY /var/lib/shell/storage
+ENV TARGET_DIRECTORY /var/lib/git
 
-EXPOSE 80/tcp
+COPY container/git-http/start /usr/local/bin/start
+RUN chmod +x /usr/local/bin/start
+
+ENTRYPOINT start

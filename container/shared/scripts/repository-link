@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ex
 
 context=$(dirname $1)
 name=$(basename $1)
@@ -6,5 +7,6 @@ name=$(basename $1)
 if [ "$name" != ".git" ]; then
     target="$TARGET_DIRECTORY/$(basename $context)"
     mkdir -p $target
+
     ln -s $1 "$target/$name"
 fi

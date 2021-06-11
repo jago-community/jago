@@ -17,24 +17,15 @@ services:
       - "2002:2002"
     volumes:
       - storage:/var/lib/shell/storage
-  git-nginx:
+  git-http:
     build:
       context: ..
-      dockerfile: container/git-nginx/Dockerfile
+      dockerfile: container/git-http/Dockerfile
     restart: always
     ports:
       - "1002:80"
     volumes:
       - storage:/var/lib/shell/storage
-  #git-http:
-    #build:
-      #context: ..
-      #dockerfile: container/git-http/Dockerfile
-    #restart: always
-    #ports:
-      #- "1001:80"
-    #volumes:
-      #- storage:/var/lib/shell/storage
 volumes:
   cache:
   storage:
