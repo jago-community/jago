@@ -6,10 +6,10 @@ use hyper::{
     Body, Method, Request, Response, Server,
 };
 
-pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<bool, Error> {
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
     match input.peek() {
         Some(next) if next == "serve" => input.next(),
-        _ => return Ok(false),
+        _ => return Err(Error::Incomplete),
     };
 
     println!(
@@ -41,7 +41,6 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<boo
 
             server.await
         })
-        .map(|_| true)
         .map_err(Error::from)
 }
 
@@ -127,6 +126,7 @@ fn bad_request(error: Error) -> Response<Body> {
 
 #[derive(Debug)]
 pub enum Error {
+    Incomplete,
     Machine(std::io::Error),
     Serve(hyper::Error),
     Source(shared::source::Error),
@@ -136,6 +136,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Incomplete => write!(f, "incomplete"),
             Error::Machine(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
             Error::Source(error) => write!(f, "{}", error),
@@ -147,6 +148,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Error::Incomplete => None,
             Error::Machine(error) => Some(error),
             Error::Serve(error) => Some(error),
             Error::Source(error) => Some(error),

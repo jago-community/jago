@@ -1,5 +1,3 @@
-pub use log;
-
 use std::{iter::Peekable, path::PathBuf};
 
 pub fn before() -> Result<Box<dyn Fn()>, Error> {
@@ -25,16 +23,16 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
     }))
 }
 
-pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<bool, Error> {
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
     match input.peek() {
         Some(next) if next == "log" => input.next(),
-        _ => return Ok(false),
+        _ => return Err(Error::Incomplete),
     };
 
     let level = if let Some(first) = input.next() {
         first
     } else {
-        return Ok(false);
+        return Err(Error::Incomplete);
     };
 
     let level = level.parse()?;
@@ -43,11 +41,12 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<boo
 
     log::log!(level, "{}", rest);
 
-    Ok(true)
+    Ok(())
 }
 
 #[derive(Debug)]
 pub enum Error {
+    Incomplete,
     Logger(flexi_logger::FlexiLoggerError),
     Level(log::ParseLevelError),
 }
@@ -55,6 +54,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Incomplete => write!(f, "incomplete"),
             Self::Logger(error) => write!(f, "{}", error),
             Self::Level(error) => write!(f, "{}", error),
         }
@@ -64,6 +64,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Incomplete => None,
             Self::Logger(error) => Some(error),
             Self::Level(error) => Some(error),
         }

@@ -8,15 +8,20 @@ edition = "2018"
 
 [features]
 serve=["server"]
+store=["storage"]
 
 [dependencies]
 logger = { path = "library/logger" }
 server = { path = "library/server", optional = true }
+storage = { path = "library/storage", optional = true }
 log = "0.4.14"
+#platform = { path = "library/platform" }
 
 [workspace]
 members = [
     "library/logger",
+    "library/shared",
     "library/server",
-    "library/shared"
+    "library/storage",
+    "library/platform"
 ]

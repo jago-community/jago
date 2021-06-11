@@ -1,12 +1,24 @@
 #!/bin/bash
+set -ex
 
-STORAGE_DIRECTORY="/var/lib/shell/storage"
+STORAGE_DIRECTORY=${STORAGE_DIRECTORY:-"/var/lib/shell/storage"}
+TARGET_DIRECTORY=${TARGET_DIRECTORY:-"/var/www/git"}
 
-shopt -s globstar
-for repository in "$STORAGE_DIRECTORY/*/*.git"; do
-    target=/var/www/git/${repository#$STORAGE_DIRECTORY/}
-    mkdir -p $target
-    ln -s $repository $target
-done
+#cargo run -- log info "looking in $STORAGE_DIRECTORY"
 
-nginx -g "daemon off;"
+find $STORAGE_DIRECTORY -name "*.git" -print0 | xargs -0 -n 1 ~/git-shell-commands/repository-link
+
+#for context in $STORAGE_DIRECTORY; do
+    #jago log info context $context
+    #for repository in $context/*.git; do
+        #jago log info context $context
+        #if [ -d "$repository" ]; then
+            #target=/var/www/git/${repository#$STORAGE_DIRECTORY/}
+            #jago log info "target=$target" "context=$context" "repository=$repository"
+            ##mkdir -p $target
+            ##ln -s $repository $target
+        #fi
+    #done
+#done
+
+#nginx

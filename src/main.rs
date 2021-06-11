@@ -21,20 +21,40 @@ fn main() {
     log::info!("starting execution");
 
     match logger::handle(&mut input) {
-        Err(error) => {
-            eprintln!("error handling log input: {}", error);
-            code = 1;
-        }
+        Err(error) => match &error {
+            logger::Error::Incomplete => {}
+            _ => {
+                eprintln!("error handling log input: {}", error);
+                code = 1;
+            }
+        },
         _ => {}
     };
 
     #[cfg(feature = "serve")]
     {
         match server::handle(&mut input) {
-            Err(error) => {
-                eprintln!("error handling server input: {}", error);
-                code = 1;
-            }
+            Err(error) => match &error {
+                server::Error::Incomplete => {}
+                _ => {
+                    eprintln!("error handling server input: {}", error);
+                    code = 1;
+                }
+            },
+            _ => {}
+        };
+    }
+
+    #[cfg(feature = "storage")]
+    {
+        match storage::handle(&mut input) {
+            Err(error) => match &error {
+                storage::Error::Incomplete => {}
+                _ => {
+                    eprintln!("error handling storage input: {}", error);
+                    code = 1;
+                }
+            },
             _ => {}
         };
     }
