@@ -24,21 +24,21 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
 }
 
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
-    match input.peek() {
+    dbg!(1);
+    match dbg!(input.peek()) {
         Some(next) if next == "log" => input.next(),
         _ => return Err(Error::Incomplete),
     };
-
+    dbg!(2);
     let level = if let Some(first) = input.next() {
         first
     } else {
         return Err(Error::Incomplete);
     };
-
+    dbg!(3);
     let level = level.parse()?;
 
     let rest = input.collect::<Vec<_>>().join(" ");
-
     log::log!(level, "{}", rest);
 
     Ok(())

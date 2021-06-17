@@ -1,8 +1,12 @@
 #!/bin/bash
 set -e
 
+scripts=$TARGET_DIRECTORY/git-shell-commands
+
 find $STORAGE_DIRECTORY -name "*.git" -print0 \
-    | xargs -0 -n 1 -r $TARGET_DIRECTORY/git-shell-commands/repository-link
+    | xargs -0 -n 1 -r $scripts/repository-link
+
+$scripts/watch-then $STORAGE_DIRECTORY $scripts/repository-link
 
 service ssh start
 service ssh status

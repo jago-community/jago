@@ -1,3 +1,9 @@
+- scale security with git ssh
+- implement password security for http
+- security
+
+## old
+
 - If refresh a couple times, then force git update
 - add map file to replace reading `~/local/jago` with `~/cache/git@...`
 - rewrite git history

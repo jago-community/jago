@@ -1,17 +1,21 @@
 #!/bin/bash
+set -ex
 
-STAGING_DIRECTORY="/home/git/staging"
+source ~/variables
 
-STORAGE_DIRECTORY="/var/lib/shell/storage"
+TARGET_DIRECTORY=${TARGET_DIRECTORY:-"~/target"}
+STORAGE_DIRECTORY=${STORAGE_DIRECTORY:-"~/storage"}
+
+STAGING_DIRECTORY="$TARGET_DIRECTORY/staging"
 
 REPOSITORY_NAME=$1
-REPOSITORY_PATH="$STAGING_DIRECTORY/$REPOSITORY_NAME.git"
+STAGING_PATH="$STAGING_DIRECTORY/$REPOSITORY_NAME.git"
 
-REPOSITORY_RELATIVE_NAME=${REPOSITORY_PATH#/home/git/staging/}
+REPOSITORY_RELATIVE_NAME=${STAGING_PATH#$STAGING_DIRECTORY}
 
-mkdir -p $REPOSITORY_PATH
+mkdir -p $STAGING_PATH
 
-pushd $REPOSITORY_PATH > /dev/null
+pushd $STAGING_PATH > /dev/null
 
 git init --bare --quiet
 git symbolic-ref HEAD refs/heads/main
@@ -19,7 +23,7 @@ git symbolic-ref HEAD refs/heads/main
 touch git-daemon-export-ok
 cp hooks/post-update.sample hooks/post-update
 git update-server-info
-chown -Rf git:git "$REPOSITORY_PATH.git"
+chown -Rf git:git "$STAGING_PATH"
 
 echo "Git repository $REPOSITORY_RELATIVE_NAME created"
 
@@ -27,9 +31,9 @@ popd > /dev/null
 
 REPOSITORY_CONTEXT=$(dirname $REPOSITORY_RELATIVE_NAME)
 
-mkdir "/home/git/$REPOSITORY_CONTEXT"
+mkdir "$TARGET_DIRECTORY/$REPOSITORY_CONTEXT"
 
 sudo mkdir -p "$STORAGE_DIRECTORY/$REPOSITORY_CONTEXT"
-sudo mv $REPOSITORY_PATH "$STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME"
+sudo mv $STAGING_PATH "$STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME"
 
-ln -s $STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME /home/git/$REPOSITORY_RELATIVE_NAME
+$TARGET_DIRECTORY/git-shell-commands/repository-link "$STORAGE_DIRECTORY/$REPOSITORY_RELATIVE_NAME"

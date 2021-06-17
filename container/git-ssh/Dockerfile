@@ -28,6 +28,11 @@ RUN chmod +x /usr/local/bin/start
 ENV STORAGE_DIRECTORY /var/lib/shell/storage
 ENV TARGET_DIRECTORY /home/git
 
+RUN echo "#!/bin/bash\n\
+export STORAGE_DIRECTORY=/var/lib/shell/storage\n\
+export TARGET_DIRECTORY=/home/git\n" \
+  >> /home/git/variables
+
 ENTRYPOINT ["/usr/local/bin/start"]
 
 COPY container/git-ssh/keys /etc/ssh/keys

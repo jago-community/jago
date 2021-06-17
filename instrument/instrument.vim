@@ -35,9 +35,11 @@ function! JHandle(...) abort
             throw "upgrade vim to version 8.1 or higher"
         endif
 
-        let container = expand('$HOME') . '/local/jago/container/serve/Dockerfile'
+        let scripts = expand('$HOME') . '/local/jago/instrument/container/'
 
-        execute cmd 'docker build --tag jago-serve -f ' . container . ' .'
+        let cmd = cmd . ' ' . scripts . 'build'
+
+        execute cmd
     elseif kind == "container-serve"
         if has('terminal')
             let cmd = 'vertical terminal'
@@ -45,7 +47,6 @@ function! JHandle(...) abort
             throw "upgrade vim to version 8.1 or higher"
         endif
 
-        let compose = 'docker compose -f ' . expand('$HOME') . '/local/jago/container/compose.yml'
         let scripts = expand('$HOME') . '/local/jago/instrument/container/'
 
         let append = a:2 == 1 ? ' 1' : ' 0'

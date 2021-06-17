@@ -10,8 +10,7 @@ if [ $1 == "1" ]; then
     docker volume rm container_cache
 fi
 
-docker build -f ~/local/jago/container/builder/Dockerfile ~/local/jago --progress=plain
+~/local/jago/instrument/container/build
 
-docker compose -f ~/local/jago/container/compose.yml build --progress=plain
 docker compose -f ~/local/jago/container/compose.yml create
 docker compose -f ~/local/jago/container/compose.yml start

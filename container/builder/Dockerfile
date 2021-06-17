@@ -8,11 +8,13 @@ RUN mkdir library \
  && cargo new --lib shared \
  && cargo new --lib logger \
  && cargo new --lib server \
+ && cargo new --lib storage \
  && cd ..
 
 COPY library/shared/Cargo.toml library/shared/Cargo.toml
 COPY library/logger/Cargo.toml library/logger/Cargo.toml
 COPY library/server/Cargo.toml library/server/Cargo.toml
+COPY library/storage/Cargo.toml library/storage/Cargo.toml
 
 RUN cargo init --bin
 
@@ -28,12 +30,15 @@ RUN rm -rf ./src/* ./library/*/src/* \
  && rm ./target/release/deps/libshared* \
  && rm ./target/release/deps/liblogger* \
  && rm ./target/release/deps/libserver* \
+ && rm ./target/release/deps/libstorage* \
  && rm ./target/release/deps/shared* \
  && rm ./target/release/deps/logger* \
  && rm ./target/release/deps/server* \
+ && rm ./target/release/deps/storage* \
  && rm ./target/release/jago* \
  && rm ./target/release/libshared* \
  && rm ./target/release/liblogger* \
+ && rm ./target/release/libstorage* \
  && rm ./target/release/libserver* && echo 0
 
 RUN ls ./target/release/deps && echo 1
@@ -48,3 +53,4 @@ COPY ./src ./src
 COPY library/shared/src library/shared/src
 COPY library/logger/src library/logger/src
 COPY library/server/src library/server/src
+COPY library/storage/src library/storage/src

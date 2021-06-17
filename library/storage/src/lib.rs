@@ -11,6 +11,7 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
 
     match input.next() {
         Some(action) if &action == "link" => link(input)?,
+        Some(action) if &action == "watch" => watch(input)?,
         _ => return Err(Error::Incomplete),
     };
 
@@ -50,10 +51,89 @@ pub fn create_link(target: &Path, destination: &Path) -> Result<(), Error> {
     .map_err(Error::from)
 }
 
+use notify::{
+    event::{CreateKind, EventKind},
+    RecommendedWatcher, RecursiveMode, Watcher,
+};
+use std::sync::mpsc::channel;
+
+pub fn watch<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
+    let root = input
+        .next()
+        .map(PathBuf::from)
+        .map(Ok)
+        .unwrap_or(Err(Error::Incomplete))?;
+    let handler = input
+        .next()
+        .map(PathBuf::from)
+        .map(Ok)
+        .unwrap_or(Err(Error::Incomplete))?;
+
+    let (tx, rx) = channel();
+
+    let mut watcher = RecommendedWatcher::new_immediate(move |result| {
+        match result {
+            Ok(event) => match tx.send(event) {
+                Err(error) => log::error!("error sending message to receiver {}", error),
+                _ => {}
+            },
+            Err(error) => {
+                log::error!("watch error: {}", error);
+            }
+        };
+    })?;
+
+    let runtime = tokio::runtime::Runtime::new()?;
+
+    runtime.block_on(async {
+        watcher.watch(&root, RecursiveMode::NonRecursive)?;
+
+        for event in rx {
+            match &event.kind {
+                EventKind::Create(CreateKind::Folder) => {
+                    for path in &event.paths {
+                        let context = path.parent();
+
+                        if Some(root.as_ref()) == context {
+                            watcher.watch(&path, RecursiveMode::NonRecursive)?;
+
+                            for entry in std::fs::read_dir(path)? {
+                                let entry = entry?;
+                                let path = entry.path();
+
+                                execute_handler(&path, &handler)?;
+                            }
+                        } else {
+                            execute_handler(&path, &handler)?;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    })
+}
+
+fn execute_handler(target: &Path, handler: &Path) -> Result<(), Error> {
+    use std::{io::Write, process::Command};
+
+    let output = Command::new(handler).arg(target).output()?;
+
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
+
+    handle
+        .write_all(output.stdout.as_slice())
+        .map_err(Error::from)
+}
+
 #[derive(Debug)]
 pub enum Error {
     Incomplete,
     Machine(std::io::Error),
+    Watch(notify::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -61,6 +141,7 @@ impl std::fmt::Display for Error {
         match self {
             Self::Incomplete => write!(f, "incomplete input for storage"),
             Self::Machine(error) => write!(f, "{}", error),
+            Self::Watch(error) => write!(f, "watch {}", error),
         }
     }
 }
@@ -70,6 +151,7 @@ impl std::error::Error for Error {
         match self {
             Self::Incomplete => None,
             Self::Machine(error) => Some(error),
+            Self::Watch(error) => Some(error),
         }
     }
 }
@@ -77,5 +159,11 @@ impl std::error::Error for Error {
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
         Error::Machine(error)
+    }
+}
+
+impl From<notify::Error> for Error {
+    fn from(error: notify::Error) -> Error {
+        Error::Watch(error)
     }
 }

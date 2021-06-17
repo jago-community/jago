@@ -1,6 +1,6 @@
 FROM builder as builder
 
-RUN cargo build --release -p logger -p jago
+RUN cargo build --release -p logger -p storage -p jago --features storage
 
 FROM nginx:1.21.0
 
@@ -14,7 +14,8 @@ RUN apt-get update \
  && git config --system http.uploadpack true \
  && adduser git --home /var/lib/git \
  && adduser nginx www-data \
- && chown -R www-data:www-data /var/lib/git
+ && chown -R www-data:www-data /var/lib/git \
+ && touch /var/lib/git/variables
 
 COPY container/shared/scripts /var/lib/git/git-shell-commands
 
