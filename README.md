@@ -1,16 +1,18 @@
 Jago
 
-A fictional platform with a basically random structure.
+An imaginary platform.
 
-Potentially pertinent:
+We feel obligated to present these links to you:
 
-[Terms of service.](%)
-[Privacy policy.](%)
+- [Terms of service.](%)
+- [Privacy policy.](%)
 
-Bounty:
+## Mission Statement
 
-- [Random.org](bounty/%)
+Complete and total anarchy.
 
-Other:
+## Story
 
-[Random.](%)
+Now that that's out of the way, we can get down to business.
+
+That's right Jago is a business. Yes, there is an actual entity formed in the eyes United States government formed for us. Can you believe it?
