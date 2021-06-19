@@ -1,5 +1,6 @@
 use std::{borrow::Cow, convert::Infallible, iter::Peekable, net::SocketAddr, sync::Arc};
 
+use futures::future::{Future, FutureExt};
 use hyper::{
     http::StatusCode,
     service::{make_service_fn, service_fn},
@@ -24,24 +25,28 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
 
     let runtime = tokio::runtime::Runtime::new()?;
 
-    runtime
-        .block_on(async {
-            let addr = SocketAddr::from(([0, 0, 0, 0], 1342));
+    let close = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install CTRL+C signal handler");
+    };
 
-            let make_svc =
-                make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle_request)) });
+    runtime.block_on(serve(close)).map_err(Error::from)
+}
 
-            let server = Server::bind(&addr).serve(make_svc);
+pub type Handle<'a> = futures::future::BoxFuture<'a, Result<(), Error>>;
 
-            let server = server.with_graceful_shutdown(async {
-                tokio::signal::ctrl_c()
-                    .await
-                    .expect("failed to install CTRL+C signal handler");
-            });
+pub fn serve<'a>(close: impl Future<Output = ()> + 'a + Send) -> Handle<'a> {
+    let addr = SocketAddr::from(([0, 0, 0, 0], 1342));
 
-            server.await
-        })
-        .map_err(Error::from)
+    let make_svc =
+        make_service_fn(|_conn| async { Ok::<_, Infallible>(service_fn(handle_request)) });
+
+    let server = Server::bind(&addr).serve(make_svc);
+
+    let server = server.with_graceful_shutdown(async { close.await });
+
+    server.map(|result| result.map_err(Error::from)).boxed()
 }
 
 async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infallible> {

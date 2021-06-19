@@ -1,196 +1,261 @@
-mod unicode;
+use std::{
+    iter::Peekable,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use tinytemplate::TinyTemplate as Templates;
 
-use proc_macro::TokenStream;
-use proc_macro2_diagnostics::{Diagnostic, Level};
-use quote::{format_ident, quote};
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-struct Platform {
-    features: HashMap<String, Vec<String>>,
-}
-
-#[proc_macro]
-pub fn build(_input: TokenStream) -> TokenStream {
-    let configuration = include_str!("../../../Cargo.toml");
-
-    let platform: Platform = match toml::from_str(configuration) {
-        Ok(platform) => platform,
-        Err(error) => {
-            return Diagnostic::new(Level::Error, "Unable to parse Cargo.toml")
-                .error(error.to_string())
-                .emit_as_expr_tokens()
-                .into();
-        }
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
+    match input.peek() {
+        Some(next) if next == "platform" => input.next(),
+        _ => return Err(Error::Incomplete),
     };
 
-    let mut before = quote!();
-    let mut body = quote!();
-    let mut error_kinds = quote!();
-    let mut error_formatters = quote!();
-    let mut error_sourcers = quote!();
-    let mut error_transformers = quote!();
+    let runtime = tokio::runtime::Runtime::new()?;
 
-    for (feature, crates) in &platform.features {
-        if feature == "default" {
-            continue;
+    runtime.block_on(async {
+        match input.next() {
+            Some(action) => match &action[..] {
+                "build" => build(input, None).await.map(|_| ()),
+                _ => Err(Error::BadInput([action, input.collect()].join(" "))),
+            },
+            _ => Err(Error::Incomplete),
         }
-
-        for handler in crates {
-            let handler_ident = format_ident!("{}", handler);
-
-            let library_path = PathBuf::from("library")
-                .join(handler)
-                .join("src")
-                .join("lib.rs");
-
-            match has_before(&library_path) {
-                Ok(true) => {
-                    println!("{} has before", handler);
-
-                    before.extend(quote! {
-                        match #handler_ident::before() {
-                            Ok(cleanup) => {
-                                after = Some(cleanup);
-                            }
-                            Err(error) => {
-                                eprintln!("error starting logger: {}", error);
-                                code = 1;
-                            }
-                        };
-                    });
-                }
-                Err(error) => {
-                    return error.emit_as_expr_tokens().into();
-                }
-                _ => {}
-            };
-
-            body.extend(quote! {
-                #[cfg(feature = #feature)]
-                match #handler_ident::handle(&mut input) {
-                    Err(error) => match &error {
-                        #handler_ident::Error::Incomplete => {}
-                        _ => {
-                            eprintln!("error handling {} input: {}", stringify!(#handler), error);
-                            code = 1;
-                        }
-                    },
-                    _ => {}
-                };
-            });
-
-            let formatted = unicode::to_upper_camel_case(feature);
-            let formatted = format_ident!("{}", formatted);
-
-            error_kinds.extend(quote! {
-                #[cfg(feature = #feature)]
-                #formatted(#handler_ident::Error),
-            });
-
-            error_formatters.extend(quote! {
-                #[cfg(feature = #feature)]
-                Error::#formatted(error) => error.fmt(f),
-            });
-
-            error_sourcers.extend(quote! {
-                #[cfg(feature = #feature)]
-                Error::#formatted(error) => Some(error),
-            });
-
-            error_transformers.extend(quote! {
-                #[cfg(feature = #feature)]
-                impl From<#handler_ident::Error> for Error {
-                    fn from(error: #handler_ident::Error) -> Self {
-                        Self::#formatted(error)
-                    }
-                }
-            });
-        }
-    }
-
-    TokenStream::from(quote! {
-        fn main() {
-            let start = std::time::Instant::now();
-
-            let mut input = std::env::args().skip(1).peekable();
-            let mut code = 0;
-            let mut after: Option<Box<dyn Fn()>> = None;
-
-            #before
-
-            log::info!("starting execution");
-
-            #body
-
-            log::info!("{:?} elapsed", start.elapsed());
-
-            if let Some(after) = after {
-                after();
-            }
-
-            std::process::exit(code);
-        }
-
-        #[derive(Debug)]
-        enum Error {
-            #error_kinds
-        }
-
-        impl std::fmt::Display for Error {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    #error_formatters
-                }
-            }
-        }
-
-        impl std::error::Error for Error {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-                match self {
-                    #error_sourcers
-                }
-            }
-        }
-
-        #error_transformers
     })
 }
 
-fn has_before(library_path: &Path) -> Result<bool, Diagnostic> {
-    let mut file = File::open(library_path).map_err(|error| {
-        Diagnostic::new(
-            Level::Error,
-            format!("Unable to open file {}", library_path.display()),
-        )
-        .error(error.to_string())
-    })?;
+#[test]
+fn test_build() {
+    tokio_test::block_on(async {
+        let empty = vec![String::new()];
+        let mut input = empty.iter().cloned();
+        let built = build(&mut input, Some("test")).await.unwrap();
+        assert_eq!(built, "test-builder");
+    });
+}
 
-    let mut source = String::new();
+async fn build<I: Iterator<Item = String>>(
+    _input: &mut I,
+    prefix: Option<&str>,
+) -> Result<String, Error> {
+    use bollard::image::BuildImageOptions;
+    use bollard::Docker;
+    use futures_util::stream::StreamExt;
+    use std::io::{Read, Write};
 
-    file.read_to_string(&mut source).map_err(|error| {
-        Diagnostic::new(Level::Error, "Unable to read file").error(error.to_string())
-    })?;
+    let context = dirs::home_dir().unwrap().join("local").join("jago");
 
-    let tree = syn::parse_file(&source).map_err(|error| {
-        Diagnostic::new(
-            Level::Error,
-            format!("Unable to open file {}", library_path.display()),
-        )
-        .error(error.to_string())
-    })?;
+    let mut template = String::new();
+    let mut template_file = std::fs::File::open(context.join("container/builder/Dockerfile"))?;
+    template_file.read_to_string(&mut template)?;
 
-    Ok(tree
-        .items
-        .iter()
-        .find(|item| match item {
-            syn::Item::Fn(ref function) if "before" == &function.sig.ident.to_string()[..] => true,
-            _ => false,
-        })
-        .is_some())
+    let mut templates = Templates::new();
+    templates.add_template("builder", &template)?;
+
+    let library = library::inspect(&context)?;
+
+    let rendered = templates.render("builder", &library)?;
+
+    let path = context
+        .join("container")
+        .join("builder")
+        .join("build.Dockerfile");
+
+    let mut container_file = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&path)?;
+
+    container_file.write_all(rendered.as_bytes())?;
+
+    drop(container_file);
+
+    let (key, done, server) = serve_build_context(&context)?;
+
+    let build_context = get_build_context(&context)?;
+
+    let docker = Docker::connect_with_unix_defaults()?;
+
+    let tag = [prefix.unwrap_or(""), "builder"].join("-");
+
+    let options = BuildImageOptions {
+        dockerfile: path.to_str().unwrap(),
+        t: &tag.clone(),
+        remote: &key,
+        ..Default::default()
+    };
+
+    let mut output = docker.build_image(options, None, Some(hyper::Body::from(build_context)));
+
+    while let Some(msg) = output.next().await {
+        println!("Message: {:?}", msg);
+    }
+
+    done();
+
+    server.await?;
+
+    Ok(tag)
+}
+
+fn serve_build_context<'a>(
+    context: &'a Path,
+) -> Result<(String, Box<dyn FnOnce()>, server::Handle<'a>), Error> {
+    use futures::{channel::oneshot, future::FutureExt};
+
+    let (stop, stopped) = oneshot::channel::<Result<(), Error>>();
+
+    let handle = server::serve(async {
+        let signalled = async { tokio::signal::ctrl_c().await.map_err(Error::from) };
+
+        let _done = futures::select! {
+            cancelled = signalled.fuse() => cancelled,
+            stopped = stopped.fuse() => match stopped {
+                Err(_cancelled) => {
+                    log::info!("(kasdjhfl) sender cancelled");
+                    Ok(())
+                },
+                _ => Ok(())
+            },
+        };
+    });
+
+    let key = format!("http://0.0.0.0:1342/container/builder/Dockerfile",);
+
+    let stop = move || {
+        if let Err(_) = stop.send(Ok(())).map_err(|_| Error::Shutdown) {
+            log::info!("(sfkhe) error sending stop signal");
+        }
+    };
+
+    Ok((key, Box::new(stop), handle))
+}
+
+fn get_build_context(context: &Path) -> Result<Vec<u8>, Error> {
+    let mut builder = ignore::WalkBuilder::new(&context);
+
+    builder.add_ignore(context.join(".dockerignore"));
+    builder.add_ignore(context.join(".gitignore"));
+
+    let build_context = builder.build();
+
+    let mut archive = tar::Builder::new(vec![]);
+
+    for entry in build_context {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path == context {
+            continue;
+        }
+
+        if let Some(kind) = entry.file_type() {
+            let path = entry.path();
+            let destination = path.strip_prefix(&context)?;
+
+            if kind.is_file() {
+                let mut file = std::fs::File::open(&path)?;
+                archive.append_file(destination, &mut file)?;
+            } else {
+                archive.append_dir(destination, path)?;
+            }
+        }
+    }
+
+    archive.into_inner().map_err(Error::from)
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Incomplete,
+    BadInput(String),
+    Template(tinytemplate::error::Error),
+    Machine(std::io::Error),
+    Container(bollard::errors::Error),
+    Library(library::Error),
+    Context(ignore::Error),
+    Prefix(std::path::StripPrefixError),
+    Shutdown,
+    Serve(server::Error),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Incomplete => write!(f, "incomplete"),
+            Self::BadInput(input) => write!(f, "bad input: {}", input),
+            Self::Template(error) => write!(f, "{}", error),
+            Self::Machine(error) => write!(f, "{}", error),
+            Self::Container(error) => write!(f, "{}", error),
+            Self::Library(error) => write!(f, "{}", error),
+            Self::Context(error) => write!(f, "{}", error),
+            Self::Prefix(error) => write!(f, "{}", error),
+            Self::Shutdown => write!(
+                f,
+                "Unknown error happened while shutting down server. You can probably ignore this."
+            ),
+            Self::Serve(error) => write!(f, "{}", error),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Incomplete => None,
+            Self::BadInput(_) => None,
+            Self::Template(error) => Some(error),
+            Self::Machine(error) => Some(error),
+            Self::Container(error) => Some(error),
+            Self::Library(error) => Some(error),
+            Self::Context(error) => Some(error),
+            Self::Prefix(error) => Some(error),
+            Self::Shutdown => None,
+            Self::Serve(error) => Some(error),
+        }
+    }
+}
+
+impl From<tinytemplate::error::Error> for Error {
+    fn from(error: tinytemplate::error::Error) -> Self {
+        Self::Template(error)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        Self::Machine(error)
+    }
+}
+
+impl From<bollard::errors::Error> for Error {
+    fn from(error: bollard::errors::Error) -> Self {
+        Self::Container(error)
+    }
+}
+
+impl From<library::Error> for Error {
+    fn from(error: library::Error) -> Self {
+        Self::Library(error)
+    }
+}
+
+impl From<ignore::Error> for Error {
+    fn from(error: ignore::Error) -> Self {
+        Self::Context(error)
+    }
+}
+
+impl From<std::path::StripPrefixError> for Error {
+    fn from(error: std::path::StripPrefixError) -> Self {
+        Self::Prefix(error)
+    }
+}
+
+impl From<server::Error> for Error {
+    fn from(error: server::Error) -> Self {
+        Self::Serve(error)
+    }
 }

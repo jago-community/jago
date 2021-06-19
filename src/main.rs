@@ -1,1 +1,1 @@
-platform::build!();
+program::build!();

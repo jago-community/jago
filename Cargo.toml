@@ -7,23 +7,15 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default=["logs"]
-logs=["logger"]
-serve=["server"]
-store=["storage"]
+default=["logger"]
 
 [dependencies]
-platform = { path = "library/platform" }
+program = { path = "library/program" }
 logger = { path = "library/logger", optional = true }
 server = { path = "library/server", optional = true }
 storage = { path = "library/storage", optional = true }
+platform = { path = "library/platform", optional = true }
 log = "0.4.14"
 
 [workspace]
-members = [
-    "library/platform",
-    "library/logger",
-    "library/shared",
-    "library/server",
-    "library/storage"
-]
+members = ["library/*"]
