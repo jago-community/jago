@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use serde::Serialize;
 use tinytemplate::TinyTemplate as Templates;
 
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
@@ -26,6 +27,7 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
 }
 
 #[test]
+#[ignore]
 fn test_build() {
     tokio_test::block_on(async {
         let empty = vec![String::new()];
@@ -72,7 +74,7 @@ async fn build<I: Iterator<Item = String>>(
 
     drop(container_file);
 
-    let (key, done, server) = serve_build_context(&context)?;
+    let (key, done, server) = serve_build_context(&context, library)?;
 
     let build_context = get_build_context(&context)?;
 
@@ -100,9 +102,50 @@ async fn build<I: Iterator<Item = String>>(
     Ok(tag)
 }
 
-fn serve_build_context<'a>(
+#[test]
+fn build_context() {
+    use std::io::Write;
+
+    use hyper::{body::HttpBody, Client};
+
+    let context = dirs::home_dir().unwrap().join("local").join("jago");
+    let library = library::inspect(&context).unwrap();
+
+    let (definition, _) = tokio_test::block_on(async {
+        let (key, stop, handle) = serve_build_context(&context, library).unwrap();
+
+        let definition = async {
+            let client = Client::new();
+            let uri = key.parse().unwrap();
+            let mut resp = client.get(uri).await.unwrap();
+            stop();
+
+            let mut body = vec![];
+
+            while let Some(chunk) = resp.body_mut().data().await {
+                body.write_all(&chunk.unwrap()).unwrap();
+            }
+
+            String::from_utf8(body).unwrap()
+        };
+
+        futures::join!(definition, handle)
+    });
+
+    dbg!(&definition);
+
+    assert!(definition.starts_with("FROM"));
+    assert!(!definition.contains("{{ endfor }}"));
+    assert!(!definition.contains("html"));
+}
+
+fn serve_build_context<'a, S>(
     context: &'a Path,
-) -> Result<(String, Box<dyn FnOnce()>, server::Handle<'a>), Error> {
+    library: S,
+) -> Result<(String, Box<dyn FnOnce()>, server::Handle<'a>), Error>
+where
+    S: Serialize,
+{
     use futures::{channel::oneshot, future::FutureExt};
 
     let (stop, stopped) = oneshot::channel::<Result<(), Error>>();
@@ -122,7 +165,14 @@ fn serve_build_context<'a>(
         };
     });
 
-    let key = format!("http://0.0.0.0:1342/container/builder/Dockerfile",);
+    let library = bincode::serialize(&library)?;
+
+    let key = format!(
+        "http://0.0.0.0:1342/container/builder/Dockerfile?library={}",
+        base64::encode(library)
+    );
+
+    dbg!(&key);
 
     let stop = move || {
         if let Err(_) = stop.send(Ok(())).map_err(|_| Error::Shutdown) {
@@ -179,6 +229,7 @@ pub enum Error {
     Prefix(std::path::StripPrefixError),
     Shutdown,
     Serve(server::Error),
+    Serialize(bincode::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -197,6 +248,7 @@ impl std::fmt::Display for Error {
                 "Unknown error happened while shutting down server. You can probably ignore this."
             ),
             Self::Serve(error) => write!(f, "{}", error),
+            Self::Serialize(error) => write!(f, "{}", error),
         }
     }
 }
@@ -214,6 +266,7 @@ impl std::error::Error for Error {
             Self::Prefix(error) => Some(error),
             Self::Shutdown => None,
             Self::Serve(error) => Some(error),
+            Self::Serialize(error) => Some(error),
         }
     }
 }
@@ -257,5 +310,11 @@ impl From<std::path::StripPrefixError> for Error {
 impl From<server::Error> for Error {
     fn from(error: server::Error) -> Self {
         Self::Serve(error)
+    }
+}
+
+impl From<bincode::Error> for Error {
+    fn from(error: bincode::Error) -> Self {
+        Self::Serialize(error)
     }
 }

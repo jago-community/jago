@@ -1,4 +1,7 @@
-use std::{borrow::Cow, convert::Infallible, iter::Peekable, net::SocketAddr, sync::Arc};
+use std::{
+    borrow::Cow, collections::HashMap, convert::Infallible, iter::Peekable, net::SocketAddr,
+    sync::Arc,
+};
 
 use futures::future::{Future, FutureExt};
 use hyper::{
@@ -64,8 +67,19 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let mut maybe_address: Option<shared::address::Address> = None;
 
-    let path = request.uri().path();
+    let uri = request.uri();
 
+    let variables = match parse_variables(uri.query().unwrap_or("")) {
+        Ok(variables) => variables,
+        Err(error) => {
+            return Ok(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from(format!("error parsing variables: {}", error)))
+                .unwrap())
+        }
+    };
+
+    let path = uri.path();
     let input = &path[1..];
 
     let maybe_path = match shared::address::parse(&input) {
@@ -109,7 +123,7 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let mut body = std::io::BufWriter::new(vec![]);
 
-    if let Err(error) = shared::source::read(&mut body, path.clone()) {
+    if let Err(error) = shared::source::read(&mut body, path.clone(), &variables) {
         Ok(bad_request(Error::from(error)))
     } else {
         match body.into_inner() {
@@ -120,6 +134,23 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
                 .unwrap()),
         }
     }
+}
+
+fn parse_variables<'a>(query: &'a str) -> Result<shared::source::Variables<'a>, Error> {
+    let mut variables = HashMap::new();
+
+    for mut pair in query.split("&").map(|segment| segment.split("=")) {
+        match (pair.next(), pair.next()) {
+            (Some(key), Some(encoded)) => {
+                let serialized = base64::decode(encoded)?;
+                let value = bincode::deserialize(&serialized)?;
+                variables.insert(key, value);
+            }
+            _ => {}
+        };
+    }
+
+    Ok(variables)
 }
 
 fn bad_request(error: Error) -> Response<Body> {
@@ -136,16 +167,20 @@ pub enum Error {
     Serve(hyper::Error),
     Source(shared::source::Error),
     Cache(shared::cache::Error),
+    Deserialize(bincode::Error),
+    Decode(base64::DecodeError),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Incomplete => write!(f, "incomplete"),
+            Error::Incomplete => write!(f, "incomplete"),
             Error::Machine(error) => write!(f, "{}", error),
             Error::Serve(error) => write!(f, "{}", error),
             Error::Source(error) => write!(f, "{}", error),
             Error::Cache(error) => write!(f, "{}", error),
+            Error::Deserialize(error) => write!(f, "{}", error),
+            Error::Decode(error) => write!(f, "{}", error),
         }
     }
 }
@@ -158,6 +193,8 @@ impl std::error::Error for Error {
             Error::Serve(error) => Some(error),
             Error::Source(error) => Some(error),
             Error::Cache(error) => Some(error),
+            Error::Deserialize(error) => Some(error),
+            Error::Decode(error) => Some(error),
         }
     }
 }
@@ -183,5 +220,17 @@ impl From<shared::source::Error> for Error {
 impl From<shared::cache::Error> for Error {
     fn from(error: shared::cache::Error) -> Self {
         Self::Cache(error)
+    }
+}
+
+impl From<bincode::Error> for Error {
+    fn from(error: bincode::Error) -> Self {
+        Self::Deserialize(error)
+    }
+}
+
+impl From<base64::DecodeError> for Error {
+    fn from(error: base64::DecodeError) -> Self {
+        Self::Decode(error)
     }
 }

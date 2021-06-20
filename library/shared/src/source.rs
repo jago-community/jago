@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
@@ -6,14 +7,21 @@ use std::{
 
 use ignore::WalkBuilder;
 use pulldown_cmark::{html, Options, Parser};
+use tinytemplate::TinyTemplate as Templates;
 
-pub fn read<'a, W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Error> {
+pub type Variables<'a> = HashMap<&'a str, serde_json::Value>;
+
+pub fn read<'a, W: Write>(
+    target: &mut W,
+    path: Arc<PathBuf>,
+    variables: &'a Variables<'a>,
+) -> Result<(), Error> {
     let metadata = std::fs::metadata(path.as_ref())?;
 
     if metadata.is_file() {
-        read_file(target, path)?;
+        read_file(target, path, variables)?;
     } else {
-        read_directory(target, path)?;
+        read_directory(target, path, variables)?;
     }
 
     Ok(())
@@ -72,7 +80,11 @@ macro_rules! write_document {
     }};
 }
 
-pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Result<(), Error> {
+pub fn read_directory<'a, W: Write>(
+    mut target: W,
+    directory: Arc<PathBuf>,
+    variables: &'a Variables<'a>,
+) -> Result<(), Error> {
     let maybe_style_path = {
         let mut style_path = directory.as_ref().to_path_buf();
         style_path.set_extension("css");
@@ -112,7 +124,7 @@ pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Resul
         }
 
         if context == path.file_name() {
-            read_file(&mut target, Arc::new(path.to_path_buf()))?;
+            read_file(&mut target, Arc::new(path.to_path_buf()), variables)?;
         }
 
         let parent = match path.parent() {
@@ -142,20 +154,33 @@ pub fn read_directory<W: Write>(mut target: W, directory: Arc<PathBuf>) -> Resul
     write_end!(target).map_err(Error::from)
 }
 
-fn read_file<W: Write>(target: &mut W, path: Arc<PathBuf>) -> Result<(), Error> {
-    let is_special = path
+fn read_file<'a, W: Write>(
+    target: &mut W,
+    path: Arc<PathBuf>,
+    variables: &'a Variables<'a>,
+) -> Result<(), Error> {
+    let is_style = path
         .extension()
         .map(|extension| extension == "css")
         .unwrap_or(false);
 
-    if is_special || crate::image::is_supported(path.as_ref()) {
+    if is_style || crate::image::is_supported(path.as_ref()) {
         return read_content(target, path.as_ref());
+    }
+
+    let is_container_definition = path
+        .file_stem()
+        .map(|stem| stem == "Dockerfile")
+        .unwrap_or(false);
+
+    if is_container_definition {
+        return read_template(target, path.as_ref(), variables);
     }
 
     read_document(target, path)
 }
 
-fn read_content<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
+fn read_content<'a, W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
     let mut buffer = vec![];
 
     let file = std::fs::File::open(path)?;
@@ -164,6 +189,27 @@ fn read_content<W: Write>(target: &mut W, path: &Path) -> Result<(), Error> {
     reader.read_to_end(&mut buffer)?;
 
     target.write_all(&buffer).map_err(Error::from)
+}
+
+fn read_template<'a, W: Write>(
+    target: &mut W,
+    path: &Path,
+    variables: &'a Variables<'a>,
+) -> Result<(), Error> {
+    let mut buffer = vec![];
+
+    read_content(&mut buffer, dbg!(path))?;
+
+    let template = String::from_utf8(buffer)?;
+
+    let mut templates = Templates::new();
+    let key = path.display().to_string();
+
+    templates.add_template(&key, &template)?;
+
+    let rendered = templates.render(&key, variables)?;
+
+    target.write_all(rendered.as_bytes()).map_err(Error::from)
 }
 
 fn read_document<W: Write>(mut target: W, path: Arc<PathBuf>) -> Result<(), Error> {
@@ -211,6 +257,8 @@ pub enum Error {
     NoParent(PathBuf),
     CleanPath(std::path::StripPrefixError),
     Walk(ignore::Error),
+    FromUtf8(std::string::FromUtf8Error),
+    Template(tinytemplate::error::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -221,6 +269,8 @@ impl std::fmt::Display for Error {
             Error::NoParent(path) => write!(f, "no parent for path: {}", path.display()),
             Error::CleanPath(error) => write!(f, "{}", error),
             Error::Walk(error) => write!(f, "{}", error),
+            Error::FromUtf8(error) => write!(f, "{}", error),
+            Error::Template(error) => write!(f, "{}", error),
         }
     }
 }
@@ -233,6 +283,8 @@ impl std::error::Error for Error {
             Error::NoParent(_) => None,
             Error::CleanPath(error) => Some(error),
             Error::Walk(error) => Some(error),
+            Error::FromUtf8(error) => Some(error),
+            Error::Template(error) => Some(error),
         }
     }
 }
@@ -255,8 +307,20 @@ impl From<std::path::StripPrefixError> for Error {
     }
 }
 
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        Self::FromUtf8(error)
+    }
+}
+
 impl From<ignore::Error> for Error {
     fn from(error: ignore::Error) -> Self {
         Self::Walk(error)
+    }
+}
+
+impl From<tinytemplate::error::Error> for Error {
+    fn from(error: tinytemplate::error::Error) -> Self {
+        Self::Template(error)
     }
 }
