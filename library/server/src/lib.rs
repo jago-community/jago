@@ -143,7 +143,7 @@ fn parse_variables<'a>(query: &'a str) -> Result<shared::source::Variables<'a>, 
         match (pair.next(), pair.next()) {
             (Some(key), Some(encoded)) => {
                 let serialized = base64::decode(encoded)?;
-                let value = bincode::deserialize(&serialized)?;
+                let value = serde_json::from_slice(&serialized)?;
                 variables.insert(key, value);
             }
             _ => {}
@@ -167,7 +167,7 @@ pub enum Error {
     Serve(hyper::Error),
     Source(shared::source::Error),
     Cache(shared::cache::Error),
-    Deserialize(bincode::Error),
+    Deserialize(serde_json::Error),
     Decode(base64::DecodeError),
 }
 
@@ -223,8 +223,8 @@ impl From<shared::cache::Error> for Error {
     }
 }
 
-impl From<bincode::Error> for Error {
-    fn from(error: bincode::Error) -> Self {
+impl From<serde_json::Error> for Error {
+    fn from(error: serde_json::Error) -> Self {
         Self::Deserialize(error)
     }
 }

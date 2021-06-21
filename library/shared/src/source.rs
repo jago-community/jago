@@ -198,7 +198,7 @@ fn read_template<'a, W: Write>(
 ) -> Result<(), Error> {
     let mut buffer = vec![];
 
-    read_content(&mut buffer, dbg!(path))?;
+    read_content(&mut buffer, path)?;
 
     let template = String::from_utf8(buffer)?;
 

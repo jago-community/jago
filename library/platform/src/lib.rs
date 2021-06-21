@@ -57,7 +57,7 @@ async fn build<I: Iterator<Item = String>>(
 
     let library = library::inspect(&context)?;
 
-    let rendered = templates.render("builder", &library)?;
+    let rendered = templates.render("builder", &library.dependency_names())?;
 
     let path = context
         .join("container")
@@ -112,7 +112,8 @@ fn build_context() {
     let library = library::inspect(&context).unwrap();
 
     let (definition, _) = tokio_test::block_on(async {
-        let (key, stop, handle) = serve_build_context(&context, library).unwrap();
+        let (key, stop, handle) =
+            serve_build_context(&context, library.dependency_names()).unwrap();
 
         let definition = async {
             let client = Client::new();
@@ -131,8 +132,6 @@ fn build_context() {
 
         futures::join!(definition, handle)
     });
-
-    dbg!(&definition);
 
     assert!(definition.starts_with("FROM"));
     assert!(!definition.contains("{{ endfor }}"));
@@ -165,14 +164,12 @@ where
         };
     });
 
-    let library = bincode::serialize(&library)?;
+    let library = serde_json::to_vec(&library)?;
 
     let key = format!(
-        "http://0.0.0.0:1342/container/builder/Dockerfile?library={}",
+        "http://0.0.0.0:1342/container/builder/Dockerfile?libraries={}",
         base64::encode(library)
     );
-
-    dbg!(&key);
 
     let stop = move || {
         if let Err(_) = stop.send(Ok(())).map_err(|_| Error::Shutdown) {
@@ -229,7 +226,7 @@ pub enum Error {
     Prefix(std::path::StripPrefixError),
     Shutdown,
     Serve(server::Error),
-    Serialize(bincode::Error),
+    Serialize(serde_json::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -313,8 +310,8 @@ impl From<server::Error> for Error {
     }
 }
 
-impl From<bincode::Error> for Error {
-    fn from(error: bincode::Error) -> Self {
+impl From<serde_json::Error> for Error {
+    fn from(error: serde_json::Error) -> Self {
         Self::Serialize(error)
     }
 }

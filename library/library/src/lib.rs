@@ -19,6 +19,16 @@ pub struct Library {
     dependencies: HashMap<String, Dependency>,
 }
 
+impl Library {
+    pub fn dependency_names(&self) -> Vec<String> {
+        self.dependencies
+            .iter()
+            .map(|(dependency, _)| dependency)
+            .cloned()
+            .collect()
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Dependency {

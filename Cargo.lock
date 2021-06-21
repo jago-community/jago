@@ -1304,6 +1304,7 @@ dependencies = [
  "library",
  "log",
  "serde",
+ "serde_json",
  "server",
  "tar",
  "tempfile",
@@ -1668,6 +1669,7 @@ dependencies = [
  "http",
  "hyper",
  "serde",
+ "serde_json",
  "shared",
  "tokio",
 ]
