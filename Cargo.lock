@@ -920,6 +920,8 @@ dependencies = [
 name = "library"
 version = "0.1.0"
 dependencies = [
+ "glob",
+ "ignore",
  "serde",
  "toml",
 ]
@@ -1685,6 +1687,7 @@ dependencies = [
  "hyper",
  "ignore",
  "image",
+ "log",
  "nom",
  "openssl",
  "pretty_assertions",

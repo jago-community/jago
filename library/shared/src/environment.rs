@@ -68,7 +68,7 @@ pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
 
 #[test]
 fn test_environment() {
-    let raw = include_str!("../local");
+    let raw = include_str!("../../../local");
     let list = environment(raw).unwrap();
 
     assert!(list.len() > 0);

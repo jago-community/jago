@@ -123,7 +123,7 @@ async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infall
 
     let mut body = std::io::BufWriter::new(vec![]);
 
-    if let Err(error) = shared::source::read(&mut body, path.clone(), &variables) {
+    if let Err(error) = shared::source::read(&mut body, path.clone(), Some(variables)) {
         Ok(bad_request(Error::from(error)))
     } else {
         match body.into_inner() {

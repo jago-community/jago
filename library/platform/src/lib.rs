@@ -1,11 +1,6 @@
-use std::{
-    iter::Peekable,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{iter::Peekable, path::Path};
 
 use serde::Serialize;
-use tinytemplate::TinyTemplate as Templates;
 
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
     match input.peek() {
@@ -44,37 +39,10 @@ async fn build<I: Iterator<Item = String>>(
     use bollard::image::BuildImageOptions;
     use bollard::Docker;
     use futures_util::stream::StreamExt;
-    use std::io::{Read, Write};
 
     let context = dirs::home_dir().unwrap().join("local").join("jago");
 
-    let mut template = String::new();
-    let mut template_file = std::fs::File::open(context.join("container/builder/Dockerfile"))?;
-    template_file.read_to_string(&mut template)?;
-
-    let mut templates = Templates::new();
-    templates.add_template("builder", &template)?;
-
-    let library = library::inspect(&context)?;
-
-    let rendered = templates.render("builder", &library.dependency_names())?;
-
-    let path = context
-        .join("container")
-        .join("builder")
-        .join("build.Dockerfile");
-
-    let mut container_file = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&path)?;
-
-    container_file.write_all(rendered.as_bytes())?;
-
-    drop(container_file);
-
-    let (key, done, server) = serve_build_context(&context, library)?;
+    let (key, done, server) = serve_build_context(&context, library::libraries(&context)?)?;
 
     let build_context = get_build_context(&context)?;
 
@@ -83,7 +51,7 @@ async fn build<I: Iterator<Item = String>>(
     let tag = [prefix.unwrap_or(""), "builder"].join("-");
 
     let options = BuildImageOptions {
-        dockerfile: path.to_str().unwrap(),
+        dockerfile: "",
         t: &tag.clone(),
         remote: &key,
         ..Default::default()
@@ -109,11 +77,11 @@ fn build_context() {
     use hyper::{body::HttpBody, Client};
 
     let context = dirs::home_dir().unwrap().join("local").join("jago");
-    let library = library::inspect(&context).unwrap();
+    //let library = library::inspect(&context).unwrap();
 
     let (definition, _) = tokio_test::block_on(async {
         let (key, stop, handle) =
-            serve_build_context(&context, library.dependency_names()).unwrap();
+            serve_build_context(&context, library::libraries(&context).unwrap()).unwrap();
 
         let definition = async {
             let client = Client::new();
@@ -136,6 +104,7 @@ fn build_context() {
     assert!(definition.starts_with("FROM"));
     assert!(!definition.contains("{{ endfor }}"));
     assert!(!definition.contains("html"));
+    assert!(definition.contains("COPY library/library"));
 }
 
 fn serve_build_context<'a, S>(

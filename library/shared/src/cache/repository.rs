@@ -23,7 +23,7 @@ fn test_ensure() {
 
     let mut target = std::io::BufWriter::new(vec![]);
     let path = std::sync::Arc::new(address.full(dirs::home_dir().unwrap().join("cache")));
-    let _ = crate::source::read(&mut target, path).unwrap();
+    let _ = crate::source::read(&mut target, path, None).unwrap();
     let buffer = target.into_inner().unwrap();
 
     let reader = image::io::Reader::new(std::io::Cursor::new(buffer))

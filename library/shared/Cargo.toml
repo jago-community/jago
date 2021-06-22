@@ -23,6 +23,7 @@ ignore = "0.4.17"
 ssh2 = "0.9.1"
 serde_json = "1.0.64"
 tinytemplate = "1.2.1"
+log = "0.4.14"
 
 [dev-dependencies]
 tokio-test = "0.4.1"

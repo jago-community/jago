@@ -14,14 +14,16 @@ pub type Variables<'a> = HashMap<&'a str, serde_json::Value>;
 pub fn read<'a, W: Write>(
     target: &mut W,
     path: Arc<PathBuf>,
-    variables: &'a Variables<'a>,
+    variables: Option<Variables<'a>>,
 ) -> Result<(), Error> {
     let metadata = std::fs::metadata(path.as_ref())?;
 
+    let variables = variables.unwrap_or_else(|| HashMap::new());
+
     if metadata.is_file() {
-        read_file(target, path, variables)?;
+        read_file(target, path, &variables)?;
     } else {
-        read_directory(target, path, variables)?;
+        read_directory(target, path, &variables)?;
     }
 
     Ok(())
@@ -208,6 +210,8 @@ fn read_template<'a, W: Write>(
     templates.add_template(&key, &template)?;
 
     let rendered = templates.render(&key, variables)?;
+
+    log::info!("{}", rendered);
 
     target.write_all(rendered.as_bytes()).map_err(Error::from)
 }
