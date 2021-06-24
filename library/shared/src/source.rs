@@ -193,7 +193,7 @@ fn read_content<'a, W: Write>(target: &mut W, path: &Path) -> Result<(), Error> 
     target.write_all(&buffer).map_err(Error::from)
 }
 
-fn read_template<'a, W: Write>(
+pub fn read_template<'a, W: Write>(
     target: &mut W,
     path: &Path,
     variables: &'a Variables<'a>,
@@ -210,8 +210,6 @@ fn read_template<'a, W: Write>(
     templates.add_template(&key, &template)?;
 
     let rendered = templates.render(&key, variables)?;
-
-    log::info!("{}", rendered);
 
     target.write_all(rendered.as_bytes()).map_err(Error::from)
 }

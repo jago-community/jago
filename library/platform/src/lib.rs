@@ -13,7 +13,7 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
     runtime.block_on(async {
         match input.next() {
             Some(action) => match &action[..] {
-                "build" => build(input, None).await.map(|_| ()),
+                "build" => build(input).await,
                 _ => Err(Error::BadInput([action, input.collect()].join(" "))),
             },
             _ => Err(Error::Incomplete),
@@ -21,135 +21,60 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
     })
 }
 
-#[test]
-#[ignore]
-fn test_build() {
-    tokio_test::block_on(async {
-        let empty = vec![String::new()];
-        let mut input = empty.iter().cloned();
-        let built = build(&mut input, Some("test")).await.unwrap();
-        assert_eq!(built, "test-builder");
-    });
-}
-
-async fn build<I: Iterator<Item = String>>(
-    _input: &mut I,
-    prefix: Option<&str>,
-) -> Result<String, Error> {
+async fn build<I: Iterator<Item = String>>(_input: &mut I) -> Result<(), Error> {
     use bollard::image::BuildImageOptions;
     use bollard::Docker;
     use futures_util::stream::StreamExt;
 
     let context = dirs::home_dir().unwrap().join("local").join("jago");
 
-    let (key, done, server) = serve_build_context(&context, library::libraries(&context)?)?;
+    let libraries = library::libraries(&context)?;
 
-    let build_context = get_build_context(&context)?;
+    let build_context = get_build_context(&context, &libraries)?;
 
     let docker = Docker::connect_with_unix_defaults()?;
 
-    let tag = [prefix.unwrap_or(""), "builder"].join("-");
-
     let options = BuildImageOptions {
-        dockerfile: "",
-        t: &tag.clone(),
-        remote: &key,
+        dockerfile: "definition",
+        t: "builder",
         ..Default::default()
     };
 
     let mut output = docker.build_image(options, None, Some(hyper::Body::from(build_context)));
 
-    while let Some(msg) = output.next().await {
-        println!("Message: {:?}", msg);
+    while let Some(entry) = output.next().await {
+        let entry = entry?;
+        if let Some(message) = entry.stream {
+            print!("{}", message);
+        }
     }
 
-    done();
-
-    server.await?;
-
-    Ok(tag)
+    Ok(())
 }
 
 #[test]
-fn build_context() {
-    use std::io::Write;
-
-    use hyper::{body::HttpBody, Client};
-
+fn its_all_about_the_context() {
     let context = dirs::home_dir().unwrap().join("local").join("jago");
-    //let library = library::inspect(&context).unwrap();
+    let libraries = library::libraries(&context).unwrap();
+    let context = get_build_context(&context, libraries).unwrap();
+    let mut archive = tar::Archive::new(&context[..]);
+    let context = tempfile::TempDir::new().unwrap();
+    let context = context.path();
 
-    let (definition, _) = tokio_test::block_on(async {
-        let (key, stop, handle) =
-            serve_build_context(&context, library::libraries(&context).unwrap()).unwrap();
+    archive.unpack(context).unwrap();
 
-        let definition = async {
-            let client = Client::new();
-            let uri = key.parse().unwrap();
-            let mut resp = client.get(uri).await.unwrap();
-            stop();
-
-            let mut body = vec![];
-
-            while let Some(chunk) = resp.body_mut().data().await {
-                body.write_all(&chunk.unwrap()).unwrap();
-            }
-
-            String::from_utf8(body).unwrap()
-        };
-
-        futures::join!(definition, handle)
-    });
-
-    assert!(definition.starts_with("FROM"));
-    assert!(!definition.contains("{{ endfor }}"));
-    assert!(!definition.contains("html"));
-    assert!(definition.contains("COPY library/library"));
+    let definition = context.join("definition");
+    let mut definition = std::fs::File::open(definition).unwrap();
+    let mut buffer = String::new();
+    use std::io::Read;
+    definition.read_to_string(&mut buffer).unwrap();
+    assert!(buffer.starts_with("FROM"));
+    assert!(!buffer.contains("{{ endfor }}"));
+    assert!(!buffer.contains("html"));
+    assert!(buffer.contains("COPY library/library"));
 }
 
-fn serve_build_context<'a, S>(
-    context: &'a Path,
-    library: S,
-) -> Result<(String, Box<dyn FnOnce()>, server::Handle<'a>), Error>
-where
-    S: Serialize,
-{
-    use futures::{channel::oneshot, future::FutureExt};
-
-    let (stop, stopped) = oneshot::channel::<Result<(), Error>>();
-
-    let handle = server::serve(async {
-        let signalled = async { tokio::signal::ctrl_c().await.map_err(Error::from) };
-
-        let _done = futures::select! {
-            cancelled = signalled.fuse() => cancelled,
-            stopped = stopped.fuse() => match stopped {
-                Err(_cancelled) => {
-                    log::info!("(kasdjhfl) sender cancelled");
-                    Ok(())
-                },
-                _ => Ok(())
-            },
-        };
-    });
-
-    let library = serde_json::to_vec(&library)?;
-
-    let key = format!(
-        "http://0.0.0.0:1342/container/builder/Dockerfile?libraries={}",
-        base64::encode(library)
-    );
-
-    let stop = move || {
-        if let Err(_) = stop.send(Ok(())).map_err(|_| Error::Shutdown) {
-            log::info!("(sfkhe) error sending stop signal");
-        }
-    };
-
-    Ok((key, Box::new(stop), handle))
-}
-
-fn get_build_context(context: &Path) -> Result<Vec<u8>, Error> {
+fn get_build_context<S: Serialize>(context: &Path, libraries: S) -> Result<Vec<u8>, Error> {
     let mut builder = ignore::WalkBuilder::new(&context);
 
     builder.add_ignore(context.join(".dockerignore"));
@@ -159,6 +84,14 @@ fn get_build_context(context: &Path) -> Result<Vec<u8>, Error> {
 
     let mut archive = tar::Builder::new(vec![]);
 
+    let mut variables = std::collections::HashMap::new();
+    let libraries = serde_json::to_value(libraries)?;
+    variables.insert("libraries", libraries);
+
+    let definition_path = std::path::PathBuf::from("container")
+        .join("builder")
+        .join("Dockerfile");
+
     for entry in build_context {
         let entry = entry?;
         let path = entry.path();
@@ -167,10 +100,19 @@ fn get_build_context(context: &Path) -> Result<Vec<u8>, Error> {
             continue;
         }
 
-        if let Some(kind) = entry.file_type() {
-            let path = entry.path();
-            let destination = path.strip_prefix(&context)?;
+        let path = entry.path();
+        let destination = path.strip_prefix(&context)?;
 
+        if destination == &definition_path {
+            let mut buffer = vec![];
+            shared::source::read_template(&mut buffer, path, &variables)?;
+            let mut header = tar::Header::new_gnu();
+            header.set_path("definition")?;
+            header.set_size(buffer.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            archive.append(&header, &buffer[..]).unwrap();
+        } else if let Some(kind) = entry.file_type() {
             if kind.is_file() {
                 let mut file = std::fs::File::open(&path)?;
                 archive.append_file(destination, &mut file)?;
@@ -196,6 +138,7 @@ pub enum Error {
     Shutdown,
     Serve(server::Error),
     Serialize(serde_json::Error),
+    Source(shared::source::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -205,7 +148,7 @@ impl std::fmt::Display for Error {
             Self::BadInput(input) => write!(f, "bad input: {}", input),
             Self::Template(error) => write!(f, "{}", error),
             Self::Machine(error) => write!(f, "{}", error),
-            Self::Container(error) => write!(f, "{}", error),
+            Self::Container(error) => write!(f, "container {}", error),
             Self::Library(error) => write!(f, "{}", error),
             Self::Context(error) => write!(f, "{}", error),
             Self::Prefix(error) => write!(f, "{}", error),
@@ -215,6 +158,7 @@ impl std::fmt::Display for Error {
             ),
             Self::Serve(error) => write!(f, "{}", error),
             Self::Serialize(error) => write!(f, "{}", error),
+            Self::Source(error) => write!(f, "source {}", error),
         }
     }
 }
@@ -233,6 +177,7 @@ impl std::error::Error for Error {
             Self::Shutdown => None,
             Self::Serve(error) => Some(error),
             Self::Serialize(error) => Some(error),
+            Self::Source(error) => Some(error),
         }
     }
 }
@@ -282,5 +227,11 @@ impl From<server::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(error: serde_json::Error) -> Self {
         Self::Serialize(error)
+    }
+}
+
+impl From<shared::source::Error> for Error {
+    fn from(error: shared::source::Error) -> Self {
+        Self::Source(error)
     }
 }

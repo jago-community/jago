@@ -5,14 +5,14 @@ RUN apt-get update && apt-get install -y tree
 
 RUN mkdir library \
  && cd library \
-&& cargo new --lib logger \
-&& cargo new --lib platform \
-&& cargo new --lib server \
-&& cargo new --lib library \
-&& cargo new --lib shared \
-&& cargo new --lib storage \
-&& cargo new --lib program \
-&& cd ..
+ && cargo new --lib logger \
+ && cargo new --lib platform \
+ && cargo new --lib server \
+ && cargo new --lib library \
+ && cargo new --lib shared \
+ && cargo new --lib storage \
+ && cargo new --lib program \
+ && cd ..
 
 COPY library/logger/Cargo.toml library/logger/Cargo.toml
 COPY library/platform/Cargo.toml library/platform/Cargo.toml
@@ -32,19 +32,19 @@ RUN cargo build --release --all-features --workspace
 RUN rm -rf ./src/* ./library/*/src/* \
  && rm ./target/release/deps/jago* \
  && rm ./target/release/jago* \
-&& rm ./target/release/deps/liblogger* \
+ && rm ./target/release/deps/liblogger* \
  && rm ./target/release/deps/logger* \
  && rm ./target/release/liblogger* \
-&& rm ./target/release/deps/libplatform* \
+ && rm ./target/release/deps/libplatform* \
  && rm ./target/release/deps/platform* \
  && rm ./target/release/libplatform* \
-&& rm ./target/release/deps/libserver* \
+ && rm ./target/release/deps/libserver* \
  && rm ./target/release/deps/server* \
  && rm ./target/release/libserver* \
-&& rm ./target/release/deps/liblibrary* \
+ && rm ./target/release/deps/liblibrary* \
  && rm ./target/release/deps/library* \
  && rm ./target/release/liblibrary* \
-&& rm ./target/release/deps/libshared* \
+ && rm ./target/release/deps/libshared* \
  && rm ./target/release/deps/shared* \
  && rm ./target/release/libshared* \
  && rm ./target/release/deps/libstorage* \

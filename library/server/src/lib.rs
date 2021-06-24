@@ -53,6 +53,8 @@ pub fn serve<'a>(close: impl Future<Output = ()> + 'a + Send) -> Handle<'a> {
 }
 
 async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infallible> {
+    log::info!("request: {} {}", request.method(), request.uri().path());
+
     if request.method() != Method::GET {
         return Ok(Response::builder()
             .status(StatusCode::METHOD_NOT_ALLOWED)
