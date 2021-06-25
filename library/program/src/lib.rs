@@ -104,7 +104,7 @@ pub fn build(_input: TokenStream) -> TokenStream {
             };
         });
 
-        let formatted = unicode::to_upper_camel_case(package);
+        let formatted = utility::unicode::to_upper_camel_case(package);
         let formatted = format_ident!("{}", formatted);
 
         error_kinds.extend(quote! {

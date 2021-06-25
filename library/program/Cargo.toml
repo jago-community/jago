@@ -16,4 +16,4 @@ toml = "0.5.8"
 proc-macro2-diagnostics = "0.9.1"
 syn = { version = "1.0.73", features = ["full"] }
 matches = "0.1.8"
-unicode-segmentation = "1.7.1"
+utility = { path = "../utility" }

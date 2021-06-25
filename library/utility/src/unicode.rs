@@ -21,7 +21,7 @@ pub fn to_upper_camel_case(input: &str) -> String {
     output
 }
 
-fn upper_first(input: &str) -> String {
+pub fn upper_first(input: &str) -> String {
     let mut parts = input.graphemes(true);
 
     match parts.next() {

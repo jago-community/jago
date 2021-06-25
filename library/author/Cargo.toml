@@ -15,5 +15,8 @@ serde = { version = "1.0.126", features = ["derive"] }
 toml = "0.5.8"
 proc-macro2-diagnostics = "0.9.1"
 syn = { version = "1.0.73", features = ["full"] }
-unicode-segmentation = "1.7.1"
 proc-macro2 = { version = "1.0.27", features = ["span-locations"] }
+utility = { path = "../utility" }
+
+[dev-dependencies]
+pretty_assertions = "0.7.2"

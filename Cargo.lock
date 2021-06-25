@@ -63,13 +63,14 @@ dependencies = [
 name = "author"
 version = "0.1.0"
 dependencies = [
+ "pretty_assertions",
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
  "serde",
  "syn",
  "toml",
- "unicode-segmentation",
+ "utility",
 ]
 
 [[package]]
@@ -1372,7 +1373,7 @@ dependencies = [
  "serde",
  "syn",
  "toml",
- "unicode-segmentation",
+ "utility",
 ]
 
 [[package]]
@@ -2017,6 +2018,13 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+]
+
+[[package]]
+name = "utility"
+version = "0.1.0"
+dependencies = [
+ "unicode-segmentation",
 ]
 
 [[package]]
