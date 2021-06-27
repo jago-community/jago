@@ -289,47 +289,4 @@ fn merge_remote<'a>(
 
 // END git@github.com:rust-lang/git2-rs@master/examples/pull.rs
 
-#[derive(Debug)]
-pub enum Error {
-    Machine(std::io::Error),
-    Repository(git2::Error),
-    Address(crate::address::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Machine(error) => write!(f, "{}", error),
-            Error::Repository(error) => write!(f, "{}", error),
-            Error::Address(error) => write!(f, "{}", error),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Machine(error) => Some(error),
-            Error::Repository(error) => Some(error),
-            Error::Address(error) => Some(error),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Self::Machine(error)
-    }
-}
-
-impl From<git2::Error> for Error {
-    fn from(error: git2::Error) -> Self {
-        Self::Repository(error)
-    }
-}
-
-impl From<crate::address::Error> for Error {
-    fn from(error: crate::address::Error) -> Self {
-        Self::Address(error)
-    }
-}
+author::error!(std::io::Error, git2::Error, crate::address::Error);

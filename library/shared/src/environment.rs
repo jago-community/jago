@@ -15,7 +15,7 @@ fn local() -> Result<(), Error> {
 
     let environment_file = match std::fs::metadata(&local_file) {
         Ok(_) => std::fs::File::open(local_file)?,
-        Err(_) => return Err(Error::Missing(vec!["local".into(), local_file])),
+        Err(_) => return Err(Error::Missing(Paths(vec!["local".into(), local_file]))),
     };
 
     let mut reader = std::io::BufReader::new(&environment_file);
@@ -47,14 +47,14 @@ use nom::{
 
 pub fn environment(i: &str) -> Result<Vec<(&str, &str)>, Error> {
     let (_, variables) = many0(alt((map(variable, Some), map(comment, |_| None))))(i).map_err(
-        |error: nom::Err<ParseError>| {
-            Error::Parse(match error {
-                nom::Err::Incomplete(needed) => ParseError {
+        |error: nom::Err<parse::Error>| {
+            Error::ParseError(match error {
+                nom::Err::Incomplete(needed) => parse::Error {
                     input: i.into(),
-                    kind: ParseErrorKind::Incomplete(needed),
+                    kind: parse::ErrorKind::Incomplete(needed),
                     backtrace: vec![],
                 },
-                nom::Err::Error(error) | nom::Err::Failure(error) => ParseError {
+                nom::Err::Error(error) | nom::Err::Failure(error) => parse::Error {
                     input: i.into(),
                     kind: error.kind,
                     backtrace: vec![],
@@ -87,7 +87,7 @@ fn test_environment() {
 
 use nom::sequence::pair;
 
-pub fn variable<'a>(i: &'a str) -> IResult<&'a str, (&'a str, &'a str), ParseError> {
+pub fn variable<'a>(i: &'a str) -> IResult<&'a str, (&'a str, &'a str), parse::Error> {
     map(
         pair(
             separated_pair(alpha1, tag("="), not_line_ending),
@@ -99,114 +99,85 @@ pub fn variable<'a>(i: &'a str) -> IResult<&'a str, (&'a str, &'a str), ParseErr
 
 use nom::{combinator::value, sequence::tuple};
 
-pub fn comment<'a>(i: &'a str) -> IResult<&'a str, (), ParseError> {
+pub fn comment<'a>(i: &'a str) -> IResult<&'a str, (), parse::Error> {
     value((), tuple((tag("#"), not_line_ending, tag("\n"))))(i)
 }
 
+author::error!(
+    std::io::Error,
+    parse::Error,
+    Missing(Paths),
+    shellexpand::LookupError<std::env::VarError>,
+);
+
 #[derive(Debug)]
-pub enum Error {
-    Machine(std::io::Error),
-    Parse(ParseError),
-    Missing(Vec<std::path::PathBuf>),
-    Expand(shellexpand::LookupError<std::env::VarError>),
-}
+pub struct Paths(Vec<std::path::PathBuf>);
 
-impl std::fmt::Display for Error {
+impl std::fmt::Display for Paths {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Machine(error) => write!(f, "{}", error),
-            Error::Parse(error) => write!(f, "{}", error),
-            Error::Expand(error) => write!(f, "{}", error),
-            Error::Missing(keys) => write!(
-                f,
-                "missing required files: {}",
-                keys.iter().fold(String::new(), |mut output, key| {
-                    output.push_str(key.to_str().unwrap_or("<bad path name>"));
-                    output
-                })
-            ),
+        write!(
+            f,
+            "paths: {}",
+            self.0
+                .iter()
+                .map(|key| key.to_str().unwrap_or("<bad path name>"))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
+}
+
+mod parse {
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Error {
+        pub input: String,
+        pub kind: ErrorKind,
+        pub backtrace: Vec<Error>,
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum ErrorKind {
+        Parse(nom::error::ErrorKind),
+        Incomplete(nom::Needed),
+    }
+
+    impl nom::error::ParseError<&str> for Error {
+        fn from_error_kind(input: &str, kind: nom::error::ErrorKind) -> Self {
+            Self {
+                input: input.into(),
+                kind: ErrorKind::Parse(kind),
+                backtrace: vec![],
+            }
         }
-    }
-}
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Machine(error) => Some(error),
-            Error::Parse(error) => Some(error),
-            Error::Expand(error) => Some(error),
-            Error::Missing(_) => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Self::Machine(error)
-    }
-}
-
-impl From<shellexpand::LookupError<std::env::VarError>> for Error {
-    fn from(error: shellexpand::LookupError<std::env::VarError>) -> Self {
-        Self::Expand(error)
-    }
-}
-
-impl From<ParseError> for Error {
-    fn from(error: ParseError) -> Self {
-        Self::Parse(error)
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ParseError {
-    input: String,
-    kind: ParseErrorKind,
-    backtrace: Vec<ParseError>,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ParseErrorKind {
-    Parse(nom::error::ErrorKind),
-    Incomplete(nom::Needed),
-}
-
-impl nom::error::ParseError<&str> for ParseError {
-    fn from_error_kind(input: &str, kind: nom::error::ErrorKind) -> Self {
-        ParseError {
-            input: input.into(),
-            kind: ParseErrorKind::Parse(kind),
-            backtrace: vec![],
+        fn append(input: &str, kind: nom::error::ErrorKind, mut other: Self) -> Self {
+            other.backtrace.push(Self::from_error_kind(input, kind));
+            other
         }
     }
 
-    fn append(input: &str, kind: nom::error::ErrorKind, mut other: Self) -> Self {
-        other.backtrace.push(Self::from_error_kind(input, kind));
-        other
-    }
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ParseErrorKind::Incomplete(needed) => write!(
-                f,
-                "incomplete data ({}) input = {}",
-                match needed {
-                    nom::Needed::Unknown => "unknown".into(),
-                    nom::Needed::Size(size) => format!("missing {}", size),
-                },
-                self.input
-            ),
-            ParseErrorKind::Parse(kind) => {
-                write!(f, "{} - input = {}", kind.description(), self.input)
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self.kind {
+                ErrorKind::Incomplete(needed) => write!(
+                    f,
+                    "incomplete data ({}) input = {}",
+                    match needed {
+                        nom::Needed::Unknown => "unknown".into(),
+                        nom::Needed::Size(size) => format!("missing {}", size),
+                    },
+                    self.input
+                ),
+                ErrorKind::Parse(kind) => {
+                    write!(f, "{} - input = {}", kind.description(), self.input)
+                }
             }
         }
     }
-}
 
-impl std::error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
+    impl std::error::Error for Error {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            None
+        }
     }
 }

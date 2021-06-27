@@ -131,7 +131,7 @@ pub fn read_directory<'a, W: Write>(
 
         let parent = match path.parent() {
             Some(parent) => parent,
-            None => return Err(Error::NoParent(path.to_path_buf())),
+            None => return Err(Error::NoParent(path.display().to_string())),
         };
 
         let title = path.strip_prefix(parent)?;
@@ -252,77 +252,12 @@ fn read_document<W: Write>(mut target: W, path: Arc<PathBuf>) -> Result<(), Erro
     write_end!(target).map_err(Error::from)
 }
 
-#[derive(Debug)]
-pub enum Error {
-    Machine(std::io::Error),
-    Write(std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
-    NoParent(PathBuf),
-    CleanPath(std::path::StripPrefixError),
-    Walk(ignore::Error),
-    FromUtf8(std::string::FromUtf8Error),
-    Template(tinytemplate::error::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Machine(error) => write!(f, "{}", error),
-            Error::Write(error) => write!(f, "{}", error),
-            Error::NoParent(path) => write!(f, "no parent for path: {}", path.display()),
-            Error::CleanPath(error) => write!(f, "{}", error),
-            Error::Walk(error) => write!(f, "{}", error),
-            Error::FromUtf8(error) => write!(f, "{}", error),
-            Error::Template(error) => write!(f, "{}", error),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Machine(error) => Some(error),
-            Error::Write(error) => Some(error),
-            Error::NoParent(_) => None,
-            Error::CleanPath(error) => Some(error),
-            Error::Walk(error) => Some(error),
-            Error::FromUtf8(error) => Some(error),
-            Error::Template(error) => Some(error),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Self::Machine(error)
-    }
-}
-
-impl From<std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>> for Error {
-    fn from(error: std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>) -> Self {
-        Self::Write(error)
-    }
-}
-
-impl From<std::path::StripPrefixError> for Error {
-    fn from(error: std::path::StripPrefixError) -> Self {
-        Self::CleanPath(error)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for Error {
-    fn from(error: std::string::FromUtf8Error) -> Self {
-        Self::FromUtf8(error)
-    }
-}
-
-impl From<ignore::Error> for Error {
-    fn from(error: ignore::Error) -> Self {
-        Self::Walk(error)
-    }
-}
-
-impl From<tinytemplate::error::Error> for Error {
-    fn from(error: tinytemplate::error::Error) -> Self {
-        Self::Template(error)
-    }
-}
+author::error!(
+    std::io::Error,
+    std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>,
+    NoParent(String),
+    std::path::StripPrefixError,
+    ignore::Error,
+    std::string::FromUtf8Error,
+    tinytemplate::error::Error,
+);

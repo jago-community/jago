@@ -162,77 +162,12 @@ fn bad_request(error: Error) -> Response<Body> {
         .unwrap()
 }
 
-#[derive(Debug)]
-pub enum Error {
+author::error!(
     Incomplete,
-    Machine(std::io::Error),
-    Serve(hyper::Error),
-    Source(shared::source::Error),
-    Cache(shared::cache::Error),
-    Deserialize(serde_json::Error),
-    Decode(base64::DecodeError),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Incomplete => write!(f, "incomplete"),
-            Error::Machine(error) => write!(f, "{}", error),
-            Error::Serve(error) => write!(f, "{}", error),
-            Error::Source(error) => write!(f, "{}", error),
-            Error::Cache(error) => write!(f, "{}", error),
-            Error::Deserialize(error) => write!(f, "{}", error),
-            Error::Decode(error) => write!(f, "{}", error),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Incomplete => None,
-            Error::Machine(error) => Some(error),
-            Error::Serve(error) => Some(error),
-            Error::Source(error) => Some(error),
-            Error::Cache(error) => Some(error),
-            Error::Deserialize(error) => Some(error),
-            Error::Decode(error) => Some(error),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Self::Machine(error)
-    }
-}
-
-impl From<hyper::Error> for Error {
-    fn from(error: hyper::Error) -> Self {
-        Self::Serve(error)
-    }
-}
-
-impl From<shared::source::Error> for Error {
-    fn from(error: shared::source::Error) -> Self {
-        Self::Source(error)
-    }
-}
-
-impl From<shared::cache::Error> for Error {
-    fn from(error: shared::cache::Error) -> Self {
-        Self::Cache(error)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(error: serde_json::Error) -> Self {
-        Self::Deserialize(error)
-    }
-}
-
-impl From<base64::DecodeError> for Error {
-    fn from(error: base64::DecodeError) -> Self {
-        Self::Decode(error)
-    }
-}
+    std::io::Error,
+    hyper::Error,
+    shared::source::Error,
+    shared::cache::Error,
+    serde_json::Error,
+    base64::DecodeError,
+);

@@ -43,41 +43,8 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
     Ok(())
 }
 
-#[derive(Debug)]
-pub enum Error {
+author::error!(
     Incomplete,
-    Logger(flexi_logger::FlexiLoggerError),
-    Level(log::ParseLevelError),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Incomplete => write!(f, "incomplete"),
-            Self::Logger(error) => write!(f, "{}", error),
-            Self::Level(error) => write!(f, "{}", error),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Incomplete => None,
-            Self::Logger(error) => Some(error),
-            Self::Level(error) => Some(error),
-        }
-    }
-}
-
-impl From<flexi_logger::FlexiLoggerError> for Error {
-    fn from(error: flexi_logger::FlexiLoggerError) -> Self {
-        Self::Logger(error)
-    }
-}
-
-impl From<log::ParseLevelError> for Error {
-    fn from(error: log::ParseLevelError) -> Self {
-        Self::Level(error)
-    }
-}
+    flexi_logger::FlexiLoggerError,
+    log::ParseLevelError,
+);

@@ -129,41 +129,4 @@ fn execute_handler(target: &Path, handler: &Path) -> Result<(), Error> {
         .map_err(Error::from)
 }
 
-#[derive(Debug)]
-pub enum Error {
-    Incomplete,
-    Machine(std::io::Error),
-    Watch(notify::Error),
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Incomplete => write!(f, "incomplete input for storage"),
-            Self::Machine(error) => write!(f, "{}", error),
-            Self::Watch(error) => write!(f, "watch {}", error),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Incomplete => None,
-            Self::Machine(error) => Some(error),
-            Self::Watch(error) => Some(error),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Error {
-        Error::Machine(error)
-    }
-}
-
-impl From<notify::Error> for Error {
-    fn from(error: notify::Error) -> Error {
-        Error::Watch(error)
-    }
-}
+author::error!(Incomplete, std::io::Error, notify::Error,);

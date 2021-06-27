@@ -10,3 +10,4 @@ edition = "2018"
 flexi_logger = { version = "0.17", default_features = false }
 log = { version = "0.4.14" }
 dirs = {version = "3.0.2" }
+author = { path = "../author" }
