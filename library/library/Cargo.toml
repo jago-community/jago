@@ -16,3 +16,4 @@ ignore = "0.4.18"
 #syn = { version = "1.0.73", features = ["full"] }
 #matches = "0.1.8"
 #unicode-segmentation = "1.7.1"
+author = { path = "../author" }

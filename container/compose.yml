@@ -1,13 +1,13 @@
 version: "3.8"
 services:
-  #serve:
-    #build:
-      #context: ..
-      #dockerfile: container/serve/Dockerfile
-    #ports:
-      #- "1342:1342"
-    #volumes:
-      #- cache:/root/cache
+  serve:
+    build:
+      context: ..
+      dockerfile: container/serve/Dockerfile
+    ports:
+      - "1342:1342"
+    volumes:
+      - cache:/root/cache
   git-ssh:
     build:
       context: ..
