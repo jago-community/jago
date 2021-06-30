@@ -28,13 +28,17 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
 
     let runtime = tokio::runtime::Runtime::new()?;
 
-    let close = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to install CTRL+C signal handler");
-    };
+    runtime
+        .block_on(async {
+            let close = async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("failed to install CTRL+C signal handler");
+            };
 
-    runtime.block_on(serve(close)).map_err(Error::from)
+            serve(close).await
+        })
+        .map_err(Error::from)
 }
 
 pub type Handle<'a> = futures::future::BoxFuture<'a, Result<(), Error>>;

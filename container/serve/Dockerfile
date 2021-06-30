@@ -1,6 +1,6 @@
 FROM builder as builder
 
-RUN cargo build --features serve --release --workspace
+RUN cargo build --features server --release --workspace
 
 FROM debian:buster-slim
 

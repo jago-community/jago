@@ -59,7 +59,7 @@ pub fn build(_input: TokenStream) -> TokenStream {
             _ => false,
         });
 
-    for (package, specification) in features {
+    for (package, _specification) in features {
         let identity = format_ident!("{}", package);
 
         let library_path = PathBuf::from("library")

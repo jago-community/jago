@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker build -f ~/local/jago/container/builder/Dockerfile ~/local/jago --progress=plain
+cargo run --features platform -- platform build
 docker compose -f ~/local/jago/container/compose.yml build --progress=plain
