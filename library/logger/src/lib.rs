@@ -7,6 +7,7 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
 
     let logger = flexi_logger::Logger::with_str("info")
         .log_to_file()
+        .print_message()
         .buffer_and_flush()
         .directory(&output_directory)
         .append()
@@ -15,7 +16,6 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
             flexi_logger::Naming::Numbers,
             flexi_logger::Cleanup::KeepLogFiles(5),
         )
-        .print_message()
         .start()?;
 
     Ok(Box::new(move || {
