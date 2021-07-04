@@ -211,8 +211,6 @@ fn build_brush(
     Ok(GlyphBrushBuilder::using_font(font).build(&device, render_format))
 }
 
-use palette::Srgb;
-
 fn draw_text<'a>(
     window: &'a winit::window::Window,
     device: &'a wgpu::Device,
@@ -224,7 +222,7 @@ fn draw_text<'a>(
 ) -> Result<(), Error> {
     let size = window.inner_size();
 
-    let color = color_as_components(contrasted_color(view.background));
+    let color = color_as_components(view.foreground);
 
     brush.queue(Section {
         screen_position: (30.0, 30.0),
@@ -352,6 +350,7 @@ enum ViewChange {
 
 #[derive(Clone)]
 struct ViewContext {
+    foreground: palette::Srgb,
     background: palette::Srgb,
     font: (String, Arc<Vec<u8>>),
     size: PhysicalSize<u32>,
@@ -360,7 +359,8 @@ struct ViewContext {
 impl ViewContext {
     fn new(size: PhysicalSize<u32>) -> Result<Self, Error> {
         Ok(Self {
-            background: Srgb::new(0., 0., 0.),
+            foreground: palette::Srgb::new(1., 1., 1.),
+            background: palette::Srgb::new(0., 0., 0.),
             font: random_font()?,
             size,
         })
@@ -383,14 +383,8 @@ impl ViewContext {
     }
 }
 
-fn contrasted_color(color: Srgb) -> Srgb {
-    let color = color.into_linear();
-    Srgb::from_linear(color * 0.5)
-}
-
-fn color_as_components(color: Srgb) -> [f32; 4] {
+fn color_as_components(color: palette::Srgb) -> [f32; 4] {
     let (r, g, b) = color.into_components();
-
     [r, g, b, 1.0]
 }
 
