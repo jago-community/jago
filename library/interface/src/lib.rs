@@ -24,7 +24,6 @@ author::error!(
     wgpu::RequestDeviceError,
     wgpu::SwapChainError,
     futures::task::SpawnError,
-    Panicked(String),
 );
 
 pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<(), Error> {
@@ -115,15 +114,7 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
             }
             Some(Outcome::ControlFlow(ControlFlow::Exit)) => std::process::exit(0),
             Some(Outcome::ControlFlow(next)) => *control_flow = next,
-            _ => {}
-        };
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::RedrawRequested { .. } => {
+            Some(Outcome::Redraw) => {
                 // Get a command encoder for the current frame
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Redraw"),
@@ -194,10 +185,8 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
 
                 local_pool.run_until_stalled();
             }
-            _ => {
-                *control_flow = ControlFlow::Wait;
-            }
-        }
+            _ => {}
+        };
     });
 }
 
@@ -295,6 +284,7 @@ fn draw_triangle<'a>(device: &'a wgpu::Device) -> Result<(), Error> {
 enum Outcome {
     Change(ViewChange),
     ControlFlow(ControlFlow),
+    Redraw,
 }
 
 #[derive(Default)]
@@ -305,6 +295,11 @@ struct DeviceState {
 impl DeviceState {
     fn handle(&mut self, event: &Event<()>) -> Option<Outcome> {
         match event {
+            Event::RedrawRequested { .. } => Some(Outcome::Redraw),
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => Some(Outcome::ControlFlow(ControlFlow::Exit)),
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
