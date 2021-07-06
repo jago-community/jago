@@ -86,9 +86,11 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
             Some(Outcome::Change(change)) => {
                 let previous_view_context = view_context.clone();
 
-                if let Err(error) = view_context.handle(change) {
+                if let Err(error) = view_context.handle(dbg!(change)) {
                     return log::error!("{}", error);
                 }
+
+                println!("handled");
 
                 if &view_context.font.0 != &previous_view_context.font.0 {
                     glyph_brush = match build_brush(&device, render_format, &view_context) {
@@ -196,7 +198,6 @@ fn build_brush(
     view: &ViewContext,
 ) -> Result<GlyphBrush<()>, Error> {
     let font = ab_glyph::FontArc::try_from_vec(view.font.1.as_ref().clone())?;
-
     Ok(GlyphBrushBuilder::using_font(font).build(&device, render_format))
 }
 
@@ -281,6 +282,7 @@ fn draw_triangle<'a>(device: &'a wgpu::Device) -> Result<(), Error> {
     unimplemented!()
 }
 
+#[derive(Debug)]
 enum Outcome {
     Change(ViewChange),
     ControlFlow(ControlFlow),
@@ -338,6 +340,7 @@ impl DeviceState {
     }
 }
 
+#[derive(Debug)]
 enum ViewChange {
     Randomize,
     Resize(PhysicalSize<u32>),
@@ -362,7 +365,7 @@ impl ViewContext {
     }
 
     fn handle(&mut self, change: ViewChange) -> Result<(), Error> {
-        Ok(match change {
+        Ok(match dbg!(change) {
             ViewChange::Randomize => {
                 self.random_font()?;
             }
@@ -384,27 +387,39 @@ fn color_as_components(color: palette::Srgb) -> [f32; 4] {
 }
 
 fn random_font() -> Result<(String, Arc<Vec<u8>>), Error> {
-    let list = font_kit::sources::fs::FsSource::new().all_fonts()?;
-    let font = list
-        .choose(&mut rand::thread_rng())
-        .map(Ok)
-        .unwrap_or(Err(Error::NoFonts))?;
+    println!("1");
 
-    let index = match font {
-        font_kit::handle::Handle::Path { font_index, .. } => font_index,
-        font_kit::handle::Handle::Memory { font_index, .. } => font_index,
-    };
+    let handle =
+        font_kit::sources::fs::FsSource::new().select_by_postscript_name("PT Regular Mono")?;
+    //println!("2");
+    //let font = list
+    //.choose(&mut rand::thread_rng())
+    //.map(Ok)
+    //.unwrap_or(Err(Error::NoFonts))?;
 
-    let font = font.load()?;
+    //println!("3");
+    //let index = match font {
+    //font_kit::handle::Handle::Path { font_index, .. } => font_index,
+    //font_kit::handle::Handle::Memory { font_index, .. } => font_index,
+    //};
 
-    let key = font
-        .postscript_name()
-        .unwrap_or_else(|| format!("{}/{}/{}", font.family_name(), font.full_name(), index));
+    println!("4");
+
+    let font = handle.load()?;
+
+    //println!("5");
+    //let key = font
+    //.postscript_name()
+    //.unwrap_or_else(|| format!("{}/{}/{}", font.family_name(), font.full_name(), index));
+
+    println!("6");
 
     let output = font
         .copy_font_data()
         .map(Ok)
         .unwrap_or(Err(Error::CopyFont))?;
 
-    Ok((key, output))
+    println!("7");
+
+    Ok(("PT Mono".into(), output))
 }
