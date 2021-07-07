@@ -1,11 +1,19 @@
 use std::{iter::Peekable, path::PathBuf};
 
 pub fn before() -> Result<Box<dyn Fn()>, Error> {
-    let output_directory = std::env::var("OUTPUT_DIRECTORY")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs::home_dir().unwrap().join("output"));
+    let logger_directory = std::env::var("CARGO_MANIFEST_DIR")?;
 
-    let logger = flexi_logger::Logger::with_str("info")
+    let output_directory = PathBuf::from(&logger_directory)
+        .join("target")
+        .join("logger");
+
+    let libraries = library::libraries(&logger_directory)?;
+
+    let libraries_filter = libraries.join("=debug,");
+
+    let filter = format!("warn, {}", libraries_filter);
+
+    let logger = flexi_logger::Logger::with_str(&filter)
         .log_to_file()
         .print_message()
         .buffer_and_flush()
@@ -47,4 +55,6 @@ author::error!(
     Incomplete,
     flexi_logger::FlexiLoggerError,
     log::ParseLevelError,
+    std::env::VarError,
+    library::Error,
 );
