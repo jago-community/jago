@@ -1,11 +1,7 @@
-use std::{iter::Peekable, path::PathBuf};
+use std::iter::Peekable;
 
-pub fn before() -> Result<Box<dyn Fn()>, Error> {
+pub fn before() -> Result<Option<Box<dyn Fn()>>, Error> {
     let logger_directory = std::env::var("CARGO_MANIFEST_DIR")?;
-
-    let output_directory = PathBuf::from(&logger_directory)
-        .join("target")
-        .join("logger");
 
     let libraries = library::libraries(&logger_directory)?;
 
@@ -13,22 +9,11 @@ pub fn before() -> Result<Box<dyn Fn()>, Error> {
 
     let filter = format!("warn, {}", libraries_filter);
 
-    let logger = flexi_logger::Logger::with_str(&filter)
-        .log_to_file()
-        .print_message()
-        .buffer_and_flush()
-        .directory(&output_directory)
-        .append()
-        .rotate(
-            flexi_logger::Criterion::Size(10 * 1024 * 1024),
-            flexi_logger::Naming::Numbers,
-            flexi_logger::Cleanup::KeepLogFiles(5),
-        )
-        .start()?;
+    pretty_env_logger::formatted_builder()
+        .parse_filters(&filter)
+        .init();
 
-    Ok(Box::new(move || {
-        logger.shutdown();
-    }))
+    Ok(None)
 }
 
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {

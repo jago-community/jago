@@ -1,3 +1,7 @@
+- Better source navigation for cargo. Navigate/search ~/.cargo directory easily.
+
+## old
+
 - scale security with git ssh
 - implement password security for http
 - security

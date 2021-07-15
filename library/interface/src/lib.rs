@@ -1,6 +1,7 @@
+mod font;
+
 use std::{iter::Peekable, sync::Arc};
 
-use rand::seq::SliceRandom;
 use wgpu_glyph::{ab_glyph, GlyphBrush, GlyphBrushBuilder, Section, Text};
 
 use winit::{
@@ -17,6 +18,7 @@ author::error!(
     NoAdaptor,
     ArcGetMut,
     GlyphDraw(String),
+    font::Error,
     winit::error::OsError,
     font_kit::error::SelectionError,
     font_kit::error::FontLoadingError,

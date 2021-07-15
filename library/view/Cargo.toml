@@ -1,17 +1,10 @@
 [package]
-name = "lense"
+name = "view"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# jago! "author" => {} = {{ path = "../{}" }}
 author = { path = "../author" }
-nannou = "0.17.0"
-log = "0.4.14"
-rand = "0.8.4"
-font-kit = "0.10.1"
-rusttype = "0.9.2"
-ncollide2d = "0.30.0"
-nalgebra = "0.27.1"
-num-traits = "0.2.14"

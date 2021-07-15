@@ -10,6 +10,7 @@ edition = "2018"
 default=["logger"]
 
 [dependencies]
+log = "0.4.14"
 program = { path = "library/program" }
 logger = { path = "library/logger", optional = true }
 server = { path = "library/server", optional = true }
@@ -18,7 +19,8 @@ platform = { path = "library/platform", optional = true }
 interface = { path = "library/interface", optional = true }
 lense = { path = "library/lense", optional = true }
 #window = { path = "library/window", optional = true }
-log = "0.4.14"
+filter = { path = "library/filter", optional = true }
+shell = { path = "library/shell", optional = true }
 
 [workspace]
 members = ["library/*"]

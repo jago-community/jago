@@ -22,9 +22,13 @@ impl<'a> Cache<'a> {
     fn get(&'a mut self, key: &'a str) -> Result<GlyphBrush<()>, Error> {
         let raw = self.cache.get(key);
 
+        /*
         let font = ab_glyph::FontArc::try_from_vec(raw)?;
 
         Ok(GlyphBrushBuilder::using_font(font).build(&device, render_format))
+        */
+
+        unimplemented!()
     }
 }
 

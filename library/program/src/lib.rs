@@ -72,9 +72,10 @@ pub fn build(_input: TokenStream) -> TokenStream {
                 before.extend(quote! {
                     #[cfg(feature = #package)]
                     match #identity::before() {
-                        Ok(cleanup) => {
-                            after = Some(cleanup);
+                        Ok(Some(cleanup)) => {
+                            after.push(cleanup);
                         }
+                        Ok(None) => {}
                         Err(error) => {
                             eprintln!("error running {}::before : {}", stringify!(#package), error);
                             code = 1;
@@ -136,7 +137,7 @@ pub fn build(_input: TokenStream) -> TokenStream {
 
             let mut input = std::env::args().skip(1).peekable();
             let mut code = 0;
-            let mut after: Option<Box<dyn Fn()>> = None;
+            let mut after: Vec<Box<dyn Fn()>> = vec![];
 
             #before
 
@@ -146,9 +147,7 @@ pub fn build(_input: TokenStream) -> TokenStream {
 
             log::info!("{:?} elapsed", start.elapsed());
 
-            if let Some(after) = after {
-                after();
-            }
+            after.iter().for_each(|handle| handle());
 
             std::process::exit(code);
         }
