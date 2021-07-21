@@ -2108,6 +2108,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "map"
+version = "0.1.0"
+dependencies = [
+ "author",
+ "base64",
+ "dirs",
+ "futures",
+ "glob",
+ "globset",
+ "hyper",
+ "ignore",
+ "log",
+ "nom",
+ "serde_json",
+]
+
+[[package]]
 name = "matches"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3596,6 +3613,7 @@ dependencies = [
  "http",
  "hyper",
  "log",
+ "map",
  "serde",
  "serde_json",
  "shared",
@@ -3661,6 +3679,8 @@ dependencies = [
  "library",
  "log",
  "nom",
+ "quote 1.0.9",
+ "syn",
  "tempfile",
 ]
 

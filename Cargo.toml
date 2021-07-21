@@ -12,6 +12,9 @@ default=["logger"]
 [dependencies]
 log = "0.4.14"
 program = { path = "library/program" }
+
+#rust!(library::libraries()?.map(|library| format!("{0} = {{ path = "library0}", optional = true }}", library)));
+
 logger = { path = "library/logger", optional = true }
 server = { path = "library/server", optional = true }
 storage = { path = "library/storage", optional = true }

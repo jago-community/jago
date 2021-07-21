@@ -1,0 +1,8 @@
+- [ ] Shell that copies contents of {project} directory to ~/target/{project} and runs command in new directory
+    - [ ] When copying, shell parses each file and expands macros it supports
+- [ ] Better rust project navigation. Search/language actions through ~/.cargo/
+- [ ] Git hosting
+- [ ] Serve contents of repository
+- [ ] Cross platform app framework
+    - Founded in nalgebra/parry{n}d
+    - Built with gpu accelerated properties in mind, ability to drop down to specific platform drawers

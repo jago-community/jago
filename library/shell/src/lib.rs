@@ -1,3 +1,5 @@
+mod shell;
+
 use std::iter::Peekable;
 
 author::error!(
@@ -120,7 +122,7 @@ fn pick_root() -> Result<PathBuf, Error> {
 pub fn get_context<P: Into<PathBuf>>(source: P) -> Result<TempDir, Error> {
     let source = source.into();
 
-    let context = tempfile::tempdir()?;
+    let context = tempfile::Builder::new().prefix("shell").tempdir()?;
 
     let mut builder = ignore::WalkBuilder::new(&source);
     builder.add_ignore(source.join(".dockerignore"));
@@ -141,11 +143,15 @@ pub fn get_context<P: Into<PathBuf>>(source: P) -> Result<TempDir, Error> {
         let target = context.path().join(&local);
 
         if path.is_file() {
-            std::fs::copy(path, target)?;
+            handle_file(&path, &target)?;
         } else {
             std::fs::create_dir(target)?;
         }
     }
 
     Ok(context)
+}
+
+fn handle_file(path: &Path, target: &Path) -> Result<(), Error> {
+    std::fs::copy(path, target).map(|_| ()).map_err(Error::from)
 }
