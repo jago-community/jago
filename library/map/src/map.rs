@@ -3,7 +3,9 @@ author::error!(
     base64::DecodeError,
     serde_json::Error,
     hyper::http::Error,
-    std::io::Error
+    std::io::Error,
+    NoHome,
+    crate::address::Error,
 );
 
 use std::{
@@ -12,6 +14,8 @@ use std::{
 };
 
 use hyper::{Body, Request, Response};
+
+use crate::address;
 
 pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
     let (path, _variables) = uri(input.uri())?;
@@ -30,10 +34,20 @@ pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
 
 #[test]
 fn map_uri() {
-    let cases = vec![(
-        "?root=local/jago/jago/studio",
-        dirs::home_dir().unwrap().join("local/jago/jago/studio"),
-    )];
+    let cases = vec![
+        (
+            "?root=local/jago/jago/studio",
+            dirs::home_dir().unwrap().join("local/jago/jago/studio"),
+        ),
+        (
+            "?root=git@github.com:jago-community/jago.git/jago/studio",
+            dirs::home_dir().unwrap().join("remote/jago/jago/studio"),
+        ),
+        (
+            "/jago/studio?root=git@github.com:jago-community/jago.git",
+            dirs::home_dir().unwrap().join("remote/jago/jago/studio"),
+        ),
+    ];
 
     for (input, want) in cases {
         let input = Uri::builder().path_and_query(input).build().unwrap();
@@ -50,21 +64,28 @@ use serde_json::Value;
 pub fn uri<'a>(input: &'a Uri) -> Result<(PathBuf, HashMap<&'a str, Value>), Error> {
     let variables = query(input.query().unwrap_or(""))?;
 
+    let home = dirs::home_dir().map_or(Err(Error::NoHome), Ok)?;
+
     let path = input.path();
     let path: &str = path[1..].into();
-
-    let home = dirs::home_dir().unwrap();
-
-    let mut root = match variables.get("root") {
-        Some(Value::String(root)) => home.join(root),
-        _ => home,
+    let path = match variables.get("root") {
+        Some(Value::String(root)) => {
+            let mut root = root.clone();
+            root.push(std::path::MAIN_SEPARATOR);
+            root.push_str(path);
+            root
+        }
+        _ => path.into(),
+    };
+    let path = match address::parse(&path) {
+        Ok(address) => address.path(&home),
+        Err(error) => match error.kind {
+            address::ErrorKind::Parse(_) => home.join(path),
+            _ => return Err(Error::from(error)),
+        },
     };
 
-    if path != "" {
-        root = root.join(path);
-    }
-
-    Ok((root, variables))
+    Ok((path, variables))
 }
 
 use std::collections::HashMap;
