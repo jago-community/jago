@@ -15,7 +15,7 @@ fn test_ensure() {
     context::before().unwrap();
 
     fn clear<'a>(home: &'a std::path::Path, address: &'a Address) -> Result<(), Error> {
-        let path = address.path(&home);
+        let path = address.directory(&home);
 
         let metadata = match std::fs::metadata(&path) {
             Ok(metadata) => metadata,
@@ -38,7 +38,7 @@ fn test_ensure() {
     ensure(&address).unwrap();
 
     let mut buffer = vec![];
-    let path = std::sync::Arc::new(address.full(home.join("remote")));
+    let path = std::sync::Arc::new(address.path(&home));
     let mut file = std::fs::File::open(path.as_ref()).unwrap();
     file.read_to_end(&mut buffer).unwrap();
 
@@ -62,15 +62,16 @@ pub fn ensure<'a>(address: &'a Address) -> Result<(), Error> {
 
     let mut callbacks = git2::RemoteCallbacks::new();
 
-    let mut public_key = dbg!(&identity).clone();
+    let mut public_key = identity.clone();
     public_key.set_extension("pub");
 
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key(
             username_from_url.unwrap(),
-            Some(dbg!(&public_key)),
-            dbg!(&identity),
-            None,
+            Some(&public_key),
+            &identity,
+            // TODO: fix this
+            Some("<redacted>"),
         )
     });
 
@@ -102,7 +103,7 @@ pub fn ensure<'a>(address: &'a Address) -> Result<(), Error> {
 
                     println!("cloning: {} -> {}", source, path.display());
 
-                    match builder.clone(dbg!(source.as_ref()), &path) {
+                    match builder.clone(source.as_ref(), &path) {
                         Err(error) => {
                             eprintln!("Unexpected error while cloning repository: {}", error);
                             std::process::exit(1);
