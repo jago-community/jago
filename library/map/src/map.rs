@@ -6,6 +6,8 @@ author::error!(
     std::io::Error,
     NoHome,
     crate::address::Error,
+    context::Error,
+    crate::cache::Error,
 );
 
 use std::{
@@ -16,9 +18,20 @@ use std::{
 use hyper::{Body, Request, Response};
 
 use crate::address;
+use crate::cache;
 
 pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
     let (path, _variables) = uri(input.uri())?;
+
+    let home = context::home()?;
+
+    let path = match path {
+        Either::Left(path) => path,
+        Either::Right(address) => {
+            cache::ensure(&address)?;
+            address.path(&home)
+        }
+    };
 
     let file = File::open(&path)?;
     let mut file = BufReader::new(file);
@@ -37,55 +50,65 @@ fn map_uri() {
     let cases = vec![
         (
             "?root=local/jago/jago/studio",
-            dirs::home_dir().unwrap().join("local/jago/jago/studio"),
+            context::home().unwrap().join("local/jago/jago/studio"),
         ),
         (
             "?root=git@github.com:jago-community/jago.git/jago/studio",
-            dirs::home_dir().unwrap().join("remote/jago/jago/studio"),
+            context::home().unwrap().join("remote/jago/jago/studio"),
         ),
         (
             "/jago/studio?root=git@github.com:jago-community/jago.git",
-            dirs::home_dir().unwrap().join("remote/jago/jago/studio"),
+            context::home().unwrap().join("remote/jago/jago/studio"),
         ),
     ];
 
     for (input, want) in cases {
         let input = Uri::builder().path_and_query(input).build().unwrap();
-        let (got, _) = uri(&input).unwrap();
+        let got = match uri(&input).unwrap() {
+            (Either::Left(path), _) => path,
+            (Either::Right(address), _) => address.path(&context::home().unwrap()),
+        };
         assert_eq!(want, got);
     }
 }
 
 use std::path::PathBuf;
 
+use address::Address;
+use either::Either;
 use hyper::Uri;
 use serde_json::Value;
 
-pub fn uri<'a>(input: &'a Uri) -> Result<(PathBuf, HashMap<&'a str, Value>), Error> {
-    let variables = query(input.query().unwrap_or(""))?;
+pub fn uri<'a>(
+    input: &'a Uri,
+) -> Result<(Either<PathBuf, Address>, HashMap<&'a str, Value>), Error> {
+    let home = context::home()?;
 
-    let home = dirs::home_dir().map_or(Err(Error::NoHome), Ok)?;
+    let variables = query(input.query().unwrap_or(""))?;
 
     let path = input.path();
     let path: &str = path[1..].into();
     let path = match variables.get("root") {
         Some(Value::String(root)) => {
             let mut root = root.clone();
-            root.push(std::path::MAIN_SEPARATOR);
-            root.push_str(path);
+            if !path.is_empty() {
+                root.push(std::path::MAIN_SEPARATOR);
+                root.push_str(path);
+            }
             root
         }
         _ => path.into(),
     };
-    let path = match address::parse(&path) {
-        Ok(address) => address.path(&home),
+
+    let output = match address::parse(&path) {
+        Ok(address) => Either::Right(address),
         Err(error) => match error.kind {
-            address::ErrorKind::Parse(_) => home.join(path),
+            address::ErrorKind::Parse(_) => Either::Left(home.join(path)),
             _ => return Err(Error::from(error)),
         },
     };
 
-    Ok((path, variables))
+    Ok((output, variables))
 }
 
 use std::collections::HashMap;

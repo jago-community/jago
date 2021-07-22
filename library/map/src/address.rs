@@ -35,8 +35,8 @@ impl Address {
         }
     }
 
-    pub fn directory(&self, context: PathBuf) -> PathBuf {
-        let path = context.join(&self.source);
+    pub fn directory<'a>(&self, home: &'a Path) -> PathBuf {
+        let path = home.join("remote").join(&self.name);
 
         path
     }

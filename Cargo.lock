@@ -157,6 +157,7 @@ name = "author"
 version = "0.1.0"
 dependencies = [
  "dirs",
+ "lazy_static",
  "pretty_assertions",
  "proc-macro2 1.0.27",
  "proc-macro2-diagnostics",
@@ -482,6 +483,17 @@ name = "conrod_winit"
 version = "0.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2ef59479f5d5f8de09fa1c14a388bacf430e9713fc83a8a86d95facbc85edb5"
+
+[[package]]
+name = "context"
+version = "0.1.0"
+dependencies = [
+ "author",
+ "dirs",
+ "lazy_static",
+ "nom",
+ "shellexpand",
+]
 
 [[package]]
 name = "copyless"
@@ -1446,9 +1458,9 @@ dependencies = [
 
 [[package]]
 name = "git2"
-version = "0.13.19"
+version = "0.13.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17929de7239dea9f68aa14f94b2ab4974e7b24c1314275ffcc12a7758172fa18"
+checksum = "d9831e983241f8c5591ed53f17d874833e2fa82cac2625f3888c50cbfe136cba"
 dependencies = [
  "bitflags",
  "libc",
@@ -1709,6 +1721,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "identity"
+version = "0.1.0"
+dependencies = [
+ "author",
+]
+
+[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1828,6 +1847,7 @@ checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 name = "jago"
 version = "0.1.0"
 dependencies = [
+ "context",
  "filter",
  "interface",
  "lense",
@@ -1925,9 +1945,9 @@ checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 
 [[package]]
 name = "libgit2-sys"
-version = "0.12.20+1.1.0"
+version = "0.12.21+1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2f09917e00b9ad194ae72072bb5ada2cca16d8171a43e91ddba2afbb02664b"
+checksum = "86271bacd72b2b9e854c3dcfb82efd538f15f870e4c11af66900effb462f6825"
 dependencies = [
  "cc",
  "libc",
@@ -2114,14 +2134,19 @@ version = "0.1.0"
 dependencies = [
  "author",
  "base64",
+ "context",
  "dirs",
+ "either",
  "futures",
+ "git2",
  "glob",
  "globset",
  "hyper",
  "ignore",
+ "image",
  "log",
  "nom",
+ "rand 0.8.4",
  "serde_json",
 ]
 

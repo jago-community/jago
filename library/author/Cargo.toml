@@ -18,6 +18,7 @@ syn = { version = "1.0.73", features = ["full"] }
 proc-macro2 = { version = "1.0.27", features = ["span-locations"] }
 utility = { path = "../utility" }
 dirs = "3.0.2"
+lazy_static = "1.4.0"
 # cargo = "0.54.0"
 
 [dev-dependencies]
