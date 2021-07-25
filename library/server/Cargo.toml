@@ -21,3 +21,4 @@ serde_json = "1.0.64"
 log = "0.4.14"
 author = { path = "../author" }
 map = { path = "../map" }
+identity = { path = "../identity" }

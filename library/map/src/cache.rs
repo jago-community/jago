@@ -71,7 +71,8 @@ pub fn ensure<'a>(address: &'a Address) -> Result<(), Error> {
             Some(&public_key),
             &identity,
             // TODO: fix this
-            Some("<redacted>"),
+            //Some("<redacted>"),
+            None,
         )
     });
 
