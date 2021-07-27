@@ -59,6 +59,7 @@ pub fn expand_iterator<I: Iterator<Item = String>>(input: &mut I) -> Result<Stri
 
 mod expand {
     #[test]
+    #[ignore]
     fn test_str() {
         let input = "rust!(library::libraries()?
     .map(|library| format!(

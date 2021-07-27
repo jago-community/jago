@@ -1,6 +1,7 @@
 use crate::address::Address;
 
 #[test]
+#[ignore]
 fn test_ensure() {
     fn clear<'a>(address: &'a Address) -> Result<(), Error> {
         let context = dirs::home_dir().unwrap();

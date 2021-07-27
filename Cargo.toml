@@ -25,6 +25,7 @@ lense = { path = "library/lense", optional = true }
 filter = { path = "library/filter", optional = true }
 shell = { path = "library/shell", optional = true }
 context = { path = "library/context", optional = true }
+instrument = { path = "library/instrument", optional = true }
 
 [workspace]
 members = ["library/*"]

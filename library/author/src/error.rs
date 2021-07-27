@@ -41,7 +41,7 @@ use quote::quote;
 fn test_derive_from_fields() {
     let want = quote! {
         #[derive(Debug)]
-        enum Error {
+        pub enum Error {
             Incomplete,
             StdIoError(std::io::Error),
             BadInput(String),

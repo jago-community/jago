@@ -76,8 +76,8 @@ fn test_environment() {
     let mut sane = false;
 
     for (key, value) in list {
-        if key == "JAGO" {
-            assert!(value != "$HOME");
+        if key == "IDENTITY" {
+            assert!(value != "~/.ssh/id_rsa");
             sane = true;
         }
     }
