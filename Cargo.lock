@@ -2164,8 +2164,10 @@ dependencies = [
  "image",
  "log",
  "nom",
+ "pulldown-cmark",
  "rand 0.8.4",
  "serde_json",
+ "tinytemplate",
 ]
 
 [[package]]

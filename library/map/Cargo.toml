@@ -21,6 +21,9 @@ context = { path = "../context" }
 either = "1.6.1"
 git2 = "0.13.20"
 rand = "0.8.4"
+pulldown-cmark = "0.8.0"
+image = "0.23.14"
+tinytemplate = "1.2.1"
 
 [dev-dependencies]
 image = "0.23.14"

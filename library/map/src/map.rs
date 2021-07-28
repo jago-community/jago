@@ -9,12 +9,10 @@ author::error!(
     context::Error,
     crate::cache::Error,
     UnexpectedRootValue(serde_json::Value),
+    crate::content::Error,
 );
 
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use std::collections::HashMap;
 
 use hyper::{Body, Request, Response};
 
@@ -22,7 +20,7 @@ use crate::address;
 use crate::cache;
 
 pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
-    let (path, _variables) = uri(input.uri())?;
+    let (path, variables) = uri(input.uri())?;
 
     let home = context::home()?;
 
@@ -34,12 +32,7 @@ pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
         }
     };
 
-    let file = File::open(&path)?;
-    let mut file = BufReader::new(file);
-
-    let mut output = vec![];
-
-    file.read_to_end(&mut output)?;
+    let output = crate::content::path(&path, &variables)?;
 
     Response::builder()
         .body(Body::from(output))
@@ -61,6 +54,7 @@ fn map_uri() {
             "/jago/studio?root=git@github.com:jago-community/jago.git",
             context::home().unwrap().join("remote/jago/jago/studio"),
         ),
+        ("/", context::home().unwrap().join("local/jago/jago/studio")),
     ];
 
     for (input, want) in cases {
@@ -115,20 +109,18 @@ pub fn uri<'a>(
     Ok((output, variables))
 }
 
-use std::collections::HashMap;
-
 pub fn query<'a>(input: &'a str) -> Result<HashMap<&'a str, Value>, Error> {
     let mut variables = HashMap::new();
 
     for mut pair in input.split("&").map(|segment| segment.split("=")) {
         match (pair.next(), pair.next()) {
-            (Some("root"), Some(value)) => {
-                variables.insert("root", Value::String(value.into()));
-            }
-            (Some(key), Some(encoded)) => {
-                let serialized = base64::decode(encoded)?;
+            (Some(key), Some(encoded)) if encoded.starts_with("b64:") => {
+                let serialized = base64::decode(&encoded[4..])?;
                 let value = serde_json::from_slice(&serialized)?;
                 variables.insert(key, value);
+            }
+            (Some(key), Some(value)) => {
+                variables.insert(key, Value::String(value.into()));
             }
             _ => {}
         };
