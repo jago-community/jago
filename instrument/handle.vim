@@ -1,30 +1,20 @@
 function! InstrumentHandle(...) abort
-    let action = substitute(a:1, '\s\+$', '', '')
-
     if has('terminal')
         let cmd = 'vertical terminal'
     else
         throw "upgrade vim to version 8.1 or higher"
     endif
 
-    let input = []
+    let before = substitute(a:1, '%', expand('%'), '')
+    let after = a:2
 
-    for index in range(2, a:0)
-        call add(input, a:000[index-1])
-    endfor
+    let combined = before . ' -- ' . after
 
-    let rest = len(input) > 0 ? ' ' . join(input, ' ') : ''
-
-    let location = expand('%') . ' '
-
-    let action = substitute(a:1, '%', location, '')
-
-    let args = action . rest
-
-    execute cmd 'cargo run --features instrument -- ' args
+    execute cmd 'cargo run --features ' combined
 endfunction
 
-nmap <silent> <Leader>t :call InstrumentHandle("test %")<CR>
-nmap <silent> <Leader>tt :call InstrumentHandle("test % -- --nocapture")<CR>
-nmap <silent> <Leader>T :call InstrumentHandle("test --workspace")<CR>
-nmap <silent> <Leader>TT :call InstrumentHandle("test --workspace -- --nocapture")<CR>
+nmap <silent> <Leader>s :call InstrumentHandle("server", "serve")<CR>
+nmap <silent> <Leader>t :call InstrumentHandle("instrument", "test %")<CR>
+nmap <silent> <Leader>tt :call InstrumentHandle("instrument", "test % -- --nocapture")<CR>
+nmap <silent> <Leader>T :call InstrumentHandle("instrument","test --workspace")<CR>
+nmap <silent> <Leader>TT :call InstrumentHandle("instrument", "test --workspace -- --nocapture")<CR>

@@ -8,6 +8,7 @@ author::error!(
     crate::address::Error,
     context::Error,
     crate::cache::Error,
+    UnexpectedRootValue(serde_json::Value),
 );
 
 use std::{
@@ -88,17 +89,20 @@ pub fn uri<'a>(
 
     let path = input.path();
     let path: &str = path[1..].into();
-    let path = match variables.get("root") {
-        Some(Value::String(root)) => {
-            let mut root = root.clone();
-            if !path.is_empty() {
-                root.push(std::path::MAIN_SEPARATOR);
-                root.push_str(path);
+    let path = variables
+        .get("root")
+        .map(|value| match &value {
+            Value::String(root) => {
+                let mut root = root.clone();
+                if !path.is_empty() {
+                    root.push(std::path::MAIN_SEPARATOR);
+                    root.push_str(path);
+                }
+                Ok(root)
             }
-            root
-        }
-        _ => path.into(),
-    };
+            _ => Err(Error::UnexpectedRootValue(value.clone())),
+        })
+        .unwrap_or(Ok(String::from("local/jago/jago/studio")))?;
 
     let output = match address::parse(&path) {
         Ok(address) => Either::Right(address),
