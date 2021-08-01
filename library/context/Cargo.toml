@@ -11,6 +11,9 @@ dirs = "3.0.2"
 lazy_static = "1.4.0"
 shellexpand = "2.1.0"
 nom = "6.2.1"
+secrets = "1.1.0"
+rpassword = "5.0.1"
+parking_lot = "0.11.1"
 
 [dev-dependencies]
 tempfile = "3.2.0"

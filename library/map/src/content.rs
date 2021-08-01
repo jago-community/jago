@@ -52,14 +52,14 @@ fn directory<'a>(
 ) -> Result<Vec<u8>, Error> {
     let context = directory.file_stem();
 
-    let mut buffer = vec![];
+    let mut output = vec![];
 
     write!(
-        &mut buffer,
+        &mut output,
         "<details>\n\
             <summary>\n\
                 Directory: {}\n\
-            </summary>\n",
+            </summary>\n\n",
         directory.display()
     )?;
 
@@ -68,7 +68,7 @@ fn directory<'a>(
         .max_depth(Some(1))
         .build();
 
-    let mut output = vec![];
+    let mut buffer = vec![];
 
     for entry in walker {
         let entry = entry?;
@@ -80,8 +80,8 @@ fn directory<'a>(
         }
 
         if context == path.file_name() {
-            let buffer = self::path(path, variables)?;
-            output.write(&buffer)?;
+            let mut file = File::open(&path)?;
+            file.read_to_end(&mut buffer)?;
         }
 
         let parent = match path.parent() {
@@ -93,33 +93,53 @@ fn directory<'a>(
 
         let cleaned = path.strip_prefix(context::home()?)?;
 
-        write!(
-            &mut buffer,
-            "- [{}]({})\n",
+        writeln!(
+            &mut output,
+            "- [{}]({})",
             title.display(),
             cleaned.display()
         )?;
     }
 
-    buffer.write(b"</details>")?;
-
-    output.write(b"\n")?;
+    output.write(b"</details>\n\n")?;
     output.write(&buffer)?;
 
     document(&str::from_utf8(&output)?, variables)
 }
 
-fn document<'a>(
+fn template<'a>(
     input: &'a str,
     variables: &'a HashMap<&'a str, serde_json::Value>,
 ) -> Result<Vec<u8>, Error> {
+    use pulldown_cmark::{html::write_html, Parser};
     use tinytemplate::TinyTemplate as Templates;
 
     let mut templates = Templates::new();
 
     templates.add_template("document", input)?;
 
-    let output = templates.render("document", variables)?;
+    let buffer = templates.render("document", variables)?;
 
-    Ok(output.into())
+    let parser = Parser::new(&buffer);
+
+    let mut output = vec![];
+
+    write_html(&mut output, parser)?;
+
+    Ok(output)
+}
+
+fn document<'a>(
+    input: &'a str,
+    variables: &'a HashMap<&'a str, serde_json::Value>,
+) -> Result<Vec<u8>, Error> {
+    let mut output = vec![];
+
+    write!(&mut output, "<!doctype html><html><body>")?;
+
+    output.write(&template(input, variables)?)?;
+
+    write!(&mut output, "</body>")?;
+
+    Ok(output)
 }

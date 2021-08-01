@@ -24,6 +24,8 @@ rand = "0.8.4"
 pulldown-cmark = "0.8.0"
 image = "0.23.14"
 tinytemplate = "1.2.1"
+identity = { path = "../identity" }
 
 [dev-dependencies]
 image = "0.23.14"
+tokio-test = "0.4.2"

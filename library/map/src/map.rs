@@ -19,7 +19,47 @@ use hyper::{Body, Request, Response};
 use crate::address;
 use crate::cache;
 
-pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
+#[test]
+fn map_request() {
+    context::before().unwrap();
+
+    let cases = vec![
+        /*
+        (
+            "?root=local/jago/README.md&identity=stranger",
+            "Hello, stranger",
+        ),
+        (
+            "?root=git@github.com:jago-community/jago.git/jago/studio",
+            "Hello, stranger",
+        ),
+        */
+        (
+            "/README.md?identity=stranger&root=git@github.com:jago-community/jago.git",
+            "Hello, stranger",
+        ),
+    ];
+
+    let identity = identity::Identity::from_variable("IDENTITY").unwrap();
+
+    for (input, want) in cases {
+        let input = Request::builder()
+            .uri(Uri::builder().path_and_query(input).build().unwrap())
+            .body(Body::empty())
+            .unwrap();
+
+        let response = request(input, &identity).unwrap();
+
+        let got = tokio_test::block_on(hyper::body::to_bytes(response)).unwrap();
+
+        assert_eq!(want, std::str::from_utf8(got.as_ref()).unwrap());
+    }
+}
+
+pub fn request<'a>(
+    input: Request<Body>,
+    identity: &'a identity::Identity,
+) -> Result<Response<Body>, Error> {
     let (path, variables) = uri(input.uri())?;
 
     let home = context::home()?;
@@ -27,7 +67,7 @@ pub fn request<'a>(input: Request<Body>) -> Result<Response<Body>, Error> {
     let path = match path {
         Either::Left(path) => path,
         Either::Right(address) => {
-            cache::ensure(&address)?;
+            cache::ensure(&address, &identity)?;
             address.path(&home)
         }
     };

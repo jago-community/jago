@@ -51,57 +51,68 @@ pub fn build(_input: TokenStream) -> TokenStream {
     let mut error_sourcers = quote!();
     let mut error_transformers = quote!();
 
-    let features = program
+    let mut features = program
         .dependencies
         .iter()
         .filter(|(_name, dependency)| match dependency {
             Dependency::Specification(specification) => specification.optional,
             _ => false,
-        });
+        })
+        .map(|(package, _)| {
+            let identity = format_ident!("{}", package);
 
-    for (package, _specification) in features {
-        let identity = format_ident!("{}", package);
+            let library_path = PathBuf::from("library")
+                .join(package)
+                .join("src")
+                .join("lib.rs");
 
-        let library_path = PathBuf::from("library")
-            .join(package)
-            .join("src")
-            .join("lib.rs");
+            inspect_library(&library_path)
+                .map(|(level, options)| (package, identity, level, options))
+        })
+        .collect::<Vec<_>>();
 
-        match has_before(&library_path) {
-            Ok(true) => {
-                before.extend(quote! {
-                    #[cfg(feature = #package)]
-                    match #identity::before() {
-                        Ok(Some(cleanup)) => {
-                            after.push(cleanup);
-                        }
-                        Ok(None) => {}
-                        Err(error) => {
-                            eprintln!("error running {}::before : {}", stringify!(#package), error);
-                            code = 1;
-                        }
-                    };
-                });
-            }
-            Err(error) => {
-                return error.emit_as_expr_tokens().into();
-            }
-            _ => {}
+    features.sort_by(|a, b| match (a, b) {
+        (Ok((_, _, a, _)), Ok((_, _, b, _))) => a.cmp(b),
+        _ => std::cmp::Ordering::Less,
+    });
+
+    for feature in features {
+        let (package, identity, _, options) = match feature {
+            Ok(feature) => feature,
+            Err(error) => return error.emit_as_expr_tokens().into(),
         };
 
-        body.extend(quote! {
-            #[cfg(feature = #package)]
-            match #identity::handle(&mut input) {
-                Err(error) => match &error {
-                    #identity::Error::Incomplete => {}
-                    _ => {
-                        eprintln!("error handling {} input: {}", stringify!(#package), error);
+        if options.contains(LibraryOptions::BEFORE) {
+            before.extend(quote! {
+                #[cfg(feature = #package)]
+                match #identity::before() {
+                    Ok(Some(cleanup)) => {
+                        after.push(cleanup);
+                    }
+                    Ok(None) => {}
+                    Err(error) => {
+                        eprintln!("error running {}::before : {}", stringify!(#package), error);
                         code = 1;
                     }
-                },
-                _ => {}
-            };
-        });
+                };
+            });
+        }
+
+        if options.contains(LibraryOptions::HANDLE) {
+            body.extend(quote! {
+                #[cfg(feature = #package)]
+                match #identity::handle(&mut input) {
+                    Err(error) => match &error {
+                        #identity::Error::Incomplete => {}
+                        _ => {
+                            eprintln!("error handling {} input: {}", stringify!(#package), error);
+                            code = 1;
+                        }
+                    },
+                    _ => {}
+                };
+            });
+        }
 
         let formatted = utility::unicode::to_upper_camel_case(package);
         let formatted = format_ident!("{}", formatted);
@@ -179,7 +190,14 @@ pub fn build(_input: TokenStream) -> TokenStream {
     })
 }
 
-fn has_before(library_path: &Path) -> Result<bool, Diagnostic> {
+bitflags::bitflags! {
+    struct LibraryOptions: u32 {
+        const BEFORE = 0b00000001;
+        const HANDLE = 0b00000010;
+    }
+}
+
+fn inspect_library(library_path: &Path) -> Result<(usize, LibraryOptions), Diagnostic> {
     let mut file = File::open(library_path).map_err(|error| {
         Diagnostic::new(
             Level::Error,
@@ -202,12 +220,39 @@ fn has_before(library_path: &Path) -> Result<bool, Diagnostic> {
         .error(error.to_string())
     })?;
 
-    Ok(tree
-        .items
-        .iter()
-        .find(|item| match item {
-            syn::Item::Fn(ref function) if "before" == &function.sig.ident.to_string()[..] => true,
-            _ => false,
-        })
-        .is_some())
+    let mut pass = 2;
+    let mut options = LibraryOptions::empty();
+
+    for item in tree.items.iter() {
+        match item {
+            syn::Item::Fn(ref function) => match &function.sig.ident.to_string()[..] {
+                "before" => options.insert(LibraryOptions::BEFORE),
+                "handle" => options.insert(LibraryOptions::HANDLE),
+                _ => {}
+            },
+            syn::Item::Static(ref static_item) => match &static_item.ident.to_string()[..] {
+                "PASS" => match static_item.expr.as_ref() {
+                    syn::Expr::Lit(ref expression) => match expression.lit {
+                        syn::Lit::Int(ref literal) => match literal.base10_parse() {
+                            Ok(literal) => {
+                                pass = literal;
+                            }
+                            _ => {
+                                return Err(Diagnostic::new(
+                                    Level::Error,
+                                    "Expected: `PASS: usize`",
+                                ))
+                            }
+                        },
+                        _ => return Err(Diagnostic::new(Level::Error, "Expected: `PASS: usize`")),
+                    },
+                    _ => return Err(Diagnostic::new(Level::Error, "Expected: `PASS: usize`")),
+                },
+                _ => {}
+            },
+            _ => {}
+        };
+    }
+
+    Ok((pass, options))
 }

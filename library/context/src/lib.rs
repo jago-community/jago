@@ -8,6 +8,8 @@ author::error!(
     NotCrate
 );
 
+pub const PASS: usize = 1;
+
 pub fn before() -> Result<Option<Box<dyn Fn()>>, Error> {
     environment::populate()?;
 

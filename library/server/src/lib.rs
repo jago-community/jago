@@ -44,7 +44,24 @@ pub fn serve<'a>(close: impl Future<Output = ()> + 'a + Send) -> Handle<'a> {
     server.map(|result| result.map_err(Error::from)).boxed()
 }
 
+use identity::Identity;
+
+static mut IDENTITY: Option<Identity> = None;
+
 async fn handle_request(request: Request<Body>) -> Result<Response<Body>, Infallible> {
-    Ok(map::request(request)
+    let identity = unsafe {
+        match IDENTITY {
+            Some(ref identity) => identity.clone(),
+            None => match Identity::from_variable("IDENTITY") {
+                Ok(identity) => {
+                    IDENTITY = Some(identity.clone());
+                    identity
+                }
+                Err(error) => return Ok(Response::new(Body::from(format!("{}", error)))),
+            },
+        }
+    };
+
+    Ok(map::request(request, &identity)
         .unwrap_or_else(|error| Response::new(Body::from(format!("{}", error)))))
 }

@@ -270,6 +270,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "book"
+version = "0.1.0"
+
+[[package]]
 name = "bstr"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -492,6 +496,9 @@ dependencies = [
  "dirs",
  "lazy_static",
  "nom",
+ "parking_lot 0.11.1",
+ "rpassword",
+ "secrets",
  "shellexpand",
  "tempfile",
 ]
@@ -1727,11 +1734,14 @@ version = "0.1.0"
 dependencies = [
  "author",
  "context",
+ "lazy_static",
  "libc",
  "log",
  "openssl",
+ "rand 0.8.4",
  "ring",
  "rpassword",
+ "secrets",
  "untrusted",
 ]
 
@@ -2160,6 +2170,7 @@ dependencies = [
  "glob",
  "globset",
  "hyper",
+ "identity",
  "ignore",
  "image",
  "log",
@@ -2168,6 +2179,7 @@ dependencies = [
  "rand 0.8.4",
  "serde_json",
  "tinytemplate",
+ "tokio-test",
 ]
 
 [[package]]
@@ -2912,6 +2924,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "parse"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "either",
+ "nom",
+ "unicode-segmentation",
+ "untrusted",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3210,6 +3233,7 @@ checksum = "87dfd5592a8eed7e74f56ad7b125f8234763b805c30f0c7c95c486920026a6ec"
 name = "program"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "matches",
  "proc-macro2-diagnostics",
  "quote 1.0.9",
@@ -3588,6 +3612,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
+name = "secrets"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58b9d59a8542189a7931c0f18811e59db46529efab6d566541625590e994b945"
+dependencies = [
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "semver"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3684,6 +3718,7 @@ dependencies = [
  "http",
  "hyper",
  "identity",
+ "lazy_static",
  "log",
  "map",
  "serde",
@@ -4145,9 +4180,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-test"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58403903e94d4bc56805e46597fced893410b2e753e229d3f7f22423ea03f67"
+checksum = "53474327ae5e166530d17f2d956afcb4f8a004de581b3cae10f12006bc8163e3"
 dependencies = [
  "async-stream",
  "bytes",

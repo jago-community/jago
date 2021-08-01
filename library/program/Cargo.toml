@@ -17,3 +17,4 @@ proc-macro2-diagnostics = "0.9.1"
 syn = { version = "1.0.73", features = ["full"] }
 matches = "0.1.8"
 utility = { path = "../utility" }
+bitflags = "1.2.1"

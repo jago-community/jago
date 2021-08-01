@@ -22,3 +22,4 @@ log = "0.4.14"
 author = { path = "../author" }
 map = { path = "../map" }
 identity = { path = "../identity" }
+lazy_static = "1.4.0"

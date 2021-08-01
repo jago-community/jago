@@ -4,6 +4,8 @@ author::error!(
     crate::address::Error,
     context::Error,
     std::env::VarError,
+    identity::Error,
+    NoKey,
 );
 
 use crate::address::Address;
@@ -35,7 +37,11 @@ fn test_ensure() {
     let home = context::home().unwrap();
 
     clear(&home, &address).unwrap();
-    ensure(&address).unwrap();
+    ensure(
+        &address,
+        &identity::Identity::from_variable("IDENTITY").unwrap(),
+    )
+    .unwrap();
 
     let mut buffer = vec![];
     let path = std::sync::Arc::new(address.path(&home));
@@ -53,26 +59,22 @@ fn test_ensure() {
     reader.decode().unwrap();
 }
 
-use std::path::PathBuf;
-
-pub fn ensure<'a>(address: &'a Address) -> Result<(), Error> {
+pub fn ensure<'a>(address: &'a Address, identity: &'a identity::Identity) -> Result<(), Error> {
     let home = context::home()?;
 
-    let identity = std::env::var("IDENTITY").map(|identity| PathBuf::from(identity))?;
+    let private_key = identity.path().map_or(Err(Error::NoKey), Ok)?;
+    let public_key = private_key.with_extension("pub");
+
+    let unprotected_password = identity.unprotected_password()?;
 
     let mut callbacks = git2::RemoteCallbacks::new();
-
-    let mut public_key = identity.clone();
-    public_key.set_extension("pub");
 
     callbacks.credentials(move |_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key(
             username_from_url.unwrap(),
             Some(&public_key),
-            &identity,
-            // TODO: fix this
-            //Some("<redacted>"),
-            None,
+            &private_key,
+            unprotected_password.as_deref(),
         )
     });
 

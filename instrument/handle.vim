@@ -10,11 +10,22 @@ function! InstrumentHandle(...) abort
 
     let combined = before . ' -- ' . after
 
-    execute cmd 'cargo run --features ' combined
+    let action = 'cargo run --features ' . combined
+
+    echo(action)
+
+    execute cmd action
 endfunction
 
-nmap <silent> <Leader>s :call InstrumentHandle("server", "serve")<CR>
+nmap <silent> <Leader>s :call InstrumentHandle("context,server", "serve")<CR>
+
 nmap <silent> <Leader>t :call InstrumentHandle("instrument", "test %")<CR>
 nmap <silent> <Leader>tt :call InstrumentHandle("instrument", "test % -- --nocapture")<CR>
-nmap <silent> <Leader>T :call InstrumentHandle("instrument","test --workspace")<CR>
-nmap <silent> <Leader>TT :call InstrumentHandle("instrument", "test --workspace -- --nocapture")<CR>
+nmap <silent> <Leader>wt :call InstrumentHandle("instrument", "test --workspace")<CR>
+nmap <silent> <Leader>wtt :call InstrumentHandle("instrument", "test --workspace -- --nocapture")<CR>
+
+nmap <silent> <Leader>bu :call InstrumentHandle("instrument", "build %")<CR>
+nmap <silent> <Leader>wbu :call InstrumentHandle("instrument", "build --workspace")<CR>
+
+nmap <silent> <Leader>ch :call InstrumentHandle("instrument", "build %")<CR>
+nmap <silent> <Leader>wch :call InstrumentHandle("instrument", "build --workspace")<CR>

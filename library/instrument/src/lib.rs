@@ -10,15 +10,17 @@ use std::iter::Peekable;
 
 pub fn handle<I: Iterator<Item = String>>(mut input: &mut Peekable<I>) -> Result<(), Error> {
     match input.peek() {
-        Some(name) if name == "test" => handle_test(&mut input),
+        Some(name) if name == "test" || name == "check" || name == "build" => {
+            handle_cargo(&mut input)
+        }
         _ => Err(Error::Incomplete),
     }
 }
 
 use std::path::{Path, PathBuf};
 
-fn handle_test<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
-    let _ = input.next();
+fn handle_cargo<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
+    let command = input.next().map_or(Err(Error::Incomplete), Ok)?;
 
     let path: Option<PathBuf> = match input.peek() {
         Some(path) if Path::new(path).exists() => {
@@ -29,7 +31,7 @@ fn handle_test<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<()
         _ => None,
     };
 
-    let mut test_input = vec!["cargo".to_string(), "test".into()];
+    let mut test_input = vec!["cargo".to_string(), command.into()];
     test_input.append(&mut input.collect());
 
     let crate_path = context::crate_path(path)?;
