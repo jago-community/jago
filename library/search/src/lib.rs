@@ -1,4 +1,5 @@
-mod sink;
+mod parse;
+mod sitemap;
 
 author::error!(Incomplete, std::io::Error, reqwest::Error, url::ParseError);
 
@@ -54,17 +55,59 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
         .filter_map(|line| line.strip_prefix("sitemap:"))
         .map(|matched| matched.trim_start());
 
-    let sitemaps = sitemaps
+    let requests = sitemaps
         .filter_map(|sitemap| Url::parse(sitemap).ok())
-        .filter(|sitemap| sitemap.domain() == location.domain());
+        .filter(|sitemap| sitemap.domain() == location.domain())
+        .map(|sitemap| reqwest::get(sitemap));
 
-    let sitemaps = sitemaps
-        .filter_map(|sitemap| futures::executor::block_on(reqwest::get(sitemap)).ok())
-        .filter_map(|response| futures::executor::block_on(response.text()).ok());
+    let mut sitemaps = vec![];
 
-    let sitemaps = sitemaps.map(|sitemap| quick_xml::de::from_str(&sitemap));
+    for response in requests {
+        sitemaps.push(response.await?.text().await?);
+    }
 
-    println!("{:?}", sitemaps.collect::<Vec<Sitemap>>());
+    let requests = sitemaps
+        .iter()
+        .filter_map(|sitemap| sitemap::sitemaps(&sitemap).ok())
+        .flatten()
+        .map(|sitemap| reqwest::get(sitemap));
+
+    let mut sitemaps = vec![];
+
+    for response in requests {
+        sitemaps.push(response.await?.text().await?);
+    }
+
+    let pages = sitemaps
+        .iter()
+        .filter_map(|sitemap| sitemap::pages(&sitemap).ok())
+        .flatten()
+        .collect::<Vec<_>>();
+
+    if let Some(term) = input {
+        dbg!(pages.len());
+
+        let matched_pages = pages
+            .iter()
+            .filter(|location| location.path().contains(term));
+
+        println!("matched pages {:?}", matched_pages.collect::<Vec<_>>());
+    }
+
+    // find page.path.matches(input)
+    //
+    /*
+    let requests = pages.iter().cloned().map(|page| reqwest::get(page));
+
+    let mut pages = vec![];
+
+    for response in requests {
+        pages.push(response.await?.text().await?);
+        if pages.len() == 1 {
+            break;
+        }
+    }
+    */
 
     //
     // let sitemaps = parse_robots(buffer);
@@ -88,17 +131,4 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
     //
 
     Ok("nope".into())
-}
-
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-struct Sitemap {
-    loc: String,
-}
-
-impl Sitemap {
-    fn location(&self) -> Result<Url, Error> {
-        self.loc.parse().map_err(Error::from)
-    }
 }
