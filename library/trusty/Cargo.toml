@@ -9,3 +9,4 @@ edition = "2018"
 author = { path = "../author" }
 untrusted = "0.7.1"
 nom = "6.2.1"
+log = "0.4.14"

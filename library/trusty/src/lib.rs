@@ -3,18 +3,32 @@ pub struct Input<'a> {
     source: untrusted::Reader<'a>,
     cursor: usize,
     buffers: Vec<untrusted::Input<'a>>,
+    exposed: std::cell::RefCell<Vec<u8>>,
 }
 
-#[test]
-fn test_slice_as_utf8() {
-    let mut input = Input::from("Hello again");
-    let want = "agai".into();
-    let got = input.slice_as_utf8("Hello ".len().."Hello agai".len());
-    assert_eq!(got.to_string(), want);
+impl<'a> nom::AsBytes for Input<'a> {
+    fn as_bytes(&self) -> &[u8] {
+        log::trace!("combining memory");
+
+        let mut output = match self.exposed.try_borrow_mut() {
+            Ok(output) => output,
+            Err(_) => return &[],
+        };
+
+        if output.len() > 0 {
+            output.clear();
+        }
+
+        for slice in &self.buffers {
+            output.extend_from_slice(slice.as_slice_less_safe());
+        }
+
+        output.as_ref()
+    }
 }
 
 impl<'a> Input<'a> {
-    fn slice_as_utf8(&mut self, range: std::ops::Range<usize>) -> Option<Input<'a>> {
+    pub fn get(&mut self, range: std::ops::Range<usize>) -> Option<Input<'a>> {
         if range.end > self.cursor {
             let input = self
                 .source

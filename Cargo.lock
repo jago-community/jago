@@ -4669,6 +4669,7 @@ name = "trusty"
 version = "0.1.0"
 dependencies = [
  "author",
+ "log",
  "nom",
  "untrusted",
 ]
