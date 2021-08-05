@@ -45,7 +45,7 @@ use nom_locate::{position, LocatedSpan};
 
 fn matched_position<'a>(
     pattern: &'a str,
-) -> impl Fn(LocatedSpan<&'a str>) -> IResult<LocatedSpan<&'a str>, (usize, usize)> {
+) -> impl Fn(LocatedSpan<&'a str>) -> IResult<LocatedSpan<&'a str>, (usize, usize), Error> {
     move |input: LocatedSpan<&'a str>| {
         let (input, _) = take_until(pattern)(input)?;
         let (input, position) = position(input)?;
@@ -81,7 +81,7 @@ fn test_all_matches() {
     ];
 
     for (input, pattern, want) in tests {
-        let got = all_matched_positions(pattern)(input.into());
+        let got = many1_matched_positions(pattern)(input.into());
 
         let want_succeed = want.is_ok();
 
@@ -99,20 +99,28 @@ fn test_all_matches() {
 
 use nom::multi::many1;
 
-fn all_matched_positions<'a>(
+pub fn many1_matched_positions<'a>(
     pattern: &'a str,
-) -> impl Fn(LocatedSpan<&'a str>) -> IResult<LocatedSpan<&'a str>, Vec<(usize, usize)>> {
+) -> impl Fn(LocatedSpan<&'a str>) -> IResult<LocatedSpan<&'a str>, Vec<(usize, usize)>, Error> {
     move |input: LocatedSpan<&'a str>| many1(matched_position(pattern))(input)
 }
 
-pub fn with_fn<'a, T>(
-    content: &'a str,
-    parse: impl Fn(&'a str) -> nom::IResult<&'a str, T, Error>,
+pub fn with_fn<'a, Input: Into<LocatedSpan<&'a str>>, T>(
+    input: Input,
+    parse: impl Fn(LocatedSpan<&'a str>) -> nom::IResult<LocatedSpan<&'a str>, T, Error>,
 ) -> Result<T, Error> {
-    let (_, parsed) = parse(content).map_err(|error: nom::Err<Error>| match error {
+    use nom::ExtendInto;
+
+    let input: LocatedSpan<&str> = input.into();
+
+    let (_, parsed) = parse(input.into()).map_err(|error: nom::Err<Error>| match error {
         nom::Err::Error(error) | nom::Err::Failure(error) => error,
         nom::Err::Incomplete(needed) => Error {
-            input: content.to_string(),
+            input: {
+                let mut output = String::new();
+                input.extend_into(&mut output);
+                output
+            },
             kind: ErrorKind::Incomplete(needed),
             backtrace: vec![],
         },

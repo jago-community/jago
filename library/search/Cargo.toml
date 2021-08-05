@@ -21,3 +21,4 @@ quick-xml = { version = "0.22.0", features = [ "serialize" ] }
 tendril = "0.4.2"
 xml5ever = "0.16.1"
 nom_locate = "3.0.2"
+untrusted = "0.7.1"

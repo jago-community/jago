@@ -1,7 +1,14 @@
+mod input;
 mod parse;
 mod sitemap;
 
-author::error!(Incomplete, std::io::Error, reqwest::Error, url::ParseError);
+author::error!(
+    Incomplete,
+    std::io::Error,
+    reqwest::Error,
+    url::ParseError,
+    parse::Error
+);
 
 use std::iter::Peekable;
 
@@ -50,12 +57,20 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
         .text()
         .await?;
 
+    let _parsed = parse::with_fn(
+        robots.clone().as_ref(),
+        parse::many1_matched_positions("sitemap: "),
+    )?;
+
     let sitemaps = robots
         .lines()
         .filter_map(|line| line.strip_prefix("sitemap:"))
         .map(|matched| matched.trim_start());
 
     let requests = sitemaps
+        .inspect(|m| {
+            dbg!(m);
+        })
         .filter_map(|sitemap| Url::parse(sitemap).ok())
         .filter(|sitemap| sitemap.domain() == location.domain())
         .map(|sitemap| reqwest::get(sitemap));
