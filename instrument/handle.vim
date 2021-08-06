@@ -24,8 +24,8 @@ nmap <silent> <Leader>tt :call InstrumentHandle("instrument", "test % -- --nocap
 nmap <silent> <Leader>wt :call InstrumentHandle("instrument", "test --workspace")<CR>
 nmap <silent> <Leader>wtt :call InstrumentHandle("instrument", "test --workspace -- --nocapture")<CR>
 
-nmap <silent> <Leader>bu :call InstrumentHandle("instrument", "build %")<CR>
-nmap <silent> <Leader>wbu :call InstrumentHandle("instrument", "build --workspace")<CR>
+nmap <silent> <Leader>jb :call InstrumentHandle("instrument", "build %")<CR>
+nmap <silent> <Leader>jwb :call InstrumentHandle("instrument", "build --workspace")<CR>
 
 nmap <silent> <Leader>ch :call InstrumentHandle("instrument", "build %")<CR>
 nmap <silent> <Leader>wch :call InstrumentHandle("instrument", "build --workspace")<CR>
