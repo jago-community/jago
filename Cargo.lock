@@ -4672,6 +4672,7 @@ dependencies = [
  "bitflags",
  "either",
  "log",
+ "logger",
  "nom",
  "tendril",
  "untrusted",

@@ -5,6 +5,8 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+
 [dependencies]
 author = { path = "../author" }
 untrusted = "0.7.1"
@@ -13,3 +15,6 @@ log = "0.4.14"
 tendril = "0.4.2"
 bitflags = "1.2.1"
 either = "1.6.1"
+
+[dev-dependencies]
+logger = { path = "../logger" }
