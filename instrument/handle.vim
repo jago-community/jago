@@ -5,27 +5,24 @@ function! InstrumentHandle(...) abort
         throw "upgrade vim to version 8.1 or higher"
     endif
 
-    let before = substitute(a:1, '%', expand('%'), '')
-    let after = a:2
+    let input = substitute(a:1, '%', expand('%'), '')
 
-    let combined = before . ' -- ' . after
+    let output = system('cargo run --features shell shell expand ' . input)
+    let lines = split(output, "\n")
+    let expanded = get(lines, len(lines) - 1)
 
-    let action = 'cargo run --features ' . combined
-
-    echo(action)
-
-    execute cmd action
+    execute cmd expanded
 endfunction
 
-nmap <silent> <Leader>s :call InstrumentHandle("context,server", "serve")<CR>
+nmap <silent> <Leader>s :call InstrumentHandle("cargo run --features context,server serve")<CR>
 
-nmap <silent> <Leader>t :call InstrumentHandle("instrument", "test %")<CR>
-nmap <silent> <Leader>tt :call InstrumentHandle("instrument", "test % -- --nocapture")<CR>
-nmap <silent> <Leader>wt :call InstrumentHandle("instrument", "test --workspace")<CR>
-nmap <silent> <Leader>wtt :call InstrumentHandle("instrument", "test --workspace -- --nocapture")<CR>
+nmap <silent> <Leader>t :call InstrumentHandle("cargo test {--package:%}")<CR>
+nmap <silent> <Leader>tt :call InstrumentHandle("cargo test {--package:%} -- --nocapture")<CR>
+nmap <silent> <Leader>wt :call InstrumentHandle("cargo test --workspace")<CR>
+nmap <silent> <Leader>wtt :call InstrumentHandle("cargo test --workspace -- --nocapture")<CR>
 
-nmap <silent> <Leader>jb :call InstrumentHandle("instrument", "build %")<CR>
-nmap <silent> <Leader>jwb :call InstrumentHandle("instrument", "build --workspace")<CR>
+nmap <silent> <Leader>jb :call InstrumentHandle("cargo build {package:%}")<CR>
+nmap <silent> <Leader>jwb :call InstrumentHandle("cargo build --workspace")<CR>
 
-nmap <silent> <Leader>ch :call InstrumentHandle("instrument", "build %")<CR>
-nmap <silent> <Leader>wch :call InstrumentHandle("instrument", "build --workspace")<CR>
+nmap <silent> <Leader>ch :call InstrumentHandle("cargo build {package:%}")<CR>
+nmap <silent> <Leader>wch :call InstrumentHandle("cargo build --workspace")<CR>

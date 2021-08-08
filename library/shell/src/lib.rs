@@ -1,4 +1,4 @@
-mod shell;
+mod input;
 
 use std::iter::Peekable;
 
@@ -11,9 +11,12 @@ author::error!(
     ExternalProcess(i32),
     NoPipe,
     Fallacy,
+    input::Error,
 );
 
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
+    use std::io::Write;
+
     match input.peek() {
         Some(next) if next == "shell" => input.next(),
         _ => return Err(Error::Incomplete),
@@ -22,7 +25,11 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
     match input.next() {
         Some(other) => match &other[..] {
             "run" => run(input),
-            "expand" => expand(input),
+            "expand" => expand(input).and_then(|output| {
+                std::io::stdout()
+                    .write_all(output.as_bytes())
+                    .map_err(Error::from)
+            }),
             _ => Err(Error::Incomplete),
         },
         _ => Err(Error::Incomplete),
@@ -84,13 +91,10 @@ pub fn run<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Er
     }
 }
 
-pub fn expand<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
-    let _context = get_context(match input.next() {
-        Some(path) => path.into(),
-        None => std::env::current_dir()?,
-    })?;
+pub fn expand<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<String, Error> {
+    let input = input.collect::<Vec<_>>().join(" ");
 
-    unimplemented!()
+    input::expand(&input).map_err(Error::from)
 }
 
 use {

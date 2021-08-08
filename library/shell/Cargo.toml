@@ -16,3 +16,4 @@ library = { path = "../library" }
 log = "0.4.14"
 syn = "1.0.73"
 quote = "1.0.9"
+context = { path = "../context" }

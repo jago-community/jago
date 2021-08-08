@@ -8,8 +8,6 @@ use nom::error::ParseError;
 
 #[test]
 fn test_matched() {
-    logger::before().unwrap();
-
     let tests = vec![
         (b"Hello, world!".as_ref(), "Hello,", Ok(())),
         (b"Hello, world!", "wo", Ok(())),

@@ -5,7 +5,9 @@ author::error!(
     environment::Error,
     std::io::Error,
     NotProject,
-    NotCrate
+    NotCrate,
+    OsStringNotString,
+    NoFileStem,
 );
 
 pub const PASS: usize = 1;
@@ -52,12 +54,13 @@ fn test_project() {
 }
 
 pub fn project<'a>(location: Option<PathBuf>) -> Result<PathBuf, Error> {
-    let home = dirs::home_dir().map(Ok).unwrap_or(Err(Error::NoHome))?;
+    let home = home()?;
 
     let location = location
         .map(PathBuf::from)
         .map(Ok)
         .unwrap_or_else(|| std::env::current_dir())?;
+
     let mut location: &Path = location.as_ref();
 
     loop {
@@ -99,10 +102,20 @@ fn test_crate_path() {
 }
 
 pub fn crate_path<'a, P: Into<PathBuf>>(current: Option<P>) -> Result<PathBuf, Error> {
-    let current = current
-        .map(Into::into)
-        .map(Ok)
-        .unwrap_or_else(|| std::env::current_dir())?;
+    let current = current.map(Into::into).map_or_else(
+        || std::env::current_dir().map_err(Error::from),
+        |path| {
+            if path.is_relative() {
+                std::env::current_dir()
+                    .map(|context| context.join(path))
+                    .map_err(Error::from)
+            } else {
+                Ok(path)
+            }
+        },
+    )?;
+
+    let current = home()?.join(current);
     let mut current: &Path = current.as_ref();
 
     let mut ancestors = current.ancestors();
@@ -116,4 +129,14 @@ pub fn crate_path<'a, P: Into<PathBuf>>(current: Option<P>) -> Result<PathBuf, E
             return Err(Error::NotCrate);
         }
     }
+}
+
+pub fn package<'a, P: Into<PathBuf>>(current: Option<P>) -> Result<String, Error> {
+    crate_path(current).and_then(|path| {
+        path.file_stem().map_or(Err(Error::NoFileStem), |stem| {
+            stem.to_str()
+                .map(String::from)
+                .map_or(Err(Error::OsStringNotString), Ok)
+        })
+    })
 }

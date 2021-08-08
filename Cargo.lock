@@ -4146,6 +4146,7 @@ name = "shell"
 version = "0.1.0"
 dependencies = [
  "author",
+ "context",
  "dirs",
  "glob",
  "ignore",
