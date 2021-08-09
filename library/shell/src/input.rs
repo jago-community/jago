@@ -26,51 +26,64 @@ fn test_expand() {
     }
 }
 
-pub fn expand<'a>(input: Input<'a>) -> Result<Output, Error> {
-    use nom::{branch::alt, combinator::map_res, multi::fold_many0, sequence::pair};
+use nom::{
+    branch::alt,
+    bytes::complete::take,
+    combinator::{map, map_res, opt},
+    multi::fold_many0,
+    sequence::{pair, tuple},
+};
 
+pub fn expand<'a>(input: Input<'a>) -> Result<Output, Error> {
     let parse = |i| {
-        map_res(
+        map(
             fold_many0(
-                pair(
-                    take_until("{"),
-                    alt((
-                        map_res(keyed_value("--package"), |value| {
-                            context::package(Some(value))
-                                .map(|value| ("--package", value))
-                                .map_err(|error| Error {
-                                    input: input.into(),
-                                    kind: ErrorKind::Context(error),
-                                    backtrace: vec![],
-                                })
-                        }),
-                        map(key_value, |(key, value)| (key, value.into())),
-                    )),
-                ),
+                alt((
+                    pair(
+                        take_until("{"),
+                        opt(alt((
+                            map_res(keyed_value("--package"), |value| {
+                                context::package(Some(value))
+                                    .map(|value| ("--package", value))
+                                    .map_err(|error| Error {
+                                        input: input.into(),
+                                        kind: ErrorKind::Context(error),
+                                        backtrace: vec![],
+                                    })
+                            }),
+                            map(key_value, |(key, value)| (key, value.into())),
+                        ))),
+                    ),
+                    map::<&str, &str, (&str, Option<(&str, String)>), Error, _, _>(
+                        take(input.len()),
+                        |rest: &str| -> (&str, Option<(&str, String)>) { (rest.into(), None) },
+                    ),
+                )),
                 (None, Output::new()),
-                |(previous, mut output): (Option<(&str, String)>, String),
-                 (before, (key, value))| {
+                |(previous, mut output): (Option<(&str, String)>, String), (before, key_value)| {
                     output.push_str(before);
 
                     (
-                        if let Some((previous_key, previous_value)) = previous {
-                            if value == previous_key {
-                                output.push_str(key);
-                                output.push(' ');
-                                output.push_str(previous_value.as_ref());
-                            }
+                        match (previous, key_value) {
+                            (Some((previous_key, previous_value)), Some((key, value))) => {
+                                if value == previous_key {
+                                    output.push_str(key);
+                                    output.push(' ');
+                                    output.push_str(previous_value.as_ref());
+                                }
 
-                            None
-                        } else {
-                            Some((key, value))
+                                None
+                            }
+                            (None, Some((key, value))) => Some((key, value)),
+                            _ => None,
                         },
                         output,
                     )
                 },
             ),
             |(rest, output)| match rest {
-                Some((key, value)) => Ok(format!("{}{} {}", dbg!(output), dbg!(key), value)),
-                None => Ok(output),
+                Some((key, value)) => format!("{}{} {}", dbg!(output), dbg!(key), value),
+                None => output,
             },
         )(i)
     };
@@ -95,11 +108,7 @@ fn test_key_value() {
     }
 }
 
-use nom::{
-    bytes::complete::{tag, take_until},
-    combinator::map,
-    sequence::tuple,
-};
+use nom::bytes::complete::{tag, take_until};
 
 fn keyed_value<'a>(
     key: &'a str,
@@ -155,8 +164,6 @@ pub enum ErrorKind {
     Syntax(String),
     Context(context::Error),
 }
-
-use nom::InputTake;
 
 impl<'a> nom::error::FromExternalError<Input<'a>, Error> for Error {
     fn from_external_error(input: Input<'a>, kind: nom::error::ErrorKind, error: Error) -> Self {
