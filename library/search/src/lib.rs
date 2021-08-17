@@ -1,5 +1,6 @@
+mod combinator;
 mod input;
-mod parse;
+mod search;
 mod sitemap;
 
 author::error!(
@@ -7,7 +8,7 @@ author::error!(
     std::io::Error,
     reqwest::Error,
     url::ParseError,
-    parse::Error
+    combinator::Error,
 );
 
 use std::iter::Peekable;
@@ -28,11 +29,12 @@ pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(),
 }
 
 #[test]
+#[ignore]
 fn test_search() {
     let cases = vec![(
         "https://garageclothing.com",
         "100048721",
-        "https://www.garageclothing.com/p/elastic-waist-half-zip-sweatshirt-/100048721.html",
+        vec!["https://www.garageclothing.com/p/elastic-waist-half-zip-sweatshirt-/100048721.html"],
     )];
 
     for (source, identifier, want) in cases {
@@ -41,7 +43,7 @@ fn test_search() {
     }
 }
 
-fn handle_search(source: &str, input: Option<&str>) -> Result<String, Error> {
+fn handle_search(source: &str, input: Option<&str>) -> Result<Vec<String>, Error> {
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async { search(source, input).await })
@@ -49,7 +51,7 @@ fn handle_search(source: &str, input: Option<&str>) -> Result<String, Error> {
 
 use url::Url;
 
-async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
+async fn search(source: &str, input: Option<&str>) -> Result<Vec<String>, Error> {
     let location = Url::parse(source)?;
 
     let robots = reqwest::get(location.join("robots.txt")?)
@@ -57,20 +59,10 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
         .text()
         .await?;
 
-    let _parsed = parse::with_fn(
-        robots.clone().as_ref(),
-        parse::many1_matched_positions("sitemap: "),
-    )?;
-
-    let sitemaps = robots
-        .lines()
-        .filter_map(|line| line.strip_prefix("sitemap:"))
-        .map(|matched| matched.trim_start());
+    let sitemaps = combinator::with_fn(&robots, combinator::tagged_lines("sitemap: "))?;
 
     let requests = sitemaps
-        .inspect(|m| {
-            dbg!(m);
-        })
+        .iter()
         .filter_map(|sitemap| Url::parse(sitemap).ok())
         .filter(|sitemap| sitemap.domain() == location.domain())
         .map(|sitemap| reqwest::get(sitemap));
@@ -100,29 +92,31 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
         .collect::<Vec<_>>();
 
     if let Some(term) = input {
-        dbg!(pages.len());
-
         let matched_pages = pages
             .iter()
-            .filter(|location| location.path().contains(term));
+            .filter_map(|location| {
+                combinator::with_fn(location.path(), combinator::matched(term))
+                    .ok()
+                    .map(move |_| location.as_str().into())
+            })
+            .collect::<Vec<_>>();
 
-        println!("matched pages {:?}", matched_pages.collect::<Vec<_>>());
+        if matched_pages.len() > 0 {
+            return Ok(matched_pages);
+        }
     }
 
-    // find page.path.matches(input)
-    //
-    /*
-    let requests = pages.iter().cloned().map(|page| reqwest::get(page));
+    let requests = pages.iter().cloned().map(|page| reqwest::get(dbg!(page)));
 
     let mut pages = vec![];
 
     for response in requests {
         pages.push(response.await?.text().await?);
+
         if pages.len() == 1 {
             break;
         }
     }
-    */
 
     //
     // let sitemaps = parse_robots(buffer);
@@ -145,5 +139,5 @@ async fn search(source: &str, input: Option<&str>) -> Result<String, Error> {
     // }
     //
 
-    Ok("nope".into())
+    Ok(vec!["nope".into()])
 }

@@ -11,6 +11,7 @@ pub struct Input<'a> {
 use std::ops::Range;
 
 #[test]
+#[ignore]
 fn test_slice_as_utf8() {
     let mut input = Input::from("Hello again");
     let want = "agai".into();

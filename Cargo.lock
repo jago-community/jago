@@ -3911,9 +3911,11 @@ dependencies = [
  "http",
  "hyper",
  "hyper-tls",
+ "log",
  "nom",
  "nom_locate",
  "quick-xml",
+ "rayon",
  "reqwest",
  "scraper",
  "serde",
@@ -4283,6 +4285,19 @@ checksum = "9e3dfc207c526015c632472a77be09cf1b6e46866581aecae5cc38fb4235dea2"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "source"
+version = "0.1.0"
+dependencies = [
+ "author",
+ "dirs",
+ "either",
+ "log",
+ "nom",
+ "rayon",
+ "tokio",
 ]
 
 [[package]]
