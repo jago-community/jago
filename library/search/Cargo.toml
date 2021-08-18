@@ -7,20 +7,17 @@ edition = "2018"
 
 [dependencies]
 author = { path = "../author" }
-scraper = "0.12.0"
 hyper = { version = "0.14.9", features = [ "full" ] }
 tokio = { version = "1.7.1", features = [ "full" ] }
 http = "0.2.4"
 hyper-tls = "0.5.0"
 reqwest = "0.11.4"
 url = "2.2.2"
-nom = "6.2.1"
 futures = "0.3.15"
 serde = { version = "1.0.126", features = [ "derive" ] }
 quick-xml = { version = "0.22.0", features = [ "serialize" ] }
-tendril = "0.4.2"
 xml5ever = "0.16.1"
-nom_locate = "3.0.2"
-untrusted = "0.7.1"
-rayon = "1.5.1"
 log = "0.4.14"
+regex = "1.4.6"
+nom = { version = "6.2.1", features = ["regexp"] }
+lazy_static = "1.4.0"

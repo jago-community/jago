@@ -1,3 +1,7 @@
+use nom::IResult;
+
+pub type Combinator1<'a, Output> = Box<dyn Fn(&'a str) -> IResult<&'a str, Output, Error>>;
+
 #[test]
 fn test_matched() {
     let tests = vec![
@@ -14,7 +18,7 @@ fn test_matched() {
     ];
 
     for (input, pattern, want) in tests {
-        let got = matched(pattern)(input.into());
+        let got = matched(pattern).unwrap()(input.into());
 
         let want_succeed = want.is_ok();
 
@@ -30,14 +34,26 @@ use nom::{
     bytes::complete::{tag, take_until},
     combinator::value,
     error::ParseError,
-    IResult,
+    regexp::str::re_find,
 };
 
-pub fn matched<'a>(pattern: &'a str) -> impl Fn(&'a str) -> IResult<&'a str, (), Error> {
-    move |input: &'a str| {
-        let (input, _) = take_until(pattern)(input)?;
-        value((), tag(pattern))(input)
-    }
+use regex::RegexBuilder;
+
+pub fn matched<'a>(
+    pattern: &'a str,
+) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, (), Error>>, Error> {
+    let pattern = RegexBuilder::new(pattern)
+        .case_insensitive(true)
+        .build()
+        .map_err(|error| Error {
+            input: pattern.into(),
+            kind: ErrorKind::Regex(error),
+            backtrace: vec![],
+        })?;
+
+    Ok(Box::new(move |input: &'a str| {
+        value((), re_find(pattern.clone()))(input)
+    }))
 }
 
 #[test]
@@ -55,7 +71,7 @@ fn test_matched_count() {
     ];
 
     for (input, pattern, want) in tests {
-        let got = matched_count(pattern)(input.into());
+        let got = matched_count(pattern).unwrap()(input.into());
 
         let want_succeed = want.is_ok();
 
@@ -71,8 +87,14 @@ fn test_matched_count() {
 
 use nom::multi::{many1, many1_count};
 
-pub fn matched_count<'a>(pattern: &'a str) -> impl Fn(&'a str) -> IResult<&'a str, usize, Error> {
-    move |input: &'a str| many1_count(matched(pattern))(input)
+pub fn matched_count<'a>(
+    pattern: &'a str,
+) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, usize, Error>>, Error> {
+    let match_pattern = matched(pattern)?;
+
+    Ok(Box::new(move |input: &'a str| {
+        many1_count(match_pattern.as_ref())(input)
+    }))
 }
 
 #[test]
@@ -90,7 +112,7 @@ fn test_tagged_lines() {
 
     let want = vec!["alkjseflk;ajsfljajoasd", "l;kasjdfafsdlj"];
 
-    let got = tagged_lines("sitemap:")(input).unwrap();
+    let got = tagged_lines("sitemap:").unwrap()(input).unwrap();
 
     assert_eq!(got.1, want);
 }
@@ -105,16 +127,19 @@ use nom::{
 
 pub fn tagged_lines<'a>(
     pattern: &'a str,
-) -> impl Fn(&'a str) -> IResult<&'a str, Vec<&'a str>, Error> {
-    move |input: &'a str| {
+) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, Vec<&'a str>, Error>>, Error> {
+    let match_pattern = matched(&pattern[..])?;
+
+    Ok(Box::new(move |input: &'a str| {
         many0(map(
-            tuple((matched(pattern), space0, line_content)),
+            tuple((match_pattern.as_ref(), space0, line_content)),
             |(_, _, line)| line,
         ))(input)
-    }
+    }))
 }
 
 #[test]
+#[ignore]
 fn test_line_content() {
     let input = "hello
 world
@@ -136,13 +161,13 @@ fn line_content<'a>(input: &'a str) -> IResult<&'a str, &'a str, Error> {
     terminated(not_line_ending, multispace1)(input)
 }
 
-pub fn with_fn<'a, T>(
+pub fn with_fn<'a, Output>(
     input: &'a str,
-    parse: impl Fn(&'a str) -> nom::IResult<&'a str, T, Error>,
-) -> Result<T, Error> {
+    combinator: impl Fn(&'a str) -> IResult<&'a str, Output, Error>,
+) -> Result<Output, Error> {
     use nom::ExtendInto;
 
-    let (_, parsed) = parse(input.into()).map_err(|error: nom::Err<Error>| match error {
+    let (_, parsed) = combinator(input.into()).map_err(|error: nom::Err<Error>| match error {
         nom::Err::Error(error) | nom::Err::Failure(error) => error,
         nom::Err::Incomplete(needed) => Error {
             input: {
@@ -170,6 +195,7 @@ pub enum ErrorKind {
     Parse(nom::error::ErrorKind),
     Incomplete(nom::Needed),
     Syntax(String),
+    Regex(regex::Error),
 }
 
 impl<'a> nom::error::FromExternalError<&'a str, Error> for Error {
@@ -213,6 +239,9 @@ impl std::fmt::Display for Error {
                 write!(f, "{} - input = {}", kind.description(), self.input)
             }
             ErrorKind::Syntax(error) => {
+                write!(f, "{}", error)
+            }
+            ErrorKind::Regex(error) => {
                 write!(f, "{}", error)
             }
         }

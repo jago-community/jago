@@ -1,18 +1,12 @@
 mod combinator;
-mod input;
 mod search;
 mod sitemap;
 
-author::error!(
-    Incomplete,
-    std::io::Error,
-    reqwest::Error,
-    url::ParseError,
-    combinator::Error,
-);
+author::error!(Incomplete, std::io::Error, reqwest::Error, url::ParseError,);
 
 use std::iter::Peekable;
 
+/*
 pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
     match input.peek() {
         Some(next) if next == "search" => {
@@ -141,3 +135,4 @@ async fn search(source: &str, input: Option<&str>) -> Result<Vec<String>, Error>
 
     Ok(vec!["nope".into()])
 }
+*/
