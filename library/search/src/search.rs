@@ -4,7 +4,8 @@ author::error!(
     reqwest::Error,
     std::io::Error,
     crate::combinator::Error,
-    tokio::sync::oneshot::error::RecvError,
+    futures::channel::mpsc::TrySendError<Url>,
+    futures::channel::mpsc::TrySendError<String>,
     crate::sitemap::Error,
 );
 
@@ -22,11 +23,12 @@ fn test_search() {
     }
 }
 
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use crate::combinator;
 
-use tokio::{runtime::Runtime, sync::mpsc};
+use futures::Future;
+use tokio::runtime::Runtime;
 use url::Url;
 
 fn search<'a>(input: &'a str, pattern: &'a str) -> Result<Vec<String>, Error> {
@@ -34,6 +36,15 @@ fn search<'a>(input: &'a str, pattern: &'a str) -> Result<Vec<String>, Error> {
 
     runtime.block_on(handle_search(input, pattern))
 }
+
+use crate::sitemap;
+
+use futures::{
+    channel::mpsc,
+    future,
+    stream::{Stream, StreamExt},
+};
+use std::iter::{FromIterator, Iterator};
 
 async fn handle_search<'a>(input: &'a str, _pattern: &'a str) -> Result<Vec<String>, Error> {
     let mut output: Vec<String> = vec![];
@@ -45,17 +56,41 @@ async fn handle_search<'a>(input: &'a str, _pattern: &'a str) -> Result<Vec<Stri
 
     let sitemaps = combinator::with_fn(&robots, combinator::tagged_lines("sitemap: ")?)?;
 
-    let (sitemap_sender, mut sitemap_receiver) = mpsc::unbounded_channel();
+    let (index_sender, mut index_receiver) = mpsc::unbounded();
 
-    let getting_sitemaps = get_sitemaps(sitemap_sender, location, sitemaps);
+    let getting_sitemaps = get_sitemaps(index_sender, location, sitemaps);
 
-    let other = async {
-        while let Some(v) = sitemap_receiver.recv().await {
-            println!("GOT = {:?}", v);
-        }
+    let (sitemap_sender, mut sitemap_receiver) = mpsc::unbounded::<Url>();
+
+    let getting_pages = async {
+        //let (_, errors) =
+        index_receiver
+            .inspect(|h| {
+                dbg!(h);
+            })
+            .map(|index| sitemap::parse(&index))
+            .filter_map(|index| future::ready(index.ok()))
+            .filter_map(|index| future::ready(sitemap::locations(&index).ok()))
+            .flat_map(|locations| {
+                futures::stream::FuturesUnordered::from_iter(
+                    locations.into_iter().map(future::ready),
+                )
+            })
+            .map(|location| {
+                future::ready(
+                    sitemap_sender
+                        .unbounded_send(location.clone())
+                        .map_err(Error::from),
+                )
+            })
+            .for_each(|a| {
+                dbg!(a);
+                future::ready(())
+            })
+            .await;
     };
 
-    let (got_result, _) = futures::future::join(getting_sitemaps, other).await;
+    let (got_result, _) = futures::future::join(getting_sitemaps, getting_pages).await;
 
     got_result?;
 
@@ -78,9 +113,7 @@ async fn get_sitemaps(
 
         let sitemap: String = get_page(sitemap).await?;
 
-        if let Err(_) = sender.send(sitemap) {
-            log::error!("sitemap_receiver dropped");
-        }
+        sender.unbounded_send(sitemap)?;
     }
 
     Ok(())
