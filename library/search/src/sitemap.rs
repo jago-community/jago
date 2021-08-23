@@ -52,7 +52,9 @@ pub struct Node {
     #[serde(rename = "sitemap")]
     sitemaps: Option<Vec<Node>>,
     #[serde(default)]
-    url: Option<Vec<Url>>,
+    urlset: Option<Vec<Node>>,
+    #[serde(default)]
+    url: Option<Vec<Node>>,
     #[serde(default)]
     loc: Option<Vec<Url>>,
 }
@@ -78,8 +80,24 @@ pub fn locations(node: &Node) -> Result<Vec<Url>, Error> {
         output.extend_from_slice(&locations);
     }
 
+    if let Some(urlset) = &node.urlset {
+        let locations: Vec<_> = urlset
+            .iter()
+            .map(locations)
+            .filter_map(Result::ok)
+            .flat_map(|a| a)
+            .collect();
+        output.extend_from_slice(&locations);
+    }
+
     if let Some(urls) = &node.url {
-        output.extend_from_slice(&urls);
+        let locations: Vec<_> = urls
+            .iter()
+            .map(locations)
+            .filter_map(Result::ok)
+            .flat_map(|a| a)
+            .collect();
+        output.extend_from_slice(&locations);
     }
 
     if let Some(locations) = &node.loc {

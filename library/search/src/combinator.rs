@@ -1,7 +1,5 @@
 use nom::IResult;
 
-pub type Combinator1<'a, Output> = Box<dyn Fn(&'a str) -> IResult<&'a str, Output, Error>>;
-
 #[test]
 fn test_matched() {
     let tests = vec![
@@ -18,7 +16,12 @@ fn test_matched() {
     ];
 
     for (input, pattern, want) in tests {
-        let got = matched(pattern).unwrap()(input.into());
+        let pattern = regex::RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+
+        let got = matched(pattern)(input.into());
 
         let want_succeed = want.is_ok();
 
@@ -37,23 +40,10 @@ use nom::{
     regexp::str::re_find,
 };
 
-use regex::RegexBuilder;
+use regex::Regex;
 
-pub fn matched<'a>(
-    pattern: &'a str,
-) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, (), Error>>, Error> {
-    let pattern = RegexBuilder::new(pattern)
-        .case_insensitive(true)
-        .build()
-        .map_err(|error| Error {
-            input: pattern.into(),
-            kind: ErrorKind::Regex(error),
-            backtrace: vec![],
-        })?;
-
-    Ok(Box::new(move |input: &'a str| {
-        value((), re_find(pattern.clone()))(input)
-    }))
+pub fn matched<'a>(pattern: Regex) -> impl Fn(&'a str) -> IResult<&'a str, (), Error> {
+    move |input: &'a str| value((), re_find(pattern.clone()))(input)
 }
 
 #[test]
@@ -71,7 +61,12 @@ fn test_matched_count() {
     ];
 
     for (input, pattern, want) in tests {
-        let got = matched_count(pattern).unwrap()(input.into());
+        let pattern = regex::RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+
+        let got = matched_count(pattern)(input.into());
 
         let want_succeed = want.is_ok();
 
@@ -87,14 +82,8 @@ fn test_matched_count() {
 
 use nom::multi::{many1, many1_count};
 
-pub fn matched_count<'a>(
-    pattern: &'a str,
-) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, usize, Error>>, Error> {
-    let match_pattern = matched(pattern)?;
-
-    Ok(Box::new(move |input: &'a str| {
-        many1_count(match_pattern.as_ref())(input)
-    }))
+pub fn matched_count<'a>(pattern: Regex) -> impl Fn(&'a str) -> IResult<&'a str, usize, Error> {
+    move |input: &'a str| many1_count(matched(pattern.clone()))(input)
 }
 
 #[test]
@@ -112,7 +101,12 @@ fn test_tagged_lines() {
 
     let want = vec!["alkjseflk;ajsfljajoasd", "l;kasjdfafsdlj"];
 
-    let got = tagged_lines("sitemap:").unwrap()(input).unwrap();
+    let pattern = regex::RegexBuilder::new("sitemap:")
+        .case_insensitive(true)
+        .build()
+        .unwrap();
+
+    let got = tagged_lines(pattern)(input).unwrap();
 
     assert_eq!(got.1, want);
 }
@@ -126,16 +120,14 @@ use nom::{
 };
 
 pub fn tagged_lines<'a>(
-    pattern: &'a str,
-) -> Result<Box<impl Fn(&'a str) -> IResult<&'a str, Vec<&'a str>, Error>>, Error> {
-    let match_pattern = matched(&pattern[..])?;
-
-    Ok(Box::new(move |input: &'a str| {
+    pattern: Regex,
+) -> impl Fn(&'a str) -> IResult<&'a str, Vec<&'a str>, Error> {
+    move |input: &'a str| {
         many0(map(
-            tuple((match_pattern.as_ref(), space0, line_content)),
+            tuple((matched(pattern.clone()), space0, line_content)),
             |(_, _, line)| line,
         ))(input)
-    }))
+    }
 }
 
 #[test]

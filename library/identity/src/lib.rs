@@ -1,3 +1,5 @@
+mod key;
+
 author::error!(
     Incomplete,
     std::env::VarError,

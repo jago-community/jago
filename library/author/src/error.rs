@@ -101,18 +101,11 @@ pub fn derive_from_fields(input: TokenStream) -> Result<TokenStream, Error> {
         let path = &kind.path;
 
         let (formatted, is_identity) = match path.get_ident() {
-            Some(identity) => (dbg!(format!("{}", identity)), true),
+            Some(identity) => (format!("{}", identity), true),
             None => (
                 path.segments
                     .iter()
-                    .map(|segment| {
-                        utility::unicode::upper_first(dbg!(&format!("{}", segment.ident)))
-                    })
-                    .chain(kind.type_argument.iter().flat_map(|type_argument| {
-                        type_argument.segments.iter().map(|segment| {
-                            utility::unicode::upper_first(dbg!(&format!("{}", segment.ident)))
-                        })
-                    }))
+                    .map(|segment| utility::unicode::upper_first(&format!("{}", segment.ident)))
                     .collect::<String>(),
                 false,
             ),
@@ -217,14 +210,13 @@ pub fn derive_from_fields(input: TokenStream) -> Result<TokenStream, Error> {
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token, Generics, Path, Token, Type,
+    token, Path, Token, Type,
 };
 
 struct Kind {
     path: Path,
     message: Option<String>,
     data: Option<Type>,
-    type_argument: Option<Generics>,
 }
 
 struct Kinds(Punctuated<Kind, token::Comma>);
@@ -250,13 +242,10 @@ impl Parse for Kinds {
                     path,
                     message: Some(literal.value()),
                     data: None,
-                    type_argument: None,
                 });
             } else if input.peek(syn::Ident) {
                 let path: Path = input.parse()?;
                 let mut data = None;
-
-                //dbg!(input);
 
                 if input.peek(token::Paren) {
                     let content;
@@ -270,33 +259,14 @@ impl Parse for Kinds {
                     path,
                     message: None,
                     data,
-                    type_argument: None,
                 });
             } else {
                 let path: Path = input.parse()?;
-
-                let mut type_argument = None;
-
-                //dbg!(input);
-
-                if input.peek(token::Lt) {
-                    match input.parse() {
-                        Ok(data_type) => {
-                            type_argument = Some(data_type);
-                        }
-                        Err(error) => {
-                            dbg!(error);
-                        }
-                    };
-                }
-
-                dbg!(type_argument.is_some());
 
                 kinds.push(Kind {
                     path,
                     message: None,
                     data: None,
-                    type_argument,
                 });
             }
 

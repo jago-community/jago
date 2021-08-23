@@ -129,17 +129,21 @@ fn template<'a>(
     Ok(output)
 }
 
+static DOCUMENT: &'static str = include_str!("../../console/console.html");
+
 fn document<'a>(
     input: &'a str,
     variables: &'a HashMap<&'a str, serde_json::Value>,
 ) -> Result<Vec<u8>, Error> {
+    println!("{}", DOCUMENT);
+
     let mut output = vec![];
 
     write!(&mut output, "<!doctype html><html><body>")?;
 
     output.write(&template(input, variables)?)?;
 
-    write!(&mut output, "</body>")?;
+    write!(&mut output, "</body></html>")?;
 
     Ok(output)
 }

@@ -21,8 +21,8 @@ nmap <silent> <Leader>tt :call InstrumentHandle("cargo test {--package:%} -- --n
 nmap <silent> <Leader>wt :call InstrumentHandle("cargo test --workspace")<CR>
 nmap <silent> <Leader>wtt :call InstrumentHandle("cargo test --workspace -- --nocapture")<CR>
 
-nmap <silent> <Leader>jb :call InstrumentHandle("cargo build {package:%}")<CR>
+nmap <silent> <Leader>jb :call InstrumentHandle("cargo build {--package:%}")<CR>
 nmap <silent> <Leader>jwb :call InstrumentHandle("cargo build --workspace")<CR>
 
-nmap <silent> <Leader>ch :call InstrumentHandle("cargo build {package:%}")<CR>
+nmap <silent> <Leader>ch :call InstrumentHandle("cargo build {--package:%}")<CR>
 nmap <silent> <Leader>wch :call InstrumentHandle("cargo build --workspace")<CR>
