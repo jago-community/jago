@@ -10,4 +10,4 @@ Let us know what you want to do with software and we will help you figure it out
 
 Talk with a community member to get started.
 
-> Notice: we are donation based. Talk with a community member to learn how to contribute.
+> Notice: Donations are appreciated but not expected. Talk with a community member to learn how to contribute.
