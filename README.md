@@ -1,6 +1,6 @@
 # Jago
 
-A software education company.
+A software education community.
 
 ## Offer
 
