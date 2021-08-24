@@ -9,28 +9,74 @@ fn test_store() {
     put(
         &store,
         &mut storage,
-        vec![("hello", 1i32), ("there", 4), ("fellow", 3), ("hooman", 2)]
-            .into_iter()
-            .collect(),
+        vec![
+            ("hello", 1i32.into()),
+            ("there", 4.into()),
+            ("fellow", 3.into()),
+            ("hooman", 2.into()),
+            (
+                "oneway",
+                Value::UnsignedInteger8(Cow::Owned(Vec::from(&b"oneway"[..]))),
+            ),
+        ]
+        .into_iter()
+        .collect(),
     )
     .unwrap();
 
-    let got = get(&store, &mut storage, ["hello", "hooman"]).unwrap();
-    let want = vec![Some(1), Some(2)];
+    let got = get(&store, &mut storage, ["hello", "hooman", "oneway"]).unwrap();
+    let want = vec![
+        Some(1.into()),
+        Some(2.into()),
+        Some(Value::UnsignedInteger8(Cow::Owned(Vec::from(
+            &b"oneway"[..],
+        )))),
+    ];
 
     assert_eq!(got, want);
 }
 
-use std::{fs, path::Path};
+use heed::{types::OwnedType, BytesDecode, BytesEncode, Database, Env, EnvOpenOptions};
+use serde::{Deserialize, Serialize};
 
-use heed::{types::OwnedType, Database, Env, EnvOpenOptions};
+pub type Store = Env;
+pub type Key = str;
 
-type Store = Env;
+use std::borrow::Cow;
 
-type Key = str;
-type Value = i32;
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+enum Value<'a> {
+    UnsignedInteger8(Cow<'a, [u8]>),
+    Integer32(i32),
+}
 
-type Storage = Database<heed::types::Str, OwnedType<Value>>;
+impl<'a> BytesEncode<'a> for Value<'a> {
+    type EItem = Value<'a>;
+
+    fn bytes_encode(
+        input: &'a Self::EItem,
+    ) -> Result<Cow<'a, [u8]>, Box<dyn std::error::Error + 'static>> {
+        let output = bincode::serialize(&input)?;
+        Ok(output.into())
+    }
+}
+
+impl<'a> BytesDecode<'a> for Value<'a> {
+    type DItem = Value<'a>;
+
+    fn bytes_decode(input: &'a [u8]) -> Result<Self::DItem, Box<dyn std::error::Error + 'static>> {
+        let output = bincode::deserialize(&input)?;
+        Ok(output)
+    }
+}
+
+impl From<i32> for Value<'_> {
+    fn from(input: i32) -> Self {
+        Self::Integer32(input)
+    }
+}
+
+type Storage<'a> = Database<heed::types::Str, Value<'a>>;
 
 fn store() -> Result<Store, Error> {
     let target = target_directory()?;
@@ -40,7 +86,7 @@ fn store() -> Result<Store, Error> {
     EnvOpenOptions::new().open(target).map_err(Error::from)
 }
 
-fn storage<'a>(store: &'a Store, which: Option<&'a str>) -> Result<Storage, Error> {
+fn storage<'a>(store: &'a Store, which: Option<&'a str>) -> Result<Storage<'a>, Error> {
     match store.open_database(which) {
         Ok(maybe) => match maybe {
             Some(database) => Ok(database),
@@ -66,17 +112,24 @@ fn put<'a>(
 
 fn get<'a>(
     store: &'a Store,
-    storage: &mut Storage,
+    storage: &mut Storage<'a>,
     want: impl AsRef<[&'a Key]>,
-) -> Result<Vec<Option<Value>>, Error> {
+) -> Result<Vec<Option<Value<'a>>>, Error> {
     let slice = want.as_ref();
 
     let mut output = Vec::with_capacity(slice.len());
 
-    let mut reader = store.read_txn()?;
+    let reader = store.read_txn()?;
 
     for key in slice {
-        let value = storage.get(&mut reader, key)?;
+        let value = storage.get(&reader, key).map(|maybe| {
+            maybe.map(|value| match value {
+                Value::UnsignedInteger8(value) => {
+                    Value::UnsignedInteger8(Cow::Owned(value.into_owned()))
+                }
+                Value::Integer32(value) => Value::Integer32(value),
+            })
+        })?;
         output.push(value);
     }
 

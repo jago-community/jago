@@ -11,3 +11,5 @@ rand = "0.8.4"
 author = { path = "../author" }
 heed = "0.11.0"
 dirs = "3.0.2"
+serde = { version = "1.0.126", features = ["derive"] }
+bincode = "1.3.3"

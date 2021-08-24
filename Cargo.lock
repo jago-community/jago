@@ -4320,10 +4320,12 @@ name = "store"
 version = "0.1.0"
 dependencies = [
  "author",
+ "bincode",
  "dirs",
  "heed",
  "rand 0.8.4",
  "ring",
+ "serde",
 ]
 
 [[package]]
