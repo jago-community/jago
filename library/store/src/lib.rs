@@ -11,6 +11,8 @@
 /// emissions inspired by the requirements of the early analogue electronics. The health feature
 /// still uses electronically generated audio so that the software's writers don't have to pay the
 /// artists but the inspiration definitely comes from music.
+mod store;
+
 use ring::{digest, pbkdf2};
 use std::{collections::HashMap, num::NonZeroU32};
 

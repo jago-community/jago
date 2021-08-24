@@ -9,3 +9,5 @@ edition = "2018"
 ring = "0.16.20"
 rand = "0.8.4"
 author = { path = "../author" }
+heed = "0.11.0"
+dirs = "3.0.2"
