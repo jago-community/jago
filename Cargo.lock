@@ -270,10 +270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "book"
-version = "0.1.0"
-
-[[package]]
 name = "bstr"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
