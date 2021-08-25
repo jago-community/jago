@@ -20,18 +20,17 @@ static PBKDF2_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
 
-author::error!(WrongUsernameOrPassword);
+author::error!(WrongUsernameOrPassword, rand::Error, store::Error);
 
 struct PasswordDatabase {
     pbkdf2_iterations: NonZeroU32,
-    db_salt_component: [u8; 16],
+    db_salt_component: [u8; CREDENTIAL_LEN],
 
-    // Normally this would be a persistent database.
-    storage: HashMap<String, Credential>,
+    storage: store::Storage,
 }
 
 impl PasswordDatabase {
-    pub fn store_password(&mut self, username: &str, password: &str) {
+    pub fn store_password(&mut self, username: &str, password: &str) -> Result<(), Error> {
         let salt = self.salt(username);
         let mut to_store: Credential = [0u8; CREDENTIAL_LEN];
         pbkdf2::derive(
@@ -41,12 +40,23 @@ impl PasswordDatabase {
             password.as_bytes(),
             &mut to_store,
         );
-        self.storage.insert(String::from(username), to_store);
+        store::put(
+            &mut self.storage,
+            vec![(
+                username,
+                store::Value::UnsignedInteger8(password.to_owned().into_bytes()),
+            )]
+            .into_iter()
+            .collect(),
+        )
+        .map_err(Error::from)
     }
 
     pub fn verify_password(&self, username: &str, attempted_password: &str) -> Result<(), Error> {
-        match self.storage.get(username) {
-            Some(actual_password) => {
+        let values = store::get(&self.storage, [username])?;
+
+        match values.first() {
+            Some(Some(store::Value::UnsignedInteger8(actual_password))) => {
                 let salt = self.salt(username);
                 pbkdf2::verify(
                     PBKDF2_ALG,
@@ -57,8 +67,7 @@ impl PasswordDatabase {
                 )
                 .map_err(|_| Error::WrongUsernameOrPassword)
             }
-
-            None => Err(Error::WrongUsernameOrPassword),
+            _ => Err(Error::WrongUsernameOrPassword),
         }
     }
 
@@ -78,33 +87,61 @@ impl PasswordDatabase {
 
 use rand::Rng;
 
-#[test]
-fn test_database() {
-    // Normally these parameters would be loaded from a configuration file.
-    let mut db = PasswordDatabase {
-        pbkdf2_iterations: NonZeroU32::new(100_000).unwrap(),
-        db_salt_component: get_salt(),
-        storage: HashMap::new(),
-    };
+fn get_salt() -> Result<[u8; CREDENTIAL_LEN], Error> {
+    let mut random = rand::thread_rng();
 
-    db.store_password("alice", "@74d7]404j|W}6u");
+    let mut output = [0u8; CREDENTIAL_LEN];
+    random.fill(&mut output);
 
-    // An attempt to log in with the wrong password fails.
-    assert!(db.verify_password("alice", "wrong password").is_err());
-
-    // Normally there should be an expoentially-increasing delay between
-    // attempts to further protect against online attacks.
-
-    // An attempt to log in with the right password succeeds.
-    assert!(db.verify_password("alice", "@74d7]404j|W}6u").is_ok());
+    Ok(output)
 }
 
-fn get_salt() -> [u8; 16] {
-    let initial = "bG8ZcILW+BdtHig=".as_bytes();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut output: [u8; 16] = Default::default();
+    #[test]
+    fn test_database() {
+        fn delete_database(path: &std::path::Path) {
+            for entry in std::fs::read_dir(path).unwrap() {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
 
-    output.copy_from_slice(&initial[..]);
+                    if path.is_file() {
+                        std::fs::remove_file(path).expect("Failed to remove a file");
+                    } else {
+                        match std::fs::remove_dir_all(&path) {
+                            Err(error) => match error.kind() {
+                                std::io::ErrorKind::Other => delete_database(&path),
+                                _ => {}
+                            },
+                            _ => {}
+                        }
+                    }
+                };
+            }
+        }
 
-    output
+        delete_database(&crate::store::storage_directory().unwrap());
+
+        // Normally these parameters would be loaded from a configuration file.
+        let mut db = PasswordDatabase {
+            pbkdf2_iterations: NonZeroU32::new(100_000).unwrap(),
+            db_salt_component: get_salt().unwrap(),
+            storage: store::Storage::new(None).unwrap(),
+        };
+
+        db.store_password("alice", "@74d7]404j|W}6u").unwrap();
+
+        // An attempt to log in with the wrong password fails.
+        assert!(db.verify_password("alice", "wrong password").is_err());
+
+        // Normally there should be an expoentially-increasing delay between
+        // attempts to further protect against online attacks.
+
+        // An attempt to log in with the right password succeeds.
+        assert!(db.verify_password("alice", "@74d7]404j|W}6u").is_ok());
+
+        std::fs::remove_dir_all(store::storage_directory().unwrap()).unwrap();
+    }
 }
