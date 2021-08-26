@@ -12,4 +12,9 @@ log = { version = "0.4.14" }
 dirs = {version = "3.0.2" }
 author = { path = "../author" }
 library = { path = "../library" }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
 pretty_env_logger = "0.4.0"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = { version = "0.10.1", optional = true }

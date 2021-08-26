@@ -1,17 +1,29 @@
 use std::iter::Peekable;
 
 pub fn before() -> Result<Option<Box<dyn Fn()>>, Error> {
-    let logger_directory = std::env::var("CARGO_MANIFEST_DIR")?;
+    #[cfg(not(target_os = "android"))]
+    {
+        let logger_directory = std::env::var("CARGO_MANIFEST_DIR")?;
 
-    let libraries = library::libraries(&logger_directory)?;
+        let libraries = library::libraries(&logger_directory)?;
 
-    let libraries_filter = libraries.join("=debug,");
+        let libraries_filter = libraries.join("=debug,");
 
-    let filter = format!("warn, {}", libraries_filter);
+        let filter = format!("warn, {}", libraries_filter);
 
-    pretty_env_logger::formatted_builder()
-        .parse_filters(&filter)
-        .init();
+        pretty_env_logger::formatted_builder()
+            .parse_filters(&filter)
+            .init();
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        android_logger::init_once(
+            android_logger::Config::default()
+                .with_min_level(log::Level::Trace)
+                .with_tag("mob"),
+        );
+    }
 
     Ok(None)
 }

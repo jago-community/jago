@@ -1,0 +1,8 @@
+[app]
+name = "jago"
+stylized-name = "Jago"
+domain = "jago.community"
+template-pack = "wgpu"
+
+[apple]
+development-team = "3SA95C9ZFH"
