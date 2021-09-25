@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cargo run --quiet --features pipe --no-default-features
+
+# $HOME/local/jago/target/debug/jago

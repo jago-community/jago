@@ -1,0 +1,21 @@
+If you would like to contribute to this project or others managed in the same way, you'll be using a piece of software called Git. Your computer likely already has it installed. In your terminal, type `git --help` and press enter to see an overview of the surface area of the software. Git works by keeping track of the contents of your project and changes to it inside a special directory inside of a project called `.git`.
+
+Once you've made your changes to some files, you need to register the changes with Git. To see the overview of changes, type `git status` and press enter. You should see a colorized list of some files.
+
+If you'd like to see the changes according to Git, type `git diff` or `git diff <optionally file(s) name from "git status">` and press enter. Git will display the list inside of a program similar to Vim where you use the keyboard to navigate. This is just for reading though. Use the `j` and `k` keys to scroll up and down. If you see changes you didn't mean to leave behind or see something else you'd like to change, go back to Vim and make your changes. To close the output of `git diff`, press `q`.
+
+When satisfied with your changes, you need to register them with Git. Before we do this, we need to make sure to create yourself a new branch on the version tree so that you can share your changes with others before committing the changes to the main branch. To do this, type something like `git checkout -b your-branch-name` in your terminal and press enter. To confirm, type `git status` and see `On branch your-branch-name`.
+
+To register your changes, type `git add <file name(s) from "git status">` to add specific files. This is the most explicit way and helpful when you're managing complex changesets. Most of the time you can just type `git add .` to add all of the changed files in your project at once.
+
+Once your changes are registered with Git, you need to commit the changes. While saving in your editor commits your changes to your computer's file system, committing your changes saves your changed file system to the `.git` repository. The repository is what is used to coordinate with others and will is shared with the external system you use to back up your project.
+
+To commit your changes, type `git commit -m "YOUR COMMIT MESSAGE HERE"`. Try to be descriptive with your message but I'd be lying if I didn't frequently commit `work in progress` and [clean it up later.](../tools/history) You can see your commit and the previous commits by typing `git log` in your terminal and pressing enter.
+
+Finally, you need to push your changes to your external system: `git push origin your-branch-name`. Now, others with access will be able to view your changes. Let whoever you'd like to review it know the name of your branch and they'll let you know what comes next.
+
+> If the text seems really dense, create a new entry [../terms/friction](../terms/friction) or any synonym of your choosing and start the discussion there.
+>
+> The rub is that I am attempting to write the information in a way that you have to actually read the content. I fall into the trap of just copy and pasting the commands/code and end up missing out on a more fundamental understanding. I'm solving for my own problem and don't want to assume a solution for anyone else. I still want it to be skim-able though. Not trying to write a text book, those are expensive.
+>
+> Contributions to make it easier to parse for more are welcome. Learn about the [syntax here.](./syntax.md)
