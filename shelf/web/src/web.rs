@@ -12,16 +12,16 @@ pub enum Error {
     NoBody,
     #[error("Life")]
     Handle(#[from] crate::handle::Error),
-    //#[error("Life")]
-    //Life(#[from] crate::life::Error),
+    #[error("Life")]
+    Life(#[from] crate::life::Error),
 }
 
 use seed::{prelude::*, *};
 
 pub fn handle(key: &str) -> Result<(), Error> {
-    //crate::life::handle(key)?;
+    crate::life::handle(key)?;
 
-    crate::handle::handle(key)?;
+    //crate::handle::handle(key)?;
 
     Ok(())
 }

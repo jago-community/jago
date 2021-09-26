@@ -8,24 +8,31 @@ pub enum Error {
     External(wasm_bindgen::JsValue),
     #[error("Conversion error between external items")]
     Conversion,
+    #[error("Tree")]
+    Tree(#[from] crate::tree::Error),
 }
 
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 use super::context::Context;
 
-pub fn handle(tree: &web_sys::Node, context: Arc<Context>) -> Result<(), Error> {
+pub fn handle(node: &web_sys::Node, context: Arc<Context>) -> Result<(), Error> {
     let height = context.height();
     let width = context.width();
 
-    let canvas = tree
+    let canvas = node
         .dyn_ref::<web_sys::HtmlCanvasElement>()
         .map_or(Err(Error::Conversion), Ok)?;
 
     let cell_size = 12;
 
+    let (_, body) = crate::tree::context()?;
+
     canvas.set_height((cell_size + 1) * height + 1);
     canvas.set_width((cell_size + 1) * width + 1);
+
+    //canvas.set_height((cell_size + 1) * height + 1);
+    //canvas.set_width((cell_size + 1) * width + 1);
 
     let render_context =
         canvas
@@ -63,7 +70,7 @@ fn render_loop(
         }
 
         draw_grid(context.clone(), render_context.clone());
-        draw_cells(context.clone(), render_context.clone());
+        //draw_cells(context.clone(), render_context.clone());
 
         if let Err(error) = render_loop(context.clone(), render_context.clone()) {
             log::error!("{:?}", error);
@@ -92,7 +99,6 @@ fn draw_grid(context: Arc<Context>, render_context: Arc<web_sys::CanvasRendering
     let height = context.height();
 
     render_context.begin_path();
-
     render_context.set_stroke_style(&JsValue::from_str(grid_color));
 
     for index in 0..width {

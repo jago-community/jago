@@ -1,4 +1,3 @@
-
 wasm_bindgen(browser.runtime.getURL("content/web_bg.wasm"))
     .then(() => {
         let port = browser.runtime.connect();
@@ -11,9 +10,13 @@ wasm_bindgen(browser.runtime.getURL("content/web_bg.wasm"))
           }
         });
 
-        wasm_bindgen.dismantle(window.document, (message) => {
-            console.info(message);
+        port.onMessage.addListener((message) => {
+          console.log('background', message);
+        });
+
+        /*wasm_bindgen.dismantle(window.document, (message) => {
+            browser.runtime.sendMessage(message);
             port.postMessage(message);
-        })
+        })*/
     })
-    .catch(console.error);
+    .catch(console.error)

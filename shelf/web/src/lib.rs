@@ -1,4 +1,5 @@
-mod handle; // life;
+mod handle;
+pub mod life;
 mod tree;
 mod web;
 
@@ -6,6 +7,16 @@ mod web;
 pub enum Error {
     #[error("External {0:?}")]
     External(wasm_bindgen::JsValue),
+    #[error("Conversion")]
+    Conversion,
+    #[error("NoHead")]
+    NoHead,
+    #[error("NoBody")]
+    NoBody,
+    #[error("UnknownNodeType {0}")]
+    UnknownNodeType(u16),
+    #[error("NoChildAt {0}")]
+    NoChildAt(u32),
 }
 
 use wasm_bindgen::prelude::*;
@@ -39,11 +50,57 @@ pub fn consume(key: &str, input: JsValue) {
 
 #[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {
+    dismantle_node(&input, handle).map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+fn dismantle_node(input: &web_sys::Node, handle: &js_sys::Function) -> Result<(), Error> {
+    match input.node_type() {
+        web_sys::Node::TEXT_NODE => {
+            if let Some(text) = input.text_content() {
+                handle
+                    .call1(&JsValue::NULL, &JsValue::from_str(&text))
+                    .map(|_| ())
+                    .map_err(Error::External)
+            } else {
+                Ok(())
+            }
+        }
+        _ => {
+            let children = input.child_nodes();
+
+            for index in 0..children.length() {
+                let child = children
+                    .get(index)
+                    .map_or(Err(Error::NoChildAt(index)), Ok)?;
+                dismantle_node(&child, handle)?;
+            }
+
+            Ok(())
+        }
+    }
+
+    /*match input.node_type() {
+        web_sys::Node::DOCUMENT_NODE => {
+            let document: &web_sys::Document =
+                input.dyn_ref().map_or(Err(Error::Conversion), Ok)?;
+
+            let head = document.head().map_or(Err(Error::NoHead), Ok)?;
+            dismantle_node(head.as_ref(), handle)?;
+
+            let body = document.body().map_or(Err(Error::NoBody), Ok)?;
+            dismantle_node(body.as_ref(), handle)
+        }
+        node_type @ _ => Err(Error::UnknownNodeType(node_type)),
+    }*/
+
+    /*
     encyclopedia::index(&input, |to_index| {
         handle
             .call1(&JsValue::NULL, &JsValue::from_str(to_index))
             .map(|_| ())
             .map_err(Error::External)
     })
-    .map_err(|error| JsValue::from_str(&error.to_string()))
+    .map_err(|error| JsValue::from_str(&error.to_string()))*/
 }
+
+pub use life::context::{Cell, Context};

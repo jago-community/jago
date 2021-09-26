@@ -2,6 +2,8 @@ book::error!(Incomplete);
 
 use wasm_bindgen::prelude::*;
 
+use fixedbitset::FixedBitSet;
+
 #[wasm_bindgen]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,35 +17,27 @@ pub enum Cell {
 pub struct Context {
     width: u32,
     height: u32,
-    cells: Vec<Cell>,
+    cells: FixedBitSet,
 }
 
+#[wasm_bindgen]
 impl Context {
-    pub fn get_index(&self, row: u32, column: u32) -> usize {
-        (row * self.width + column) as usize
-    }
-
-    pub fn is_alive(&self, row: u32, column: u32) -> bool {
-        self.cells
-            .get((row * self.width + column) as usize)
-            .map_or(false, |value| value == &Cell::Alive)
-    }
-
-    fn live_neighbor_count(&self, row: u32, column: u32) -> u8 {
-        let mut count = 0;
-        for delta_row in [self.height - 1, 0, 1].iter().cloned() {
-            for delta_col in [self.width - 1, 0, 1].iter().cloned() {
-                if delta_row == 0 && delta_col == 0 {
-                    continue;
+    pub fn from_width_height(width: u32, height: u32) -> Self {
+        let cells = (0..width * height)
+            .map(|i| {
+                if i % 2 == 0 || i % 7 == 0 {
+                    Cell::Alive
+                } else {
+                    Cell::Dead
                 }
+            })
+            .collect();
 
-                let neighbor_row = (row + delta_row) % self.height;
-                let neighbor_col = (column + delta_col) % self.width;
-                let idx = self.get_index(neighbor_row, neighbor_col);
-                count += self.cells[idx] as u8;
-            }
+        Self {
+            width,
+            height,
+            cells,
         }
-        count
     }
 
     pub fn tick(&mut self) {
@@ -79,27 +73,6 @@ impl Context {
         self.cells = next;
     }
 
-    pub fn new() -> Self {
-        let width = 64;
-        let height = 64;
-
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 2 == 0 || i % 7 == 0 {
-                    Cell::Alive
-                } else {
-                    Cell::Dead
-                }
-            })
-            .collect();
-
-        Self {
-            width,
-            height,
-            cells,
-        }
-    }
-
     pub fn render(&self) -> String {
         self.to_string()
     }
@@ -110,6 +83,97 @@ impl Context {
 
     pub fn height(&self) -> u32 {
         self.height
+    }
+
+    pub fn toggle_cell(&mut self, row: u32, column: u32) {
+        let idx = self.get_index(row, column);
+
+        self.cells.toggle(idx);
+    }
+
+    pub fn add_glider(&mut self, row: u32, column: u32) {
+        // 0 centered: Seed for glider.
+        let glider_seed = vec![(0, 2), (1, 0), (1, 2), (2, 1), (2, 2)];
+
+        // Map the shape of glider to the offset from click location.
+        let glider: Vec<(u32, u32)> = glider_seed
+            .iter()
+            .map(|pair| ((row + pair.0) % self.height, (column + pair.1) % self.width))
+            .collect();
+
+        self.set_cells(&glider);
+    }
+
+    /// Set the width of the universe.
+    ///
+    /// Resets all cells to the dead state.
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        self.cells = (0..width * self.height).map(|_i| 0).collect();
+    }
+
+    /// Set the height of the universe.
+    ///
+    /// Resets all cells to the dead state.
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        self.cells = (0..self.width * height).map(|_i| 0).collect();
+    }
+
+    pub fn cells(&self) -> *const u32 {
+        self.cells.as_slice().as_ptr()
+    }
+}
+
+impl Context {
+    fn get_index(&self, row: u32, column: u32) -> usize {
+        (row * self.width + column) as usize
+    }
+
+    fn live_neighbor_count(&self, row: u32, column: u32) -> u8 {
+        let mut count = 0;
+
+        let north = if row == 0 { self.height - 1 } else { row - 1 };
+
+        let south = if row == self.height - 1 { 0 } else { row + 1 };
+
+        let west = if column == 0 {
+            self.width - 1
+        } else {
+            column - 1
+        };
+
+        let east = if column == self.width - 1 {
+            0
+        } else {
+            column + 1
+        };
+
+        let nw = self.get_index(north, west);
+        count += self.cells[nw] as u8;
+
+        let n = self.get_index(north, column);
+        count += self.cells[n] as u8;
+
+        let ne = self.get_index(north, east);
+        count += self.cells[ne] as u8;
+
+        let w = self.get_index(row, west);
+        count += self.cells[w] as u8;
+
+        let e = self.get_index(row, east);
+        count += self.cells[e] as u8;
+
+        let sw = self.get_index(south, west);
+        count += self.cells[sw] as u8;
+
+        let s = self.get_index(south, column);
+        count += self.cells[s] as u8;
+
+        let se = self.get_index(south, east);
+        count += self.cells[se] as u8;
+
+        count
     }
 }
 

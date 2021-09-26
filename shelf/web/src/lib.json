@@ -31,6 +31,13 @@
         "mac": "MacCtrl+J"
       },
       "description": "Open jago."
+    },
+    "debug-popup": {
+      "suggested_key": {
+        "default": "Ctrl+K",
+        "mac": "MacCtrl+K"
+      },
+      "description": "Debug jago."
     }
   },
   "content_scripts": [
@@ -40,7 +47,10 @@
       "run_at": "document_end"
     }
   ],
-  "web_accessible_resources": ["content/web_bg.wasm"],
+  "web_accessible_resources": [
+      "content/web_bg.wasm",
+      "popup/web_bg.wasm"
+  ],
   "background": {
     "page": "background/mod.html"
   }

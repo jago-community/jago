@@ -1,0 +1,18 @@
+#!/bin/bash
+set -ex
+
+project=$HOME/local/jago
+target=$HOME/local/jago/target
+
+zip -r -FS "$target/web.xpi" $target/web/
+
+prefix="Library/Application Support/Mozilla/Extensions"
+extension_contexts=`ls "/$prefix"`
+
+for context in "$extension_contexts"
+do
+    context_target="$HOME/$prefix/$context"
+    echo $context_target
+    mkdir -p "$context_target"
+    cp "$target/web.xpi" "$context_target/web@jago.community.xpi"
+done

@@ -16,7 +16,7 @@ pub enum Error {
 
 use wasm_bindgen::JsCast;
 
-fn context() -> Result<(web_sys::Document, web_sys::HtmlElement), Error> {
+pub fn context() -> Result<(web_sys::Document, web_sys::HtmlElement), Error> {
     let window = web_sys::window().map_or(Err(Error::NoWindow), Ok)?;
     let document = window.document().map_or(Err(Error::NoDocument), Ok)?;
     let body = document.body().map_or(Err(Error::NoBody), Ok)?;
