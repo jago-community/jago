@@ -17,6 +17,10 @@ pub enum Error {
     UnknownNodeType(u16),
     #[error("NoChildAt {0}")]
     NoChildAt(u32),
+    #[error("NoWindow")]
+    NoWindow,
+    #[error("NoLocation")]
+    NoLocation,
 }
 
 use wasm_bindgen::prelude::*;
@@ -44,17 +48,30 @@ pub fn handle() -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn consume(key: &str, input: JsValue) {
-    log::info!("consume: {} -> {:?}", key, input);
-}
-
-#[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {
     dismantle_node(&input, handle).map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
+use wasm_bindgen::JsCast;
+
 fn dismantle_node(input: &web_sys::Node, handle: &js_sys::Function) -> Result<(), Error> {
     match input.node_type() {
+        web_sys::Node::DOCUMENT_NODE => {
+            let document = input
+                .dyn_ref::<web_sys::Document>()
+                .map_or(Err(Error::Conversion), Ok)?;
+            let location = document.location().map_or(Err(Error::NoLocation), Ok)?;
+            let value: JsValue = location
+                .dyn_into()
+                .ok()
+                .map_or(Err(Error::Conversion), Ok)?;
+            handle
+                .call1(&JsValue::NULL, &value)
+                .map(|_| ())
+                .map_err(Error::External)?;
+            // TODO: do what default case does right now too
+            Ok(())
+        }
         web_sys::Node::TEXT_NODE => {
             if let Some(text) = input.text_content() {
                 handle

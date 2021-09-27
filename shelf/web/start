@@ -51,7 +51,9 @@ cargo build $build_flag --features pipe
 cp $project/shelf/web/src/lib.json $target/web/manifest.json
 cp -R $project/shelf/web/asset $target/web/asset
 
-cp $project/shelf/web/src/life/mod.html $target/web/popup/mod.html
+cp -R $target/web/popup $target/web/life
+cp $project/shelf/web/src/life/mod.html $target/web/life/
+cp $project/shelf/web/src/life/mod.js $target/web/life/
 
 echo "{
   \"name\": \"jago\",

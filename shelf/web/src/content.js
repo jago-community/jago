@@ -14,9 +14,8 @@ wasm_bindgen(browser.runtime.getURL("content/web_bg.wasm"))
           console.log('background', message);
         });
 
-        /*wasm_bindgen.dismantle(window.document, (message) => {
-            browser.runtime.sendMessage(message);
-            port.postMessage(message);
-        })*/
+        wasm_bindgen.dismantle(window.document, (message) => {
+            port.postMessage(message.toString());
+        })
     })
     .catch(console.error)

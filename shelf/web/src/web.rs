@@ -6,11 +6,7 @@ pub enum Error {
     External(wasm_bindgen::JsValue),
     #[error("NoWindow")]
     NoWindow,
-    #[error("NoDocument")]
-    NoDocument,
-    #[error("NoBody")]
-    NoBody,
-    #[error("Life")]
+    #[error("Handle")]
     Handle(#[from] crate::handle::Error),
     #[error("Life")]
     Life(#[from] crate::life::Error),
@@ -19,9 +15,15 @@ pub enum Error {
 use seed::{prelude::*, *};
 
 pub fn handle(key: &str) -> Result<(), Error> {
-    crate::life::handle(key)?;
+    let window = web_sys::window().map_or(Err(Error::NoWindow), Ok)?;
+    let location = window.location();
+    let path = location.pathname().map_err(Error::External)?;
 
-    //crate::handle::handle(key)?;
+    if path.ends_with("life.html") {
+        crate::life::handle(key)?;
+    } else {
+        crate::handle::handle(key)?;
+    }
 
     Ok(())
 }

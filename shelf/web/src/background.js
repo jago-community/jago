@@ -1,14 +1,15 @@
-import { consume, dismantle } from './web.js';
-
-
-browser.runtime.onMessage.addListener((message) => {
-  console.info('content', message);
-});
+import { dismantle } from './web.js';
 
 const port = browser.runtime.connectNative("jago");
 
 port.onMessage.addListener((message) => {
   console.info('native', message);
+});
+
+browser.runtime.onConnect.addListener(port => {
+    port.onMessage.addListener(message => {
+        console.info('content.port', message);
+    });
 });
 
 function handle(input) {
