@@ -22,7 +22,7 @@ To install Vim on Windows, [this article looks up to date.](https://www.freecode
 
 To install Vim on a Unix system other than macOS, find instructions for your specific flavor and if you'd like, add them to this file.
 
-This project uses the rust programming language as it's main computer interface. Because of this, you need to install the Rust programming language. Please follow the instructions on the [rust language's installation page.](https://www.rust-lang.org/learn/get-started) Their documentation is usually approachable but if you have any questions or problems, please reach out to [contributors@jago.cafe.](mailto:contributors@jago.cafe)
+This project uses the rust programming language as it's main computer interface. Because of this, you need to install the Rust programming language. Please follow the instructions on the [rust language's installation page.](https://www.rust-lang.org/learn/get-started) Their documentation is usually approachable but if you have any questions or problems, please reach out to [isaac@jago.community.](mailto:isaac@jago.community)
 
 Once you have rust and its suite of tools installed, change the context of your terminal to this respository's directory:
 
@@ -36,7 +36,7 @@ If you want to learn about Vim and the basics of how to use it, type the followi
 vimtutor
 ```
 
-After you feel like you can do a thing or two with Vim, we need to refer to some instruments that this repositories provides for your workspace. Do this by typing the following in your terminal and pressing enter:
+If you need some inspiration for what to do with Vim, start by opening this exact file. Do this by typing the following in your terminal and pressing enter:
 
 ```
 vim ~/local/jago/start
