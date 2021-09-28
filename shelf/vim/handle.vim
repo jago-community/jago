@@ -1,3 +1,5 @@
+source $HOME/local/jago/shelf/vim/profile/alec.vim
+
 function! InstrumentHandle(...) abort
     if has('terminal')
         let cmd = 'vertical terminal'
