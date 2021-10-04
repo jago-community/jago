@@ -15,7 +15,7 @@ pub enum Error {
     //Draw(#[from] draw::Error),
 }
 
-use context::Context;
+use context::Universe;
 
 use std::sync::Arc;
 

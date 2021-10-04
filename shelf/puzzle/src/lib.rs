@@ -1,28 +1,27 @@
-book::error!(Incomplete);
-
-pub enum Context {
-    Content,
-    Handle,
-    Background,
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Incomplete")]
+    Incomplete,
 }
 
-impl Context {
-    pub const CONTENT: Self = Self::Content;
-    pub const HANDLE: Self = Self::Handle;
-    pub const BACKGROUND: Self = Self::Background;
+#[cfg(target = "wasm32-unknown-unknown")]
+use wasm_bindgen::prelude::*;
+
+use crdts::{CmRDT, CvRDT, GSet};
+
+#[derive(Debug)]
+#[cfg_attr(target = "wasm32-unknown-unknown", wasm_bindgen)]
+pub struct Puzzle {
+    keys: GSet<String>,
 }
 
-pub type Keys<Kind> = crdts::GSet<Kind>;
+#[cfg_attr(target = "wasm32-unknown-unknown", wasm_bindgen)]
+impl Puzzle {
+    pub fn empty() -> Self {
+        Self { keys: GSet::new() }
+    }
 
-pub fn handle<Kind: Ord>(context: Context, input: Kind) -> Result<(), Error> {
-    match context {
-        Context::Content => {
-            keys.insert(input);
-        }
-        Context::Background | Context::Handle => {
-            // ...
-        }
-    };
-
-    Ok(())
+    pub fn wrap(&mut self, key: String) {
+        self.keys.insert(key);
+    }
 }

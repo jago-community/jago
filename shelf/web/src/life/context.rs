@@ -14,14 +14,14 @@ pub enum Cell {
 
 #[wasm_bindgen]
 #[derive(Clone)]
-pub struct Context {
+pub struct Universe {
     width: u32,
     height: u32,
     cells: FixedBitSet,
 }
 
 #[wasm_bindgen]
-impl Context {
+impl Universe {
     pub fn from_width_height(width: u32, height: u32) -> Self {
         let size = (width * height) as usize;
         let mut cells = FixedBitSet::with_capacity(size);
@@ -110,7 +110,7 @@ impl Context {
     }
 }
 
-impl Context {
+impl Universe {
     fn get_index(&self, row: u32, column: u32) -> usize {
         (row * self.width + column) as usize
     }

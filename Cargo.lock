@@ -971,6 +971,7 @@ dependencies = [
  "book",
  "byteorder",
  "log",
+ "puzzle",
  "serde",
  "serde_json",
 ]
@@ -1067,8 +1068,10 @@ dependencies = [
 name = "puzzle"
 version = "0.1.0"
 dependencies = [
- "book",
  "crdts",
+ "log",
+ "thiserror",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1851,6 +1854,7 @@ version = "0.1.0"
 dependencies = [
  "book",
  "console_log",
+ "crdts",
  "encyclopedia",
  "fixedbitset",
  "js-sys",

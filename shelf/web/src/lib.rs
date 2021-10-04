@@ -1,7 +1,10 @@
+mod context;
 mod handle;
 pub mod life;
 mod tree;
 mod web;
+
+pub use context::{Context, Setting};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -21,6 +24,8 @@ pub enum Error {
     NoWindow,
     #[error("NoLocation")]
     NoLocation,
+    #[error("Context {0}")]
+    Context(#[from] context::Error),
 }
 
 use wasm_bindgen::prelude::*;
@@ -30,17 +35,9 @@ pub fn handle() -> Result<(), JsValue> {
     console_log::init_with_level(log::Level::Debug)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
 
-    #[cfg(feature = "popup")]
-    let output = web::handle("jago").map_err(|error| JsValue::from_str(&error.to_string()));
-
-    #[cfg(feature = "background")]
-    let output = {
-        log::info!("background");
-        Ok(())
-    };
-
-    #[cfg(not(any(feature = "popup", feature = "background")))]
-    let output = Ok(());
+    let output = context::handle()
+        .map_err(Error::from)
+        .map_err(|error| JsValue::from_str(&error.to_string()));
 
     log::info!("{:?}", output);
 
@@ -120,4 +117,4 @@ fn dismantle_node(input: &web_sys::Node, handle: &js_sys::Function) -> Result<()
     .map_err(|error| JsValue::from_str(&error.to_string()))*/
 }
 
-pub use life::context::{Cell, Context};
+pub use life::context::{Cell, Universe};
