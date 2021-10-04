@@ -23,7 +23,6 @@ serde = { version = "1.0.130", features = ["derive"] }
 thiserror = "1.0.29"
 wasm-bindgen = "0.2.78"
 book = { path = "../book" }
-encyclopedia = { path = "../encyclopedia", features = ["web-sys"] }
 js-sys = "0.3.55"
 fixedbitset = "0.4.0"
 crdts = "7.0.0"

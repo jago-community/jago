@@ -1,11 +1,8 @@
 book::error!(Incomplete, std::io::Error, ExpectedField);
 
-#[test]
-fn test_index() {
-    assert_eq!(2 + 2, 4);
-}
+use puzzle::Puzzle;
+use serde::Serialize;
 
-#[cfg(feature = "web-sys")]
-pub fn index<E>(_input: &web_sys::Node, handle: impl Fn(&str) -> Result<(), E>) -> Result<(), E> {
-    handle("hello stranger")
+pub fn handle(context: &Puzzle) -> Result<impl Serialize, Error> {
+    Ok(format!("{:?}", context))
 }

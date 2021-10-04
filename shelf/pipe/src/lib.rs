@@ -1,4 +1,9 @@
-book::error!(Incomplete, std::io::Error, serde_json::Error);
+book::error!(
+    Incomplete,
+    std::io::Error,
+    serde_json::Error,
+    encyclopedia::Error
+);
 
 use std::{
     io::{stdin, stdout, Read, Write},
@@ -22,7 +27,9 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
 
         context.wrap(key);
 
-        let output = serde_json::to_vec(&format!("{:?}", context))?;
+        let output = encyclopedia::handle(&context)?;
+
+        let output = serde_json::to_vec(&output)?;
 
         let mut out = stdout();
         out.write_u32::<NativeEndian>(output.len() as u32)?;

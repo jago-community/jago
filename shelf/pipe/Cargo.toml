@@ -12,3 +12,4 @@ log = "0.4.14"
 serde = "1.0.130"
 serde_json = "1.0.68"
 puzzle = { path = "../puzzle" }
+encyclopedia = { path = "../encyclopedia" }

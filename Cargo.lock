@@ -359,9 +359,10 @@ name = "encyclopedia"
 version = "0.1.0"
 dependencies = [
  "book",
+ "puzzle",
+ "serde",
  "tantivy",
  "tempfile",
- "web-sys",
 ]
 
 [[package]]
@@ -970,6 +971,7 @@ version = "0.1.0"
 dependencies = [
  "book",
  "byteorder",
+ "encyclopedia",
  "log",
  "puzzle",
  "serde",
@@ -1855,7 +1857,6 @@ dependencies = [
  "book",
  "console_log",
  "crdts",
- "encyclopedia",
  "fixedbitset",
  "js-sys",
  "log",
