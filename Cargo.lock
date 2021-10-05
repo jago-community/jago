@@ -79,7 +79,7 @@ dependencies = [
 name = "book"
 version = "0.1.0"
 dependencies = [
- "dirs",
+ "dirs 3.0.2",
  "lazy_static",
  "pretty_assertions",
  "proc-macro2",
@@ -320,6 +320,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -359,10 +368,14 @@ name = "encyclopedia"
 version = "0.1.0"
 dependencies = [
  "book",
+ "once_cell",
+ "painting",
+ "parking_lot",
  "puzzle",
  "serde",
  "tantivy",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -686,6 +699,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "instant"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "716d3d89f35ac6a34fd0eed635395f4c3b76fa889338a4632e5231a8684216bd"
+dependencies = [
+ "cfg-if 1.0.0",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -737,6 +759,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2a5ac8f984bfcf3a823267e5fde638acc3325f6496633a5da6bb6eb2171e103"
 
 [[package]]
+name = "lock_api"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712a4d093c9976e24e7dbca41db895dabcbac38eb5f4045393d17a95bdfb1109"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
 name = "log"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -750,7 +781,7 @@ name = "logger"
 version = "0.1.0"
 dependencies = [
  "book",
- "dirs",
+ "dirs 3.0.2",
  "encyclopedia",
  "flexi_logger",
  "log",
@@ -945,6 +976,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc63b0786f6b95cba13bd1d6aea49ad1f595dc4d859305ac123de251575219ed"
 dependencies = [
  "stable_deref_trait",
+]
+
+[[package]]
+name = "painting"
+version = "0.1.0"
+dependencies = [
+ "book",
+ "dirs 4.0.0",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d76e8e1493bcac0d2766c42737f34458f1c8c50c0d23bcb24ea953affb273216"
+dependencies = [
+ "cfg-if 1.0.0",
+ "instant",
+ "libc",
+ "redox_syscall",
+ "smallvec",
+ "winapi",
 ]
 
 [[package]]

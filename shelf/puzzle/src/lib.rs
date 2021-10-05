@@ -24,4 +24,8 @@ impl Puzzle {
     pub fn wrap(&mut self, key: String) {
         self.keys.insert(key);
     }
+
+    pub fn keys(&self) -> impl Iterator<Item = String> {
+        self.keys.read().into_iter()
+    }
 }
