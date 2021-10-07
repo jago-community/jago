@@ -8,14 +8,42 @@ book::error!(
     NoField(String),
     Other(Box<dyn std::error::Error + 'static>),
     tantivy::query::QueryParserError,
+    bincode::Error,
+    Schema(Box<dyn std::error::Error + 'static>),
+    Index(Box<dyn std::error::Error + 'static>),
 );
+
+use puzzle::Puzzle;
+use std::collections::HashMap;
 
 #[test]
 fn test_search() {
     // TODO:
+
+    let mut document = HashMap::new();
+
+    document.insert("title", "The Old Man and the Sea");
+    document.insert(
+        "body",
+        "He was an old man who fished alone in a skiff in the Gulf Stream and \
+he had gone eighty-four days now without taking a fish.",
+    );
+
+    let mut key = bincode::serialize(&document).unwrap();
+
+    let mut puzzle = Puzzle::empty();
+
+    let key = puzzle.wrap(key);
+
+    let context = context(&puzzle).unwrap();
+
+    write(&puzzle, &context).unwrap();
+
+    //let got = read(&context, "sea whale").unwrap();
+
+    //dbg!(got);
 }
 
-use puzzle::Puzzle;
 use serde::Serialize;
 use tantivy::{
     collector::TopDocs,
@@ -24,24 +52,33 @@ use tantivy::{
     DocAddress, Index, ReloadPolicy, Score,
 };
 
-pub fn write(puzzle: &Puzzle) -> Result<impl Serialize, Error> {
-    let index = index()?;
+struct Context {
+    schema: Schema,
+    fields: HashMap<String, Field>,
+    index: Index,
+}
 
-    let mut index_writer = index.writer(100_000_000)?;
+fn context(puzzle: &Puzzle) -> Result<Context, Error> {
+    let (schema, fields) = schema(puzzle)?;
+    let index = index(&schema)?;
 
-    let (schema, fields) = schema();
+    Ok(Context {
+        schema,
+        fields,
+        index,
+    })
+}
 
-    for next in puzzle.keys() {
+fn write(puzzle: &Puzzle, context: &Context) -> Result<(), Error> {
+    let mut index_writer = context.index.writer(100_000_000)?;
+
+    for key in puzzle.keys() {
+        let map = bincode::deserialize::<HashMap<String, &str>>(&key)?;
         let mut document = Document::default();
-        let data = vec![
-            next.as_ref(),
-            "The Old Man and the Sea",
-            "He was an old man who fished alone in a skiff in the Gulf Stream and \
-        he had gone eighty-four days now without taking a fish.",
-        ];
 
-        for (key, field) in fields.iter().enumerate() {
-            document.add_text(*field, data[key]);
+        for (key, value) in map {
+            let field = context.fields.get(&key).unwrap();
+            document.add_text(*field, value);
         }
 
         index_writer.add_document(document);
@@ -49,75 +86,52 @@ pub fn write(puzzle: &Puzzle) -> Result<impl Serialize, Error> {
 
     index_writer.commit()?;
 
-    Ok(format!("{:?}", puzzle))
+    Ok(())
 }
 
-use once_cell::sync::Lazy;
-
-static SCHEMA: Lazy<(Schema, Vec<Field>)> = Lazy::new(|| {
+fn schema(puzzle: &Puzzle) -> Result<(Schema, HashMap<String, Field>), Error> {
     let mut schema_builder = Schema::builder();
 
-    let key = schema_builder.add_text_field("key", TEXT | STORED);
-    let title = schema_builder.add_text_field("title", TEXT | STORED);
-    let body = schema_builder.add_text_field("body", TEXT);
+    let mut fields = HashMap::new();
+
+    for key in puzzle.keys() {
+        let map = bincode::deserialize::<HashMap<_, Vec<u8>>>(&key)?;
+
+        for (key, _) in map {
+            let field = schema_builder.add_text_field(key, TEXT | STORED);
+            fields.insert(key.into(), field);
+        }
+    }
 
     let schema = schema_builder.build();
 
-    (schema, vec![key, title, body])
-});
-
-fn schema() -> &'static (Schema, Vec<Field>) {
-    Lazy::force(&SCHEMA)
+    Ok((schema, fields))
 }
 
-fn field(schema: &Schema, key: &str) -> Result<Field, Error> {
-    schema
-        .get_field(key)
-        .map_or_else(|| Err(Error::NoField(key.into())), Ok)
-}
-
-#[derive(Debug, thiserror::Error)]
-enum IndexError {
-    #[error("Index {0}")]
-    Index(#[from] tantivy::TantivyError),
-    #[error("Painting {0}")]
-    Painting(#[from] painting::Error),
-}
-
-static INDEX: Lazy<Result<Index, IndexError>> = Lazy::new(|| {
-    let (schema, _) = schema();
-
+fn index(schema: &Schema) -> Result<Index, Error> {
     let target = painting::frame()?;
 
-    Index::create_in_dir(target, schema.clone()).map_err(IndexError::from)
-});
-
-fn index<'a>() -> Result<&'a Index, Error> {
-    match Lazy::force(&INDEX) {
-        &Ok(ref index) => Ok(index),
-        &Err(ref error) => Err(Error::Other(Box::new(error))),
-    }
+    Index::create_in_dir(target.join("encyclopedia"), schema.clone()).map_err(Error::from)
 }
 
-pub fn read(context: &Puzzle) -> Result<impl Serialize, Error> {
-    let (schema, fields) = schema();
-    let index = index()?;
-    let reader = index.reader()?;
+//fn read(context: &Context, input: &str) -> Result<impl std::fmt::Debug, Error> {
+//let reader = context.index.reader()?;
 
-    let searcher = reader.searcher();
+//let searcher = reader.searcher();
 
-    let query_parser = QueryParser::for_index(&index, fields.to_owned());
+//let query_parser =
+//QueryParser::for_index(&context.index, context.fields.values().cloned().collect());
 
-    let query = query_parser.parse_query("sea whale")?;
+//let query = query_parser.parse_query(input)?;
 
-    let top_docs: Vec<(Score, DocAddress)> = searcher.search(&query, &TopDocs::with_limit(10))?;
+//let top_docs: Vec<(Score, DocAddress)> = searcher.search(&query, &TopDocs::with_limit(10))?;
 
-    let mut output = vec![];
+//let mut output = vec![];
 
-    for (_score, key) in top_docs {
-        let found = searcher.doc(key)?;
-        output.push(schema.to_json(&found));
-    }
+//for (_score, key) in top_docs {
+//let found = searcher.doc(key)?;
+//output.push(context.schema.to_json(&found));
+//}
 
-    Ok(output)
-}
+//Ok(output)
+//}
