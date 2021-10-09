@@ -1045,9 +1045,7 @@ version = "0.1.0"
 dependencies = [
  "book",
  "byteorder",
- "encyclopedia",
  "log",
- "puzzle",
  "serde",
  "serde_json",
 ]
@@ -1477,6 +1475,20 @@ name = "sha1"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+
+[[package]]
+name = "shadow"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "crdts",
+ "log",
+ "scratch",
+ "serde",
+ "thiserror",
+ "wasm-bindgen",
+ "web-sys",
+]
 
 [[package]]
 name = "slab"
@@ -1954,6 +1966,7 @@ dependencies = [
  "rand_core 0.6.3",
  "seed",
  "serde",
+ "shadow",
  "thiserror",
  "wasm-bindgen",
  "web-sys",
@@ -1961,9 +1974,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.51"
+version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e828417b379f3df7111d3a2a9e5753706cae29c41f7c4029ee9fd77f3e09e582"
+checksum = "38eb105f1c59d9eaa6b5cdc92b859d85b926e82cb2e0945cd0c9259faa6fe9fb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

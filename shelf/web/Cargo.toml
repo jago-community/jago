@@ -26,6 +26,7 @@ book = { path = "../book" }
 js-sys = "0.3.55"
 fixedbitset = "0.4.0"
 crdts = "7.0.0"
+shadow = { path = "../shadow", features = ["web"] }
 
 [dependencies.web-sys]
 version = "0.3.51"

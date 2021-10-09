@@ -26,6 +26,8 @@ pub enum Error {
     NoLocation,
     #[error("Context {0}")]
     Context(#[from] context::Error),
+    #[error("Shadow {0}")]
+    Shadow(#[from] shadow::Error),
 }
 
 use wasm_bindgen::prelude::*;
@@ -44,8 +46,20 @@ pub fn handle() -> Result<(), JsValue> {
     output
 }
 
+use std::convert::{TryFrom, TryInto};
+
+use shadow::Shadow;
+
 #[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {
+    let shadow: Shadow = input
+        .clone()
+        .try_into()
+        .map_err(Error::from)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+
+    log::info!("{:?}", String::try_from(shadow));
+
     dismantle_node(&input, handle).map_err(|error| JsValue::from_str(&error.to_string()))
 }
 

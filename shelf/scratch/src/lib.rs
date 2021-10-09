@@ -1,3 +1,5 @@
+mod web;
+
 #[cfg(feature = "search")]
 #[test]
 fn fill_scratch() {
@@ -89,7 +91,7 @@ pub enum Error {
     UnexpectedType(String, tantivy::schema::Value),
 }
 
-use crdts::{CmRDT, MVReg, Map};
+use crdts::{merkle_reg::MerkleReg, CmRDT, MVReg, Map};
 
 type Context = Vec<u8>;
 type Key = Vec<u8>;
@@ -98,6 +100,8 @@ type Perspective = MVReg<Value, Context>;
 
 pub struct Scratch {
     void: Map<Key, Perspective, Context>,
+    expanse: Map<Key, MVReg<MerkleReg<Value>, Context>, Context>,
+    //expanse: Map<Key, MVReg<MerkleReg<Value>, Context>, Context>,
 }
 
 use serde::Serialize;
@@ -106,6 +110,7 @@ impl Scratch {
     fn carve() -> Self {
         Self {
             void: Default::default(),
+            expanse: Default::default(),
         }
     }
 
@@ -117,10 +122,42 @@ impl Scratch {
         let operation = self.void.update(
             key.clone(),
             read.derive_add_ctx(context.clone()),
-            |register, ctx| register.write(value, ctx),
+            |register, ctx| {
+                // ...
+                register.write(value, ctx)
+            },
         );
 
         self.void.apply(operation);
+
+        Ok(())
+    }
+
+    fn observe(
+        &mut self,
+        context: &Context,
+        key: &Key,
+        value: impl Serialize,
+    ) -> Result<(), Error> {
+        let value = bincode::serialize(&value)?;
+
+        let read = self.expanse.is_empty();
+
+        let operation = self.expanse.update(
+            key.clone(),
+            read.derive_add_ctx(context.clone()),
+            |register, context| {
+                let mut next = MerkleReg::default();
+
+                for previous in register.read().val {
+                    next.apply(next.write(value.clone(), Default::default()));
+                }
+
+                register.write(next, context)
+            },
+        );
+
+        self.expanse.apply(operation);
 
         Ok(())
     }

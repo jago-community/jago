@@ -87,12 +87,6 @@ set backspace=indent,eol,start
 
 " END config
 
-" BEGIN Jago
-
-let g:jago_command = "cd ~/.vim/pack/jago && cargo run --quiet"
-
-" END Jago
-
 "set complete+=kspell
 
 " rust
@@ -101,27 +95,27 @@ let g:jago_command = "cd ~/.vim/pack/jago && cargo run --quiet"
 "nmap <silent> <Leader>r :Cargo run<CR>
 
 " lightline
-let g:lightline = { 'colorscheme': 'challenger_deep'}
+let g:lightline = { 'colorscheme': 'challenger_deep' }
 
 " ale
-let g:ale_fixers = {
-\   '*': ['remove_trailing_lines', 'trim_whitespace']
-\ }
+"let g:ale_fixers = {
+"\   '*': ['remove_trailing_lines', 'trim_whitespace']
+"\ }
 
-let g:ale_rust_cargo_default_feature_behavior = 'all'
-let g:ale_linters = {'rust': ['analyzer']}
+"let g:ale_rust_cargo_default_feature_behavior = 'all'
+"let g:ale_linters = {'rust': ['analyzer']}
 
-let g:ale_fix_on_save = 1
-let g:ale_completion_autoimport = 1
-let g:ale_completion_enabled = 1
-set omnifunc=ale#completion#OmniFunc
+"let g:ale_fix_on_save = 1
+"let g:ale_completion_autoimport = 1
+"let g:ale_completion_enabled = 1
+"set omnifunc=ale#completion#OmniFunc
 
-nmap <silent> <Leader>gd :ALEGoToDefinition<CR>
-nmap <silent> <Leader>gt :ALEGoToTypeDefinition<CR>
-nmap <silent> <Leader>gr :ALEFindReferences<CR>
-nmap <silent> <Leader>gr :ALERename<CR>
-nmap <silent> <Leader>h :ALEHover<CR>
-nmap <silent> <Leader>h :ALEHover<CR>
+"nmap <silent> <Leader>gd :ALEGoToDefinition<CR>
+"nmap <silent> <Leader>gt :ALEGoToTypeDefinition<CR>
+"nmap <silent> <Leader>gr :ALEFindReferences<CR>
+"nmap <silent> <Leader>gr :ALERename<CR>
+"nmap <silent> <Leader>h :ALEHover<CR>
+"nmap <silent> <Leader>h :ALEHover<CR>
 
 
 " fzf
@@ -130,14 +124,20 @@ set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*/node_modules/*
 nmap <silent> <Leader>f :Files<CR>
 nmap <silent> <Leader>b :Buffers<CR>
 
-" typescript
-autocmd BufEnter,BufNewFile,BufRead *.tsx set filetype=typescript.tsx
-
-function s:SaveAndFormat(...)
-    execute "Prettier"
-    execute "write"
-endfunction
-
-"autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set filetype=jago | endif
-"autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set syntax=jago | endif
 autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set spell | endif
+
+if executable('rust-analyzer')
+  au User lsp_setup call lsp#register_server({
+        \   'name': 'Rust Language Server',
+        \   'cmd': {server_info->['rust-analyzer']},
+        \   'whitelist': ['rust'],
+        \   'initialization_options': {
+        \     'cargo': {
+        \       'loadOutDirsFromCheck': v:true,
+        \     },
+        \     'procMacro': {
+        \       'enable': v:true,
+        \     },
+        \   },
+        \ })
+endif

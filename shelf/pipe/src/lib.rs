@@ -2,7 +2,7 @@ book::error!(
     Incomplete,
     std::io::Error,
     serde_json::Error,
-    encyclopedia::Error
+    //encyclopedia::Error
 );
 
 use std::{
@@ -15,7 +15,7 @@ use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<(), Error> {
     let mut input = stdin();
 
-    let mut context = puzzle::Puzzle::empty();
+    //let mut context = puzzle::Puzzle::empty();
 
     loop {
         let length = input.read_u32::<NativeEndian>()?;
@@ -25,11 +25,12 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
 
         let (_setting, key): (u8, String) = serde_json::from_slice(&buffer)?;
 
-        context.wrap(key);
+        //context.wrap(key);
 
-        let output = encyclopedia::handle(&context)?;
+        //let output = encyclopedia::handle(&context)?;
 
-        let output = serde_json::to_vec(&output)?;
+        //let output = serde_json::to_vec(&output)?;
+        let output = serde_json::to_vec(&format!("hello {}", key))?;
 
         let mut out = stdout();
         out.write_u32::<NativeEndian>(output.len() as u32)?;
