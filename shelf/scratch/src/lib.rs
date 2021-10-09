@@ -47,7 +47,7 @@ fn fill_scratch() {
         assert!(scratch.covers(&key, Some(value)).unwrap());
     }
 
-    let matches = search(&scratch, "evil").unwrap();
+    let matches = search(&scratch, "vi").unwrap();
 
     assert_eq!(
         data.clone()
@@ -147,9 +147,9 @@ impl Scratch {
 use tantivy::{
     collector::TopDocs,
     directory::MmapDirectory,
-    query::QueryParser,
+    query::{FuzzyTermQuery, QueryParser},
     schema::{self, Document, Schema, FAST, STORED, TEXT},
-    DocAddress, Index, ReloadPolicy, Score,
+    DocAddress, Index, ReloadPolicy, Score, Term,
 };
 
 #[cfg(feature = "search")]
@@ -157,7 +157,18 @@ fn search(scratch: &Scratch, pattern: &str) -> Result<Vec<(Key, Value)>, Error> 
     let schema = schema();
     let index = index(scratch)?;
 
-    let query_parser = QueryParser::for_index(
+    let reader = index.reader()?;
+
+    let searcher = reader.searcher();
+
+    let key_field = schema
+        .get_field("key")
+        .map_or_else(|| Err(Error::NoKey("key".into())), Ok)?;
+    let value_field = schema
+        .get_field("value")
+        .map_or_else(|| Err(Error::NoKey("value".into())), Ok)?;
+
+    /*let query_parser = QueryParser::for_index(
         &index,
         schema
             .fields()
@@ -166,22 +177,15 @@ fn search(scratch: &Scratch, pattern: &str) -> Result<Vec<(Key, Value)>, Error> 
             .collect(),
     );
 
-    let reader = index.reader()?;
+    let query = query_parser.parse_query(pattern)?;
+    */
 
-    let searcher = reader.searcher();
-
-    let query = query_parser.parse_query(dbg!(pattern))?;
+    let term = Term::from_field_text(value_field, pattern);
+    let query = FuzzyTermQuery::new(term, 1, true);
 
     let top_docs: Vec<(Score, DocAddress)> = searcher.search(&query, &TopDocs::with_limit(10))?;
 
     let mut output = vec![];
-
-    let key_field = schema
-        .get_field("key")
-        .map_or_else(|| Err(Error::NoKey("key".into())), Ok)?;
-    let value_field = schema
-        .get_field("value")
-        .map_or_else(|| Err(Error::NoKey("value".into())), Ok)?;
 
     for (score, key) in top_docs {
         let found = searcher.doc(key)?;
