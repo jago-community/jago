@@ -1045,6 +1045,7 @@ version = "0.1.0"
 dependencies = [
  "book",
  "byteorder",
+ "crdts",
  "log",
  "serde",
  "serde_json",
@@ -1482,9 +1483,11 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "crdts",
+ "js-sys",
  "log",
  "scratch",
  "serde",
+ "serde_json",
  "thiserror",
  "wasm-bindgen",
  "web-sys",

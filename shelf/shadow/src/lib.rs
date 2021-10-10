@@ -28,6 +28,9 @@ pub enum Error {
     #[cfg(feature = "web")]
     #[error("NoLocation")]
     NoLocation,
+    #[cfg(feature = "web")]
+    #[error("JsValue")]
+    JsValue(#[from] serde_json::Error),
 }
 
 use std::{
@@ -36,23 +39,23 @@ use std::{
 };
 
 use crdts::{
-    merkle_reg::{Hash, MerkleReg},
+    merkle_reg::{Hash, MerkleReg, Node},
     CmRDT,
 };
 
-pub type Node = Vec<u8>;
+pub type Value = Vec<u8>;
 
 #[derive(Default, Debug)]
 pub struct Shadow {
-    surface: MerkleReg<Node>,
+    surface: MerkleReg<Value>,
 }
 
 impl Shadow {
-    fn gather(&self) -> Vec<Node> {
+    fn gather(&self) -> Vec<Value> {
         self.gather_nodes(&self.surface.read().hashes())
     }
 
-    fn gather_nodes(&self, keys: &BTreeSet<Hash>) -> Vec<Node> {
+    fn gather_nodes(&self, keys: &BTreeSet<Hash>) -> Vec<Value> {
         let mut output = vec![];
 
         for key in keys {
@@ -93,17 +96,21 @@ impl TryInto<Shadow> for web_sys::Node {
 
     fn try_into(self) -> Result<Shadow, Self::Error> {
         let mut shadow = Shadow::default();
-        shadow.cast(self)?;
+        shadow.cast(self, None)?;
         Ok(shadow)
     }
 }
 
 #[cfg(feature = "web")]
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue};
 
 #[cfg(feature = "web")]
 impl Shadow {
-    fn cast(&mut self, input: web_sys::Node) -> Result<Option<Hash>, Error> {
+    pub fn cast(
+        &mut self,
+        input: web_sys::Node,
+        looker: Option<&js_sys::Function>,
+    ) -> Result<Option<Hash>, Error> {
         let mut current = None;
 
         match input.node_type() {
@@ -149,7 +156,7 @@ impl Shadow {
                 .get(index)
                 .map_or(Err(Error::NoChildAt(index)), Ok)?;
 
-            if let Some(child) = self.cast(child)? {
+            if let Some(child) = self.cast(child, looker)? {
                 children.insert(child);
             }
         }
@@ -159,6 +166,11 @@ impl Shadow {
         let operation = self.surface.write(key, children);
 
         let output = operation.hash();
+
+        if let Some(looker) = looker {
+            let operation = JsValue::from_serde(&operation)?;
+            looker.call1(&JsValue::NULL, &operation);
+        }
 
         self.surface.apply(operation);
 

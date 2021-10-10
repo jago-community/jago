@@ -12,6 +12,8 @@ use std::{
 
 use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 
+use crdts::merkle_reg::Node;
+
 pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<(), Error> {
     let mut input = stdin();
 
@@ -25,11 +27,14 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
 
         let (_setting, key): (u8, String) = serde_json::from_slice(&buffer)?;
 
+        //let node: Node<Vec<u8>> = serde_json::from_str(&key)?;
+
         //context.wrap(key);
 
         //let output = encyclopedia::handle(&context)?;
 
         //let output = serde_json::to_vec(&output)?;
+
         let output = serde_json::to_vec(&format!("hello {}", key))?;
 
         let mut out = stdout();

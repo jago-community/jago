@@ -52,13 +52,20 @@ use shadow::Shadow;
 
 #[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {
-    let shadow: Shadow = input
-        .clone()
-        .try_into()
+    //let shadow: Shadow = input
+    //.clone()
+    //.try_into()
+    //.map_err(Error::from)
+    //.map_err(|error| JsValue::from_str(&error.to_string()))?;
+
+    //log::info!("{:?}", String::try_from(shadow));
+
+    let mut shadow = Shadow::default();
+
+    shadow
+        .cast(input.clone(), Some(handle))
         .map_err(Error::from)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
-
-    log::info!("{:?}", String::try_from(shadow));
 
     dismantle_node(&input, handle).map_err(|error| JsValue::from_str(&error.to_string()))
 }
