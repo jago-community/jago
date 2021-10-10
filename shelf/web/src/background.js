@@ -1,4 +1,4 @@
-import start, { dismantle, Context } from './web.js';
+import start, { dismantle, Shadow } from './web.js';
 
 start()
     .then(() => {
@@ -8,13 +8,13 @@ start()
           console.info('native', message);
         });
 
-        const context = Context.empty();
+        const perspective = Shadow.perceive();
 
         browser.runtime.onConnect.addListener(port => {
-            port.onMessage.addListener(([setting, message]) => {
-                context.wrap(setting, message);
-
-                host.postMessage([setting, message]);
+            port.onMessage.addListener((message) => {
+                //context.wrap(setting, message);
+                perspective.cover(message);
+                //host.postMessage([setting, message]);
             });
         });
 

@@ -48,7 +48,7 @@ pub fn handle() -> Result<(), JsValue> {
 
 use std::convert::{TryFrom, TryInto};
 
-use shadow::Shadow;
+pub use shadow::{Shadow, Surface};
 
 #[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {

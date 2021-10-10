@@ -38,6 +38,8 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crdts::{
     merkle_reg::{Hash, MerkleReg, Node},
     CmRDT,
@@ -45,7 +47,13 @@ use crdts::{
 
 pub type Value = Vec<u8>;
 
-#[derive(Default, Debug)]
+pub type Surface = Node<Value>;
+
+#[cfg(feature = "web")]
+use wasm_bindgen::{prelude::*, JsCast, JsValue};
+
+#[cfg_attr(feature = "web", wasm_bindgen)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Shadow {
     surface: MerkleReg<Value>,
 }
@@ -64,7 +72,7 @@ impl Shadow {
 
                 let children = self.gather_nodes(&node.children);
 
-                output.extend_from_slice(&children);
+                output.extend_from_slice(children.as_ref());
             }
         }
 
@@ -102,14 +110,28 @@ impl TryInto<Shadow> for web_sys::Node {
 }
 
 #[cfg(feature = "web")]
-use wasm_bindgen::{JsCast, JsValue};
-
-#[cfg(feature = "web")]
+#[wasm_bindgen]
 impl Shadow {
+    pub fn perceive() -> Self {
+        Self::default()
+    }
+
+    pub fn cover(&mut self, input: JsValue) -> Result<(), JsValue> {
+        let (key, children) = input.into_serde()?;
+
+        let operation = self.surface.write(input.value, input.children);
+
+        let output = operation.hash();
+
+        self.surface.apply(operation);
+
+        Ok(())
+    }
+    // todo fix erros from requiring this looker function
     pub fn cast(
         &mut self,
         input: web_sys::Node,
-        looker: Option<&js_sys::Function>,
+        looker: &js_sys::Function,
     ) -> Result<Option<Hash>, Error> {
         let mut current = None;
 
@@ -163,14 +185,14 @@ impl Shadow {
 
         let key = bincode::serialize(&current)?;
 
+        if let Some(looker) = looker {
+            let message = JsValue::from_serde(&(&key, &children))?;
+            looker.call1(&JsValue::NULL, &message);
+        }
+
         let operation = self.surface.write(key, children);
 
         let output = operation.hash();
-
-        if let Some(looker) = looker {
-            let operation = JsValue::from_serde(&operation)?;
-            looker.call1(&JsValue::NULL, &operation);
-        }
 
         self.surface.apply(operation);
 

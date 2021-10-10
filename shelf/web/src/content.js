@@ -15,7 +15,7 @@ wasm_bindgen(browser.runtime.getURL("content/web_bg.wasm"))
         });
 
         wasm_bindgen.dismantle(window.document, (message) => {
-            port.postMessage([wasm_bindgen.Setting.Content, message.toString()]);
-        })
+            port.postMessage(message);
+        });
     })
     .catch(console.error)

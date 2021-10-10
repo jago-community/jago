@@ -123,6 +123,16 @@ set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*/node_modules/*
 nmap <silent> <Leader>f :Files<CR>
 nmap <silent> <Leader>b :Buffers<CR>
 
+" fail safe for a decaying world
+nmap <silent> <Leader>w :w<CR>
+nmap <silent> <Leader>q :q<CR>
+nmap <silent> <Leader>wq :wq<CR>
+nmap <silent> <Leader>e :Ex<CR>
+nmap <silent> <Leader>r :source $MYVIMRC<CR>
+nmap <silent> <Leader>bd :bd<CR>
+nmap <silent> <Leader>gg :G<CR>
+" todo leader is random character to prevent over use of a single key
+
 autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set spell | endif
 
 if executable('rust-analyzer')
