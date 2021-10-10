@@ -33,6 +33,12 @@ pub enum Error {
     JsValue(#[from] serde_json::Error),
 }
 
+impl From<Error> for JsValue {
+    fn from(from: Error) -> Self {
+        Self::from_str(&from.to_string())
+    }
+}
+
 use std::{
     collections::BTreeSet,
     convert::{TryFrom, TryInto},
@@ -104,7 +110,7 @@ impl TryInto<Shadow> for web_sys::Node {
 
     fn try_into(self) -> Result<Shadow, Self::Error> {
         let mut shadow = Shadow::default();
-        shadow.cast(self, None)?;
+        shadow.cast_node(self)?;
         Ok(shadow)
     }
 }
@@ -117,22 +123,37 @@ impl Shadow {
     }
 
     pub fn cover(&mut self, input: JsValue) -> Result<(), JsValue> {
-        let (key, children) = input.into_serde()?;
+        let input: Surface = input
+            .clone()
+            .into_serde()
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
 
-        let operation = self.surface.write(input.value, input.children);
+        self.tsac(input.value, input.children)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
 
-        let output = operation.hash();
-
-        self.surface.apply(operation);
+        log::info!("{:?}", self);
 
         Ok(())
     }
-    // todo fix erros from requiring this looker function
+
     pub fn cast(
         &mut self,
         input: web_sys::Node,
         looker: &js_sys::Function,
-    ) -> Result<Option<Hash>, Error> {
+    ) -> Result<JsValue, JsValue> {
+        let effect = self
+            .cast_node(input)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+
+        let effect =
+            JsValue::from_serde(&effect).map_err(|error| JsValue::from_str(&error.to_string()))?;
+
+        looker.call1(&JsValue::NULL, &effect)?;
+
+        Ok(effect)
+    }
+
+    fn cast_node(&mut self, input: web_sys::Node) -> Result<Option<Surface>, Error> {
         let mut current = None;
 
         match input.node_type() {
@@ -160,7 +181,7 @@ impl Shadow {
                     .map_or(Err(Error::Conversion), Ok)?;
 
                 match &element.tag_name()[..] {
-                    "script" => {
+                    "STYLE" | "SCRIPT" => {
                         return Ok(None);
                     }
                     _ => {}
@@ -178,24 +199,26 @@ impl Shadow {
                 .get(index)
                 .map_or(Err(Error::NoChildAt(index)), Ok)?;
 
-            if let Some(child) = self.cast(child, looker)? {
-                children.insert(child);
+            if let Some(node) = self.cast_node(child)? {
+                children.insert(node.hash());
             }
         }
 
         let key = bincode::serialize(&current)?;
 
-        if let Some(looker) = looker {
-            let message = JsValue::from_serde(&(&key, &children))?;
-            looker.call1(&JsValue::NULL, &message);
-        }
+        let operation = self.tsac(key, children.clone())?;
 
-        let operation = self.surface.write(key, children);
+        Ok(Some(operation))
+    }
+}
 
-        let output = operation.hash();
+impl Shadow {
+    /// TSAAAAAAAC!!!
+    pub fn tsac(&mut self, key: Value, value: BTreeSet<Hash>) -> Result<Surface, Error> {
+        let operation = self.surface.write(key, value);
 
-        self.surface.apply(operation);
+        self.surface.apply(operation.clone());
 
-        Ok(Some(output))
+        Ok(operation)
     }
 }
