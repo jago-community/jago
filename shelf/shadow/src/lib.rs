@@ -48,10 +48,24 @@ pub struct Shadow {
 }
 
 impl Shadow {
-    fn read(&self) -> Vec<Node> {
-        let nodes = self.surface.read().nodes().cloned().collect::<Vec<_>>();
-        log::info!("{:?}", nodes);
-        self.surface.read().values().cloned().collect()
+    fn gather(&self) -> Vec<Node> {
+        self.gather_nodes(&self.surface.read().hashes())
+    }
+
+    fn gather_nodes(&self, keys: &BTreeSet<Hash>) -> Vec<Node> {
+        let mut output = vec![];
+
+        for key in keys {
+            if let Some(node) = self.surface.node(*key) {
+                output.push(node.value.clone());
+
+                let children = self.gather_nodes(&node.children);
+
+                output.extend_from_slice(&children);
+            }
+        }
+
+        output
     }
 }
 
@@ -59,13 +73,14 @@ impl TryFrom<Shadow> for String {
     type Error = Error;
 
     fn try_from(from: Shadow) -> Result<Self, Self::Error> {
-        from.read()
+        from.gather()
             .iter()
             .map(|slice| bincode::deserialize::<Option<String>>(slice).map_err(Error::from))
             .try_fold(String::new(), |mut so_far, next| {
                 let next = next?;
                 if let Some(next) = next {
                     so_far.push_str(&next);
+                    so_far.push('\n');
                 }
                 Ok(so_far)
             })
@@ -88,7 +103,7 @@ use wasm_bindgen::JsCast;
 
 #[cfg(feature = "web")]
 impl Shadow {
-    fn cast(&mut self, input: web_sys::Node) -> Result<Hash, Error> {
+    fn cast(&mut self, input: web_sys::Node) -> Result<Option<Hash>, Error> {
         let mut current = None;
 
         match input.node_type() {
@@ -110,6 +125,18 @@ impl Shadow {
                     current = Some(text);
                 }
             }
+            web_sys::Node::ELEMENT_NODE => {
+                let element = input
+                    .dyn_ref::<web_sys::Element>()
+                    .map_or(Err(Error::Conversion), Ok)?;
+
+                match &element.tag_name()[..] {
+                    "script" => {
+                        return Ok(None);
+                    }
+                    _ => {}
+                };
+            }
             _ => {}
         };
 
@@ -122,9 +149,9 @@ impl Shadow {
                 .get(index)
                 .map_or(Err(Error::NoChildAt(index)), Ok)?;
 
-            let child = self.cast(child)?;
-
-            children.insert(child);
+            if let Some(child) = self.cast(child)? {
+                children.insert(child);
+            }
         }
 
         let key = bincode::serialize(&current)?;
@@ -135,6 +162,6 @@ impl Shadow {
 
         self.surface.apply(operation);
 
-        Ok(output)
+        Ok(Some(output))
     }
 }

@@ -117,7 +117,6 @@ let g:lightline = { 'colorscheme': 'challenger_deep' }
 "nmap <silent> <Leader>h :ALEHover<CR>
 "nmap <silent> <Leader>h :ALEHover<CR>
 
-
 " fzf
 set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*/node_modules/*
 
@@ -141,3 +140,33 @@ if executable('rust-analyzer')
         \   },
         \ })
 endif
+
+let g:lsp_diagnostics_echo_delay = 500
+let g:lsp_diagnostics_enabled = 1
+let g:lsp_diagnostics_echo_cursor = 1
+let g:lsp_format_sync_timeout = 1000
+
+function! s:on_lsp_buffer_enabled() abort
+    setlocal omnifunc=lsp#complete
+    setlocal signcolumn=yes
+    nmap <buffer> <Leader>gd <plug>(lsp-definition)
+    nmap <buffer> <Leader>gs <plug>(lsp-document-symbol-search)
+    nmap <buffer> <Leader>gS <plug>(lsp-workspace-symbol-search)
+    nmap <buffer> <Leader>gr <plug>(lsp-references)
+    nmap <buffer> <Leader>gi <plug>(lsp-implementation)
+    nmap <buffer> <Leader>gt <plug>(lsp-type-definition)
+    nmap <buffer> <Leader>gn <plug>(lsp-rename)
+    nmap <buffer> K <plug>(lsp-hover)
+    inoremap <buffer> <expr><c-f> lsp#scroll(+4)
+    inoremap <buffer> <expr><c-d> lsp#scroll(-4)
+
+    autocmd! BufWritePre *.rs call execute('LspDocumentFormatSync')
+
+    " refer to doc to add more commands
+endfunction
+
+augroup lsp_install
+    au!
+    " call s:on_lsp_buffer_enabled only for languages that has the server registered.
+    autocmd User lsp_buffer_enabled call s:on_lsp_buffer_enabled()
+augroup END
