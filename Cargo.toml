@@ -2,11 +2,21 @@
 name = "jago"
 version = "0.1.0"
 edition = "2018"
+description = "variable utopia"
+
+[package.metadata.bundle.bin.pipe]
+name = "jago"
+identifier = "community.jago"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default=[]
+
+[[bin]]
+name = "pipe"
+required-features = ["pipe"]
+path = "src/main.rs"
 
 [dependencies]
 program = { path = "shelf/program" }
