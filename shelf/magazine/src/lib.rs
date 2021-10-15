@@ -1,4 +1,44 @@
-use std::{collections::HashMap, io::Read, path::PathBuf};
+book::error!(
+    Incomplete,
+    std::io::Error,
+    toml::de::Error,
+    glob::PatternError,
+    glob::GlobError,
+    ignore::Error,
+    std::path::StripPrefixError,
+    NoStem,
+    WeirdPath,
+);
+
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    iter::Peekable,
+    path::PathBuf,
+};
+
+pub fn handle<I: Iterator<Item = String>>(input: &mut Peekable<I>) -> Result<(), Error> {
+    match input.peek() {
+        Some(next) if next == "manifest-path" => {
+            let _ = input.next();
+
+            let path = input.next().map_or(Err(Error::Incomplete), Ok)?;
+
+            let path = PathBuf::from(&path)
+                .ancestors()
+                .find(|path| path.join("Cargo.toml").is_file())
+                .map(PathBuf::from)
+                .map_or(Err(Error::Incomplete), Ok)?;
+
+            let output = path.join("Cargo.toml").display().to_string();
+
+            std::io::stdout()
+                .write_all(output.as_bytes())
+                .map_err(Error::from)
+        }
+        _ => Err(Error::Incomplete),
+    }
+}
 
 use serde::{Deserialize, Serialize};
 
@@ -115,12 +155,3 @@ pub struct DependencySpecification {
 pub struct Workspace {
     members: Vec<String>,
 }
-
-book::error!(
-    std::io::Error,
-    toml::de::Error,
-    glob::PatternError,
-    glob::GlobError,
-    ignore::Error,
-    std::path::StripPrefixError,
-);

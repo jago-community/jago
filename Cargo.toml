@@ -13,15 +13,16 @@ identifier = "community.jago"
 [features]
 default=[]
 
-[[bin]]
-name = "pipe"
-required-features = ["pipe"]
-path = "src/main.rs"
+#[[bin]]
+#name = "pipe"
+#required-features = ["pipe"]
+#path = "src/main.rs"
 
 [dependencies]
 program = { path = "shelf/program" }
 logger = { path = "shelf/logger", optional = true }
 pipe = { path = "shelf/pipe", optional = true }
+magazine = { path = "shelf/magazine", optional = true }
 
 [workspace]
 members = ["shelf/*"]

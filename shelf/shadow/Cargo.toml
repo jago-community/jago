@@ -18,6 +18,8 @@ bincode = "1.3.3"
 log = "0.4.14"
 js-sys = { version = "0.3.55", optional = true }
 serde_json = { version = "1.0.68", optional = true }
+html5ever = "0.25.1"
+tiny-keccak = { version = "2.0.2", features = ["sha3"] }
 
 [dependencies.web-sys]
 version = "0.3.51"

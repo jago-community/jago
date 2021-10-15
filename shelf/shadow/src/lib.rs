@@ -1,3 +1,5 @@
+mod web;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Incomplete")]
@@ -33,6 +35,10 @@ pub enum Error {
     JsValue(#[from] serde_json::Error),
 }
 
+#[cfg(feature = "web")]
+use wasm_bindgen::{prelude::*, JsCast, JsValue};
+
+#[cfg(feature = "web")]
 impl From<Error> for JsValue {
     fn from(from: Error) -> Self {
         Self::from_str(&from.to_string())
@@ -54,9 +60,6 @@ use crdts::{
 pub type Value = Vec<u8>;
 
 pub type Surface = Node<Value>;
-
-#[cfg(feature = "web")]
-use wasm_bindgen::{prelude::*, JsCast, JsValue};
 
 #[cfg_attr(feature = "web", wasm_bindgen)]
 #[derive(Default, Debug, Serialize, Deserialize)]
