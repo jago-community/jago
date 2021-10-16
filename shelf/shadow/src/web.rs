@@ -11,6 +11,7 @@ pub enum Error {
 use std::{
     borrow::{Borrow, Cow},
     collections::{BTreeSet, HashMap, HashSet},
+    ops::Deref,
 };
 
 use html5ever::{
@@ -53,10 +54,49 @@ use crdts::{
 
 type Reflection = Vec<u8>;
 
+#[derive(Debug)]
 struct Document {
     spot: Dot<u8>,
     handle: LWWReg<Option<Hash>, u64>,
     register: MerkleReg<Reflection>,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        let spot = Dot::new(0, 0);
+
+        Self {
+            spot,
+            handle: LWWReg {
+                val: None,
+                marker: spot.counter,
+            },
+            register: MerkleReg::default(),
+        }
+    }
+}
+
+impl Document {
+    fn set_handle(&mut self, hash: Hash) {
+        self.spot.apply_inc();
+        self.handle.update(Some(hash), self.spot.counter);
+    }
+
+    fn put_node(&mut self, value: Node, children: BTreeSet<Hash>) -> Result<Hash, Error> {
+        let value = bincode::serialize(&value).map_err(|_| Error::Serialize)?;
+        let node = self.register.write(value, children);
+        let hash = node.hash();
+        self.register.apply(node);
+        Ok(hash)
+    }
+
+    fn get_node(&self, hash: Hash) -> Result<Node, Error> {
+        self.register
+            .node(hash)
+            .map_or(Err(Error::Incomplete), |node| {
+                bincode::deserialize(&node.value).map_err(|_| Error::Deserialize)
+            })
+    }
 }
 
 impl TreeSink for Document {
@@ -83,16 +123,58 @@ impl TreeSink for Document {
     }
 
     fn elem_name<'a>(&'a self, target: &'a Self::Handle) -> ExpandedName<'a> {
-        unimplemented!()
+        use html5ever::{expanded_name, local_name, namespace_url, ns};
+
+        let target = match target {
+            Ok(target) => target,
+            Err(_error) => return expanded_name!("", "div"),
+        };
+
+        match self.get_node(*target) {
+            Ok(Node::Element { name, .. }) => {
+                let b = name.0;
+                b.expanded()
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
     }
 
     fn create_element(
         &mut self,
         name: QualName,
-        _attrs: Vec<Attribute>,
+        attrs: Vec<Attribute>,
         _flags: ElementFlags,
     ) -> Self::Handle {
-        unimplemented!()
+        let id = attrs
+            .iter()
+            .find(|a| a.name.local.deref() == "id")
+            .map(|a| LocalName::from(a.value.deref()));
+
+        let classes: HashSet<LocalName> = attrs
+            .iter()
+            .find(|a| a.name.local.deref() == "class")
+            .map_or(HashSet::new(), |a| {
+                a.value
+                    .deref()
+                    .split_whitespace()
+                    .map(LocalName::from)
+                    .collect()
+            });
+
+        self.put_node(
+            Node::Element {
+                name: NameBox(name),
+                id,
+                classes,
+                attrs: attrs
+                    .into_iter()
+                    .map(|attribute| (NameBox(attribute.name), StringBox(attribute.value)))
+                    .collect(),
+            },
+            Default::default(),
+        )
     }
 
     fn create_comment(&mut self, text: Tendril<UTF8, NonAtomic>) -> Self::Handle {
@@ -108,7 +190,30 @@ impl TreeSink for Document {
     }
 
     fn append(&mut self, parent: &Self::Handle, child: NodeOrText<Self::Handle>) {
-        unimplemented!()
+        match parent {
+            Ok(parent) => {
+                if let Some(parent) = self.register.node(*parent) {
+                    match child {
+                        NodeOrText::AppendNode(Ok(child)) => {
+                            let mut parent = parent.clone();
+                            parent.children.insert(child);
+                        }
+                        NodeOrText::AppendNode(Err(child)) => {
+                            dbg!(child);
+                            unimplemented!()
+                        }
+                        NodeOrText::AppendText(text) => {
+                            dbg!(text);
+                            unimplemented!()
+                        }
+                    };
+                }
+            }
+            Err(error) => {
+                dbg!(error);
+                unimplemented!()
+            }
+        }
     }
 
     fn append_based_on_parent_node(
@@ -184,7 +289,49 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Node {
+    Document,
+    Fragment,
+    Doctype {
+        name: StringBox,
+        public_id: StringBox,
+        system_id: StringBox,
+    },
+    Comment {
+        content: StringBox,
+    },
+    Text {
+        content: StringBox,
+    },
+    Element {
+        name: NameBox,
+        id: Option<LocalName>,
+        classes: HashSet<LocalName>,
+        attrs: HashMap<NameBox, StringBox>,
+    },
+    ProcessingInstruction {
+        target: StringBox,
+        data: StringBox,
+    },
+}
+
+impl Node {
+    fn hash(&self) -> Result<Hash, Error> {
+        use tiny_keccak::{Hasher, Sha3};
+
+        let mut sha3 = Sha3::v256();
+
+        let bytes = bincode::serialize(self).map_err(|_| Error::Serialize)?;
+
+        let mut hash = [0u8; 32];
+        sha3.finalize(&mut hash);
+
+        Ok(hash)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct StringBox(StrTendril);
 
 impl Serialize for StringBox {
@@ -212,7 +359,7 @@ impl<'de> Deserialize<'de> for StringBox {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct NameBox(QualName);
 
 impl Serialize for NameBox {
@@ -307,77 +454,5 @@ impl<'de> Deserialize<'de> for NameBox {
         D: Deserializer<'de>,
     {
         deserializer.deserialize_struct("NameBox", &["prefix", "ns", "local"], NameBoxVisitor)
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-pub enum Node {
-    Document,
-    Fragment,
-    Doctype {
-        name: StringBox,
-        public_id: StringBox,
-        system_id: StringBox,
-    },
-    Comment {
-        content: StringBox,
-    },
-    Text {
-        content: StringBox,
-    },
-    Element {
-        name: NameBox,
-        id: Option<LocalName>,
-        classes: HashSet<LocalName>,
-        attrs: HashMap<NameBox, StringBox>,
-    },
-    ProcessingInstruction {
-        target: StringBox,
-        data: StringBox,
-    },
-}
-
-impl Node {
-    fn hash(&self) -> Result<Hash, Error> {
-        use tiny_keccak::{Hasher, Sha3};
-
-        let mut sha3 = Sha3::v256();
-
-        let bytes = bincode::serialize(self).map_err(|_| Error::Serialize)?;
-
-        let mut hash = [0u8; 32];
-        sha3.finalize(&mut hash);
-
-        Ok(hash)
-    }
-}
-
-impl Default for Document {
-    fn default() -> Self {
-        let spot = Dot::new(0, 0);
-
-        Self {
-            spot,
-            handle: LWWReg {
-                val: None,
-                marker: spot.counter,
-            },
-            register: MerkleReg::default(),
-        }
-    }
-}
-
-impl Document {
-    fn set_handle(&mut self, hash: Hash) {
-        self.spot.apply_inc();
-        self.handle.update(Some(hash), self.spot.counter);
-    }
-
-    fn put_node(&mut self, value: Node, children: BTreeSet<Hash>) -> Result<Hash, Error> {
-        let value = bincode::serialize(&value).map_err(|_| Error::Serialize)?;
-        let node = self.register.write(value, children);
-        let hash = node.hash();
-        self.register.apply(node);
-        Ok(hash)
     }
 }

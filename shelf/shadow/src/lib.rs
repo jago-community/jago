@@ -1,4 +1,5 @@
-mod web;
+mod html;
+//mod web;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
