@@ -1,3 +1,6 @@
+#[cfg(feature = "scrape")]
+mod scrape;
+
 mod web;
 
 #[cfg(feature = "search")]
@@ -93,8 +96,8 @@ pub enum Error {
 
 use crdts::{merkle_reg::MerkleReg, CmRDT, MVReg, Map};
 
-type Context = Vec<u8>;
-type Key = Vec<u8>;
+pub type Context = Vec<u8>;
+pub type Key = Vec<u8>;
 type Value = Vec<u8>;
 type Perspective = MVReg<Value, Context>;
 

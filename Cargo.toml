@@ -23,6 +23,7 @@ program = { path = "shelf/program" }
 logger = { path = "shelf/logger", optional = true }
 pipe = { path = "shelf/pipe", optional = true }
 magazine = { path = "shelf/magazine", optional = true }
+plant = { path = "shelf/plant", optional = true }
 
 [workspace]
 members = ["shelf/*"]

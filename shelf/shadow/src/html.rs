@@ -30,7 +30,7 @@ use crdts::{
 fn test_sink() {
     use html5ever::{parse_document, tendril::stream::TendrilSink};
 
-    let input = "<!DOCTYPE html>
+    let input = r#"<!DOCTYPE html>
     <html>
         <head>
             <title>Hello, stranger</title>
@@ -42,8 +42,22 @@ fn test_sink() {
             <p>
                 Te gusta bailar.
             </p>
+
+            <pre>
+                Book 
+
+                Hello stranger
+
+                Here's mental gymnastics
+
+                An ode to math
+
+                It is what it is
+
+                Life.
+            </pre>
         </body>
-    </html>";
+    </html>"#;
 
     let mut sink = Document::default();
 
@@ -211,23 +225,12 @@ impl TreeSink for Document {
     }
 
     fn elem_name<'a>(&'a self, target: &'a Self::Handle) -> ExpandedName<'a> {
-        unimplemented!()
-        //use html5ever::{expanded_name, local_name, namespace_url, ns};
+        let target = self.get_node(*target).unwrap_or_else(|| unreachable!());
 
-        //let target = match target {
-        //Ok(target) => target,
-        //Err(_error) => return expanded_name!("", "div"),
-        //};
-
-        //match self.get_node(*target) {
-        //Ok(Node::Element { name, .. }) => {
-        //let b = name.0;
-        //b.expanded()
-        //}
-        //_ => {
-        //unimplemented!()
-        //}
-        //}
+        match target {
+            Node::Element { name, .. } => name.expanded(),
+            _ => unreachable!(),
+        }
     }
 
     fn create_element(
@@ -241,7 +244,7 @@ impl TreeSink for Document {
             .find(|a| a.name.local.deref() == "id")
             .map(|a| LocalName::from(a.value.deref()));
 
-        let classes: BTreeSet<LocalName> = attrs
+        let classes = attrs
             .iter()
             .find(|a| a.name.local.deref() == "class")
             .map_or(BTreeSet::new(), |a| {
@@ -284,6 +287,8 @@ impl TreeSink for Document {
                 NodeOrText::AppendNode(child) => {
                     let mut children = parent.children.clone();
                     children.insert(child);
+                    // todo update merkle
+                    unimplemented!()
                 }
                 NodeOrText::AppendText(text) => {
                     dbg!(text);
