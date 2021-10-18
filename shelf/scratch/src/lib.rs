@@ -101,10 +101,10 @@ pub type Key = Vec<u8>;
 type Value = Vec<u8>;
 type Perspective = MVReg<Value, Context>;
 
+#[derive(Default)]
 pub struct Scratch {
     void: Map<Key, Perspective, Context>,
     expanse: Map<Key, MVReg<MerkleReg<Value>, Context>, Context>,
-    //expanse: Map<Key, MVReg<MerkleReg<Value>, Context>, Context>,
 }
 
 use serde::Serialize;

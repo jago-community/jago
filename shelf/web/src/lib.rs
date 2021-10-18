@@ -50,6 +50,8 @@ use std::convert::{TryFrom, TryInto};
 
 pub use shadow::{Shadow, Surface};
 
+use scratch::Scratch;
+
 #[wasm_bindgen]
 pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), JsValue> {
     //let shadow: Shadow = input
@@ -67,6 +69,64 @@ pub fn dismantle(input: web_sys::Node, handle: &js_sys::Function) -> Result<(), 
     Ok(())
 
     //dismantle_node(&input, handle).map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+fn cast_node(scratch: &mut Scratch, input: web_sys::Node) -> Result<Option<Surface>, Error> {
+    let mut current = None;
+
+    match input.node_type() {
+        web_sys::Node::DOCUMENT_NODE => {
+            let document = input
+                .dyn_ref::<web_sys::Document>()
+                .map_or(Err(Error::Conversion), Ok)?;
+
+            // TODO: here
+            let location: String = document
+                .location()
+                .map_or(Err(Error::NoLocation), Ok)
+                .and_then(|location| location.href().map_err(Error::External))?;
+
+            current = Some(location);
+        }
+        web_sys::Node::TEXT_NODE => {
+            if let Some(text) = input.text_content() {
+                current = Some(text);
+            }
+        }
+        web_sys::Node::ELEMENT_NODE => {
+            let element = input
+                .dyn_ref::<web_sys::Element>()
+                .map_or(Err(Error::Conversion), Ok)?;
+
+            match &element.tag_name()[..] {
+                "STYLE" | "SCRIPT" => {
+                    return Ok(None);
+                }
+                _ => {}
+            };
+        }
+        _ => {}
+    };
+
+    let child_nodes = input.child_nodes();
+
+    let mut children = BTreeSet::default();
+
+    for index in 0..child_nodes.length() {
+        let child = child_nodes
+            .get(index)
+            .map_or(Err(Error::NoChildAt(index)), Ok)?;
+
+        if let Some(node) = self.cast_node(child)? {
+            children.insert(node.hash());
+        }
+    }
+
+    let key = bincode::serialize(&current)?;
+
+    let operation = self.tsac(key, children.clone())?;
+
+    Ok(Some(operation))
 }
 
 use wasm_bindgen::JsCast;
