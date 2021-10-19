@@ -37,6 +37,8 @@ pub enum Error {
     Incomplete,
     #[error("Pack {0}")]
     Pack(#[from] pack::Error),
+    #[error("Serve {0}")]
+    Serve(#[from] serve::Error),
 }
 
 use std::{iter::Peekable, mem::replace};
@@ -44,6 +46,7 @@ use std::{iter::Peekable, mem::replace};
 pub type Context = Vec<u8>;
 
 mod pack;
+mod serve;
 
 fn gather<'a, Input: Iterator<Item = String>>(
     input: &mut Peekable<Input>,
@@ -53,6 +56,9 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| reason(&mut input, &mut context)),
         Box::new(|mut input, mut context| {
             pack::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+        Box::new(|mut input, mut context| {
+            serve::handle(&mut input, &mut context).map_err(Error::from)
         }),
     ];
 
