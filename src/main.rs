@@ -35,6 +35,8 @@ fn main() {
 pub enum Error {
     #[error("Incomplete")]
     Incomplete,
+    #[error("Pack {0}")]
+    Pack(#[from] pack::Error),
 }
 
 use std::{iter::Peekable, mem::replace};
@@ -43,11 +45,18 @@ pub type Context = Vec<u8>;
 
 mod pack;
 
-fn gather<'a>(
-    input: &mut Peekable<impl Iterator<Item = String>>,
+fn gather<'a, Input: Iterator<Item = String>>(
+    input: &mut Peekable<Input>,
     context: &'a mut Context,
 ) -> Result<(), Error> {
-    for handle in [reason, pack::handle] {
+    let handles: &[Box<dyn Fn(&mut Peekable<Input>, &mut Context) -> Result<(), Error>>] = &[
+        Box::new(|mut input, mut context| reason(&mut input, &mut context)),
+        Box::new(|mut input, mut context| {
+            pack::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+    ];
+
+    for handle in handles {
         handle(input, context)?;
     }
 
