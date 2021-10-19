@@ -15,7 +15,7 @@ fn main() {
     }
 
     #[cfg(feature = "logs")]
-    log::info!("starting execution");
+    log::trace!("starting execution");
 
     let mut context = vec![];
 
@@ -32,16 +32,31 @@ fn main() {
 }
 
 #[derive(Debug, thiserror::Error)]
-enum Error {
+pub enum Error {
     #[error("Incomplete")]
     Incomplete,
 }
 
 use std::{iter::Peekable, mem::replace};
 
+pub type Context = Vec<u8>;
+
+mod pack;
+
 fn gather<'a>(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &'a mut Vec<u8>,
+    context: &'a mut Context,
+) -> Result<(), Error> {
+    for handle in [reason, pack::handle] {
+        handle(input, context)?;
+    }
+
+    Ok(())
+}
+
+fn reason<'a>(
+    input: &mut Peekable<impl Iterator<Item = String>>,
+    context: &'a mut Context,
 ) -> Result<(), Error> {
     let _difference = replace(context, b"why things are the way they are".to_vec());
 
