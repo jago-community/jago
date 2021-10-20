@@ -18,6 +18,8 @@ pub enum Error {
     Incomplete,
     #[error("NoHome")]
     NoHome,
+    #[error("TargetNotSupported {0}")]
+    TargetNotSupported(Target),
     #[error("WasmPack: {0}")]
     WasmPack(failure::Error),
     #[error("InputOutput: {0}")]
@@ -37,30 +39,44 @@ use wasm_pack::command::{
 
 fn pack(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &mut Context,
+    _context: &mut Context,
 ) -> Result<(), Error> {
     let _ = input.next();
 
     let home = home_dir().map_or(Err(Error::NoHome), Ok)?;
     let target = home.join("local").join("jago").join("crates").join("wasm");
-    let source = target.join("src");
 
-    let mode = Target::Web;
-    let output = PathBuf::from("target").join("pack").join("web");
+    for mode in [Target::Web, Target::NoModules] {
+        pack_target(&target, mode)?;
+    }
+
+    Ok(())
+}
+
+use std::path::Path;
+
+fn pack_target(target: &Path, mode: Target) -> Result<(), Error> {
+    let suffix = match mode {
+        Target::Web => "web",
+        Target::NoModules => "no_modules",
+        _ => return Err(Error::TargetNotSupported(mode)),
+    };
+
+    let output = PathBuf::from("target").join("pack");
 
     let mut build_options = BuildOptions::default();
-    build_options.path = Some(target.clone());
+    build_options.path = Some(target.to_owned());
     build_options.target = mode;
-    build_options.out_dir = output.clone().display().to_string();
+    build_options.out_dir = output.join(suffix).display().to_string();
 
     run_wasm_pack(Command::Build(build_options)).map_err(Error::WasmPack)?;
 
-    let walk = WalkBuilder::new(&source)
+    let walk = WalkBuilder::new(&target)
         .filter_entry(|entry| {
             entry
                 .path()
                 .extension()
-                .map_or(false, |extension| extension != "rs")
+                .map_or(true, |extension| extension != "rs")
         })
         .build();
 
@@ -79,16 +95,31 @@ fn pack(
 
         match entry.file_type() {
             Some(file_type) if file_type.is_file() => {
-                let path = entry.path().strip_prefix(&source)?;
+                let path = entry.path().strip_prefix(&target)?;
+
+                let target = footprint
+                    .join(path)
+                    .into_iter()
+                    .map(|segment| {
+                        if segment == "src" {
+                            std::ffi::OsString::from(suffix)
+                        } else {
+                            segment.to_owned()
+                        }
+                    })
+                    .collect::<PathBuf>();
 
                 #[cfg(feature = "logs")]
-                log::info!(
-                    "packing {} in {}",
-                    path.display(),
-                    footprint.join(path).display()
-                );
+                log::info!("packing {} in {}", path.display(), target.display());
 
-                std::fs::copy(entry.path(), footprint.join(path))?;
+                let mut target_directory = target.clone();
+                target_directory.pop();
+
+                if !target_directory.exists() {
+                    std::fs::create_dir_all(target_directory)?;
+                }
+
+                std::fs::copy(entry.path(), target)?;
             }
             _ => {}
         }

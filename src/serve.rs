@@ -8,7 +8,7 @@ pub fn handle(
 ) -> Result<(), Error> {
     match input.peek() {
         Some(next) if &next[..] == "serve" => serve(input, context),
-        _ => Err(Error::Incomplete),
+        _ => Ok(()),
     }
 }
 

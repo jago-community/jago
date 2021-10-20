@@ -1,0 +1,57 @@
+{
+  "name": "jago",
+  "manifest_version": 2,
+  "version": "0.1",
+  "description": "A slice of total anarchy.",
+  "homepage_url": "https://jago.community",
+  "icons": {
+    "32": "images/logo.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "wasm@jago.community",
+      "strict_min_version": "50.0"
+    }
+  },
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "omnibox": {
+    "keyword": "j"
+  },
+  "browser_action": {
+    "default_icon": "images/logo.png",
+    "default_title": "jago",
+    "default_popup": "web/lib.html"
+  },
+  "commands": {
+    "open": {
+      "suggested_key": {
+        "default": "Ctrl+J",
+        "mac": "MacCtrl+J"
+      },
+      "description": "Open jago."
+    },
+    "debug-popup": {
+      "suggested_key": {
+        "default": "Ctrl+K",
+        "mac": "MacCtrl+K"
+      },
+      "description": "Debug jago."
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["no_modules/wasm.js", "no_modules/no_modules.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+      "no_modules/wasm_bg.wasm",
+      "web/wasm_bg.wasm"
+  ],
+  "background": {
+    "page": "web/lib.html"
+  }
+}
