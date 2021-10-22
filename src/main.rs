@@ -73,6 +73,13 @@ fn reason<'a>(
     input: &mut Peekable<impl Iterator<Item = String>>,
     context: &'a mut Context,
 ) -> Result<(), Error> {
+    match input.peek() {
+        Some(name) if name == "jago" => {
+            let _ = input.next();
+        }
+        _ => {}
+    };
+
     let _difference = replace(context, b"why things are the way they are".to_vec());
 
     Ok(())

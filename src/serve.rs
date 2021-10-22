@@ -41,8 +41,7 @@ fn serve(
         .join("crates")
         .join("wasm")
         .join("target")
-        .join("pack")
-        .join("web");
+        .join("pack");
 
     #[cfg(feature = "logs")]
     log::info!("serving from {}", source.display());

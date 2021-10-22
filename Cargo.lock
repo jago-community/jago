@@ -1933,6 +1933,7 @@ checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 name = "jago"
 version = "0.1.0"
 dependencies = [
+ "binary-install",
  "dirs 4.0.0",
  "failure",
  "ignore",
