@@ -24,57 +24,50 @@ pub enum Error {
     NoHome,
     #[error("InputOutput {0}")]
     InputOutput(#[from] std::io::Error),
+    #[error("Walk {0}")]
+    Walk(#[from] ignore::Error),
 }
 
-use std::{io::Write, path::PathBuf};
+use std::{io::Write, path::PathBuf, process::Command};
+
+use ignore::WalkBuilder;
 
 fn browse(
     input: &mut Peekable<impl Iterator<Item = String>>,
     context: &mut Context,
 ) -> Result<(), Error> {
-    let host_manifest = dirs::data_dir().map_or(Err(Error::NoData), |data| {
-        Ok(data
-            .join("Mozilla")
-            .join("NativeMessagingHosts")
-            .join("jago.json"))
+    let profiles = dirs::data_dir().map_or(Err(Error::NoHome), |path| {
+        Ok(path.join("Firefox").join("Profiles"))
     })?;
 
-    if !host_manifest.exists() {
-        let binary_location = PathBuf::from(env!("CARGO_HOME"))
-            .join("bin")
-            .join("cargo-jago");
+    let profile_name = "jago-browse";
 
-        let mut file = std::fs::File::create(&host_manifest)?;
+    let walk = WalkBuilder::new(dbg!(&profiles))
+        .filter_entry(move |entry| match entry.file_type() {
+            Some(file_type) if file_type.is_dir() => match entry.file_name().to_str() {
+                Some(file_name) if file_name.ends_with(profile_name) => true,
+                _ => false,
+            },
+            _ => false,
+        })
+        .build();
 
-        write!(
-            file,
-            r#"{{
-    "name": "jago",
-    "description": "Interact with anarchy.",
-    "path": "{}",
-    "type": "stdio",
-    "allowed_extensions": [ "wasm@jago.community" ]
-}}
-"#,
-            binary_location.display()
-        )?;
+    let profiles = walk
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path() != profiles)
+        .collect::<Vec<_>>();
+
+    if profiles.len() == 0 {
+        let firefox = PathBuf::from("/Applications/Firefox.app/Contents/MacOS/firefox");
+
+        Command::new(firefox)
+            .args(["-CreateProfile", profile_name])
+            .output()?;
     }
+
+    // https://github.com/mozilla/web-ext/blob/master/src/cmd/run.js
+    //
+    // install extension for profile
 
     Ok(())
 }
-
-/*use binary_install::Cache;
-use wasm_pack::{install::InstallMode, test::webdriver::get_or_install_geckodriver};
-
-fn browse(
-    input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &mut Context,
-) -> Result<(), Error> {
-    let cache = dirs::cache_dir().map_or(Err(Error::NoCache), |cache| {
-        Cache::at(cache.join("browsers"))
-    })?;
-
-    let driver = get_or_install_geckodriver(&cache);
-
-    unimplemented!()
-}*/

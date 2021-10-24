@@ -98,29 +98,6 @@ fn reason<'a>(
     Ok(())
 }
 
-use std::io::Write;
-
-fn rest<'a>(
-    input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &'a mut Context,
-) -> Result<(), Error> {
-    let rest = input.collect::<Vec<_>>().join(", ");
-
-    let log = dirs::home_dir().map_or(Err(Error::NoHome), |home| {
-        Ok(home.join("local").join("jago").join("target").join("rest"))
-    })?;
-
-    let mut log = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(log)?;
-
-    log.write(rest.as_bytes())?;
-
-    Ok(())
-}
-
 fn inspect<Bounty: AsRef<[u8]>>(input: Result<Bounty, Error>) -> u32 {
     let bounty = match input {
         Ok(bounty) => bounty,
@@ -159,24 +136,22 @@ fn report(input: &[u8]) -> Result<(), Error> {
         log::info!("{:?}", input);
     }
 
-    #[cfg(not(feature = "logs"))]
-    {
-        let mut out = stdout();
-        out.write_u32::<NativeEndian>(input.len() as u32 + 1)?;
-        out.write_all(&input)?;
-        out.write_u8(b'\n')?;
-        out.flush()?;
-    }
-
     drop(input);
 
     Ok(())
 }
 
+use std::{io::Write, path::PathBuf};
+
 fn pipe(
     input: &mut Peekable<impl Iterator<Item = String>>,
     context: &mut Context,
 ) -> Result<(), Error> {
+    match input.peek() {
+        Some(next) if PathBuf::from(next).exists() => {}
+        _ => return Ok(()),
+    };
+
     let arguments = input.collect::<Vec<_>>();
 
     let mut input = stdin();
