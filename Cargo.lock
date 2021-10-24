@@ -358,6 +358,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "519db9ad1bc3bf61f2e753cc204ac37903cf0f33f551a03c260208271c1f875b"
+dependencies = [
+ "anyhow",
+ "atty",
+ "bytesize",
+ "cargo-platform",
+ "cargo-util",
+ "clap",
+ "crates-io",
+ "crossbeam-utils 0.8.5",
+ "curl",
+ "curl-sys",
+ "env_logger 0.9.0",
+ "filetime",
+ "flate2",
+ "fwdansi",
+ "git2",
+ "git2-curl",
+ "glob 0.3.0",
+ "hex 0.4.3",
+ "home",
+ "humantime 2.1.0",
+ "ignore",
+ "im-rc",
+ "itertools",
+ "jobserver",
+ "lazy_static 1.4.0",
+ "lazycell",
+ "libc",
+ "libgit2-sys",
+ "log",
+ "memchr",
+ "num_cpus",
+ "opener",
+ "percent-encoding 2.1.0",
+ "rustc-workspace-hack",
+ "rustfix",
+ "semver 1.0.4",
+ "serde",
+ "serde_ignored 0.1.2",
+ "serde_json",
+ "shell-escape",
+ "strip-ansi-escapes",
+ "tar",
+ "tempfile 3.2.0",
+ "termcolor",
+ "toml 0.5.8",
+ "unicode-width",
+ "unicode-xid",
+ "url 2.2.2",
+ "walkdir",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1933,17 +1991,22 @@ checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 name = "jago"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "binary-install",
+ "byteorder",
+ "cargo 0.57.0",
  "dirs 4.0.0",
  "failure",
  "ignore",
  "log",
  "logger",
  "magazine",
+ "mozprofile",
  "pipe",
  "plant",
  "pretty_env_logger",
  "program",
+ "serde_json",
  "thiserror",
  "tokio 1.12.0",
  "warp",
@@ -2287,6 +2350,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "mozprofile"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09c75c0fd7a9a201a9f1c4eb3834de2b14c022f4cb3a3374b792f1219be9b39c"
+dependencies = [
+ "tempfile 3.2.0",
 ]
 
 [[package]]
@@ -2778,7 +2850,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "book",
- "cargo",
+ "cargo 0.56.0",
  "dirs 4.0.0",
  "thiserror",
 ]

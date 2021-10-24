@@ -8,7 +8,7 @@ pub fn handle(
 ) -> Result<(), Error> {
     match input.peek() {
         Some(next) if &next[..] == "pack" => pack(input, context),
-        _ => Err(Error::Incomplete),
+        _ => Ok(()),
     }
 }
 
@@ -26,6 +26,12 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
     #[error("StripPath {0}")]
     StripPath(#[from] std::path::StripPrefixError),
+    #[error("NoName {0:?}")]
+    NoName(std::path::PathBuf),
+    #[error("NoDataDirectory")]
+    NoDataDirectory,
+    #[error(transparent)]
+    Cargo(anyhow::Error),
 }
 
 use std::path::PathBuf;
@@ -44,7 +50,11 @@ fn pack(
     let _ = input.next();
 
     let home = home_dir().map_or(Err(Error::NoHome), Ok)?;
-    let target = home.join("local").join("jago").join("crates").join("wasm");
+    let project = home.join("local").join("jago");
+
+    pack_binary(&project)?;
+
+    let target = project.join("crates").join("wasm");
 
     for mode in [Target::Web, Target::NoModules] {
         pack_target(&target, mode)?;
@@ -53,7 +63,61 @@ fn pack(
     Ok(())
 }
 
-use std::path::Path;
+use std::{io::Write, path::Path};
+
+use cargo::{
+    core::{compiler::CompileMode, resolver::features::CliFeatures, Workspace},
+    ops::{compile, CompileOptions},
+    util::config::Config,
+};
+
+fn pack_binary(target: &Path) -> Result<(), Error> {
+    let config = Config::default().map_err(Error::Cargo)?;
+
+    let workspace = Workspace::new(&target.join("Cargo.toml"), &config).map_err(Error::Cargo)?;
+
+    let suffix = "debug";
+
+    let mut compile_options =
+        CompileOptions::new(&config, CompileMode::Build).map_err(Error::Cargo)?;
+
+    compile_options.cli_features =
+        CliFeatures::from_command_line(&[], false, false).map_err(Error::Cargo)?;
+
+    compile(&workspace, &compile_options).map_err(Error::Cargo)?;
+
+    let mirror = PathBuf::from(env!("CARGO_HOME"))
+        .join("bin")
+        .join("cargo-jago");
+
+    std::fs::copy(target.join("target").join(suffix).join("jago"), &mirror)?;
+
+    let host_manifest = dirs::data_dir().map_or(Err(Error::NoDataDirectory), |data| {
+        Ok(data
+            .join("Mozilla")
+            .join("NativeMessagingHosts")
+            .join("jago.json"))
+    })?;
+
+    if !host_manifest.exists() {
+        let mut file = std::fs::File::create(&host_manifest)?;
+
+        write!(
+            file,
+            r#"{{
+    "name": "jago",
+    "description": "Interact with anarchy.",
+    "path": "{}",
+    "type": "stdio",
+    "allowed_extensions": [ "wasm@jago.community" ]
+}}
+"#,
+            mirror.display()
+        )?;
+    }
+
+    Ok(())
+}
 
 fn pack_target(target: &Path, mode: Target) -> Result<(), Error> {
     let suffix = match mode {

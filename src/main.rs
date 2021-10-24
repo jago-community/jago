@@ -35,16 +35,25 @@ fn main() {
 pub enum Error {
     #[error("Incomplete")]
     Incomplete,
+    #[error("NoHome")]
+    NoHome,
     #[error("Pack {0}")]
     Pack(#[from] pack::Error),
     #[error("Serve {0}")]
     Serve(#[from] serve::Error),
+    #[error("Browse {0}")]
+    Browse(#[from] browse::Error),
+    #[error("InputOutput {0}")]
+    InputOutput(#[from] std::io::Error),
+    #[error("JavaScriptObjectNotation")]
+    JavaScriptObjectNotation(#[from] serde_json::Error),
 }
 
 use std::{iter::Peekable, mem::replace};
 
 pub type Context = Vec<u8>;
 
+mod browse;
 mod pack;
 mod serve;
 
@@ -60,6 +69,10 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             serve::handle(&mut input, &mut context).map_err(Error::from)
         }),
+        Box::new(|mut input, mut context| {
+            browse::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+        Box::new(|mut input, mut context| pipe(&mut input, &mut context)),
     ];
 
     for handle in handles {
@@ -85,6 +98,29 @@ fn reason<'a>(
     Ok(())
 }
 
+use std::io::Write;
+
+fn rest<'a>(
+    input: &mut Peekable<impl Iterator<Item = String>>,
+    context: &'a mut Context,
+) -> Result<(), Error> {
+    let rest = input.collect::<Vec<_>>().join(", ");
+
+    let log = dirs::home_dir().map_or(Err(Error::NoHome), |home| {
+        Ok(home.join("local").join("jago").join("target").join("rest"))
+    })?;
+
+    let mut log = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(log)?;
+
+    log.write(rest.as_bytes())?;
+
+    Ok(())
+}
+
 fn inspect<Bounty: AsRef<[u8]>>(input: Result<Bounty, Error>) -> u32 {
     let bounty = match input {
         Ok(bounty) => bounty,
@@ -96,16 +132,26 @@ fn inspect<Bounty: AsRef<[u8]>>(input: Result<Bounty, Error>) -> u32 {
         }
     };
 
-    report(bounty.as_ref());
+    match report(bounty.as_ref()) {
+        Ok(_) => 0,
+        Err(error) => {
+            #[cfg(feature = "logs")]
+            log::error!("{}", error);
 
-    0
+            weight(error)
+        }
+    }
 }
 
 fn weight<Input>(_input: Input) -> u32 {
     1
 }
 
-fn report(input: &[u8]) {
+use std::io::{stdin, stdout, Read};
+
+use byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
+
+fn report(input: &[u8]) -> Result<(), Error> {
     #[cfg(feature = "logs")]
     if let Ok(input) = std::str::from_utf8(input) {
         log::info!("{}", input);
@@ -113,5 +159,46 @@ fn report(input: &[u8]) {
         log::info!("{:?}", input);
     }
 
+    #[cfg(not(feature = "logs"))]
+    {
+        let mut out = stdout();
+        out.write_u32::<NativeEndian>(input.len() as u32 + 1)?;
+        out.write_all(&input)?;
+        out.write_u8(b'\n')?;
+        out.flush()?;
+    }
+
     drop(input);
+
+    Ok(())
+}
+
+fn pipe(
+    input: &mut Peekable<impl Iterator<Item = String>>,
+    context: &mut Context,
+) -> Result<(), Error> {
+    let arguments = input.collect::<Vec<_>>();
+
+    let mut input = stdin();
+
+    loop {
+        let length = input.read_u32::<NativeEndian>()?;
+
+        let mut buffer = vec![0; length as usize];
+        input.read_exact(&mut buffer)?;
+
+        let message: &str = serde_json::from_slice(&buffer)?;
+
+        let output = serde_json::to_vec(&format!(
+            "arguments {:?}\nmessage: {:?}\ncontext: {:?}",
+            arguments,
+            message,
+            std::str::from_utf8(context)
+        ))?;
+
+        let mut out = stdout();
+        out.write_u32::<NativeEndian>(output.len() as u32)?;
+        out.write_all(&output)?;
+        out.flush()?;
+    }
 }

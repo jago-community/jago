@@ -29,13 +29,13 @@ pub fn handle<I: Iterator<Item = String>>(_input: &mut Peekable<I>) -> Result<()
 
         // TODO; leftoff with trouble encoding/decoding merkle nodes
 
-        //let node: Node<Vec<u8>> = serde_json::from_str(&key)?;
+        // let node: Node<Vec<u8>> = serde_json::from_str(&key)?;
 
-        //context.wrap(key);
+        // context.wrap(key);
 
-        //let output = encyclopedia::handle(&context)?;
+        // let output = encyclopedia::handle(&context)?;
 
-        //let output = serde_json::to_vec(&output)?;
+        // let output = serde_json::to_vec(&output)?;
 
         let output = serde_json::to_vec(&format!("hello {:?}", key))?;
 
