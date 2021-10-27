@@ -131,6 +131,7 @@ nmap <silent> <Leader>e :Ex<CR>
 nmap <silent> <Leader>r :source $MYVIMRC<CR>
 nmap <silent> <Leader>bd :bd<CR>
 nmap <silent> <Leader>gg :G<CR>
+nmap <silent> <Leader>t :vert term<CR>
 " todo leader is random character to prevent over use of a single key
 
 autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set spell | endif

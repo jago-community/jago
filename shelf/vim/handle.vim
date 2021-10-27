@@ -17,6 +17,7 @@ nmap <silent> <Leader>t :call InstrumentHandle("cargo test --package scratch --f
 nmap <silent> <Leader>T :call InstrumentHandle("cargo test --package scratch --features scratch/search -- --nocapture")<CR>
 nmap <silent> <Leader>c :call InstrumentHandle("cargo check --package scratch --features scratch/scrape")<CR>
 nmap <silent> <Leader>C :call InstrumentHandle("cargo build --package plant")<CR>
+nmap <silent> <Leader>B :call InstrumentHandle("cargo run -- browse")<CR>
 
 nmap <silent> <C-s> :call InstrumentHandle("./shelf/web/start")<CR>
 
