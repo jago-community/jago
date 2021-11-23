@@ -47,14 +47,17 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
     #[error("JavaScriptObjectNotation")]
     JavaScriptObjectNotation(#[from] serde_json::Error),
+    #[error("Reason")]
+    Reason(#[from] reason::Error),
 }
 
-use std::{iter::Peekable, mem::replace};
+use std::iter::Peekable;
 
 pub type Context = Vec<u8>;
 
 mod browse;
 mod pack;
+mod reason;
 mod serve;
 
 fn gather<'a, Input: Iterator<Item = String>>(
@@ -62,7 +65,9 @@ fn gather<'a, Input: Iterator<Item = String>>(
     context: &'a mut Context,
 ) -> Result<(), Error> {
     let handles: &[Box<dyn Fn(&mut Peekable<Input>, &mut Context) -> Result<(), Error>>] = &[
-        Box::new(|mut input, mut context| reason(&mut input, &mut context)),
+        Box::new(|mut input, mut context| {
+            reason::handle(&mut input, &mut context).map_err(Error::from)
+        }),
         Box::new(|mut input, mut context| {
             pack::handle(&mut input, &mut context).map_err(Error::from)
         }),
@@ -78,22 +83,6 @@ fn gather<'a, Input: Iterator<Item = String>>(
     for handle in handles {
         handle(input, context)?;
     }
-
-    Ok(())
-}
-
-fn reason<'a>(
-    input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &'a mut Context,
-) -> Result<(), Error> {
-    match input.peek() {
-        Some(name) if name == "jago" => {
-            let _ = input.next();
-        }
-        _ => {}
-    };
-
-    let _difference = replace(context, b"why things are the way they are".to_vec());
 
     Ok(())
 }

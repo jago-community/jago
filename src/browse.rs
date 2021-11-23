@@ -28,8 +28,12 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
     #[error("Walk {0}")]
     Walk(#[from] ignore::Error),
+    #[error("Walker {0}")]
+    Walker(#[from] walkdir::Error),
     #[error("Compress {0}")]
     Compress(#[from] zip::result::ZipError),
+    #[error("StripPrefix {0}")]
+    StripPrefix(#[from] std::path::StripPrefixError),
 }
 
 use std::{io::Write, path::PathBuf, process::Command};
@@ -100,7 +104,17 @@ fn browse(
     install_extension(&extensions)?;
 
     Command::new(&firefox)
-        .args(["--profile", profile.path().display().to_string().as_ref()])
+        .args([
+            "--profile",
+            profile.path().display().to_string().as_ref(),
+            "-install",
+            "-extension",
+            extensions
+                .join("wasm@jago.community.xpi")
+                .display()
+                .to_string()
+                .as_ref(),
+        ])
         .output()?;
 
     Ok(())
@@ -119,36 +133,34 @@ fn install_extension(target: &Path) -> Result<(), Error> {
             .join("pack"))
     })?;
 
+    let mut walker = walkdir::WalkDir::new(&extension)
+        .into_iter()
+        .filter_map(Result::ok);
+
     let mut target = OpenOptions::new()
         .write(true)
         .create(true)
-        .open(target.join("wasm@jago.community.xpi"));
+        .open(target.join("wasm@jago.community.xpi"))?;
 
-    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut target));
-
-    let options =
-        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
-    zip.start_file("hello_world.txt", options)?;
-    zip.write(b"Hello, World!")?;
-
-    // Apply the changes you've made.
-    // Dropping the `ZipWriter` will have the same effect, but may silently fail
-    zip.finish()?;
-
-    let mut proxy = OpenOptions::new().create(true).write(true).open(target)?;
-
-    write!(&mut proxy, "{}", extension.display())?;
+    zip_source(&mut walker, &extension, target)?;
 
     Ok(())
 }
 
+use std::{
+    fs::File,
+    io::{Read, Seek},
+};
+
 use ignore::DirEntry;
-use std::io::{Read, Seek};
-use zip::{write::FileOptions, CompressionMethod};
+use zip::{
+    write::{FileOptions, ZipWriter},
+    CompressionMethod,
+};
 
 fn zip_source<T>(
-    it: &mut dyn Iterator<Item = DirEntry>,
-    prefix: &str,
+    entries: &mut dyn Iterator<Item = walkdir::DirEntry>,
+    prefix: &Path,
     writer: T,
 ) -> Result<(), Error>
 where
@@ -160,27 +172,23 @@ where
         .unix_permissions(0o755);
 
     let mut buffer = Vec::new();
-    for entry in it {
-        let path = entry.path();
-        let name = path.strip_prefix(Path::new(prefix))?;
 
-        // Write file or directory explicitly
-        // Some unzip tools unzip files with directory paths correctly, some do not!
+    for entry in entries {
+        let path = entry.path();
+        let name = path.strip_prefix(prefix)?;
+
         if path.is_file() {
-            #[cfg(feature = "logs")]
-            log::info!("zipping file {}", path.display());
-            zip.start_file(name.display(), options)?;
+            zip.start_file(name.display().to_string(), options)?;
+
             let mut source = File::open(path)?;
 
             source.read_to_end(&mut buffer)?;
             zip.write_all(&*buffer)?;
             buffer.clear();
-        } else if name.as_os_str().len() != 0 {
-            #[cfg(feature = "logs")]
-            log::info!("zipping directory {}", path.display());
-            //zip.add_directory_from_path(name, options)?;
         }
     }
+
     zip.finish()?;
-    Result::Ok(())
+
+    Ok(())
 }

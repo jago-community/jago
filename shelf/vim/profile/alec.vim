@@ -58,7 +58,13 @@ au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'
 " set backupdir=$HOME/.vim/backup//
 
 set undofile
-set undodir=~/.vim/undo//
+
+if has("nvim")
+    set undodir=~/.local/share/nvim/undo//
+else
+    set undodir=~/.vim/undo//
+endif
+
 set noswapfile
 set nobackup
 set nowritebackup
@@ -133,51 +139,3 @@ nmap <silent> <Leader>bd :bd<CR>
 nmap <silent> <Leader>gg :G<CR>
 nmap <silent> <Leader>t :vert term<CR>
 " todo leader is random character to prevent over use of a single key
-
-autocmd BufNewFile,BufRead * if expand('%:t') !~ '\.' | set spell | endif
-
-if executable('rust-analyzer')
-  au User lsp_setup call lsp#register_server({
-        \   'name': 'Rust Language Server',
-        \   'cmd': {server_info->['rust-analyzer']},
-        \   'whitelist': ['rust'],
-        \   'initialization_options': {
-        \     'cargo': {
-        \       'loadOutDirsFromCheck': v:true,
-        \     },
-        \     'procMacro': {
-        \       'enable': v:true,
-        \     },
-        \   },
-        \ })
-endif
-
-let g:lsp_diagnostics_echo_delay = 500
-let g:lsp_diagnostics_enabled = 1
-let g:lsp_diagnostics_echo_cursor = 1
-let g:lsp_format_sync_timeout = 1000
-
-function! s:on_lsp_buffer_enabled() abort
-    setlocal omnifunc=lsp#complete
-    setlocal signcolumn=yes
-    nmap <buffer> <Leader>gd <plug>(lsp-definition)
-    nmap <buffer> <Leader>gs <plug>(lsp-document-symbol-search)
-    nmap <buffer> <Leader>gS <plug>(lsp-workspace-symbol-search)
-    nmap <buffer> <Leader>gr <plug>(lsp-references)
-    nmap <buffer> <Leader>gi <plug>(lsp-implementation)
-    nmap <buffer> <Leader>gt <plug>(lsp-type-definition)
-    nmap <buffer> <Leader>gn <plug>(lsp-rename)
-    nmap <buffer> K <plug>(lsp-hover)
-    inoremap <buffer> <expr><c-f> lsp#scroll(+4)
-    inoremap <buffer> <expr><c-d> lsp#scroll(-4)
-
-    autocmd! BufWritePre *.rs call execute('LspDocumentFormatSync')
-
-    " refer to doc to add more commands
-endfunction
-
-augroup lsp_install
-    au!
-    " call s:on_lsp_buffer_enabled only for languages that has the server registered.
-    autocmd User lsp_buffer_enabled call s:on_lsp_buffer_enabled()
-augroup END

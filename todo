@@ -1,1 +1,2 @@
 - tame the mighty merkle dag and document the horrors of how it came to be
+- xcodebuild -workspace {}.xcworkspace -configuration Debug -scheme {} -destination id=D9C4B0B8-7270-4E0D-A12D-8AB1A2CAE5E9
