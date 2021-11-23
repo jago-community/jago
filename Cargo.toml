@@ -42,6 +42,7 @@ cargo = "0.57.0"
 anyhow = "1.0.44"
 zip = "0.5.13"
 walkdir = "2.3.2"
+workspace = { path = "crates/workspace" }
 
 [workspace]
 members = ["shelf/*", "crates/*"]

@@ -16,8 +16,8 @@ pub fn handle(
 pub enum Error {
     #[error("Incomplete")]
     Incomplete,
-    #[error("NoHome")]
-    NoHome,
+    #[error("Workspace {0}")]
+    Workspace(#[from] workspace::Error),
     #[error("WasmPack: {0}")]
     WasmPack(failure::Error),
     #[error("InputOutput: {0}")]
@@ -34,10 +34,8 @@ fn serve(
 ) -> Result<(), Error> {
     let runtime = Runtime::new()?;
 
-    let home = dirs::home_dir().map_or(Err(Error::NoHome), Ok)?;
-    let source = home
-        .join("local")
-        .join("jago")
+    let source = workspace::source_directory()?;
+    let source = source
         .join("crates")
         .join("wasm")
         .join("target")

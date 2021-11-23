@@ -32,11 +32,12 @@ pub enum Error {
     NoDataDirectory,
     #[error(transparent)]
     Cargo(anyhow::Error),
+    #[error("Workspace: {0}")]
+    Workspace(#[from] workspace::Error),
 }
 
 use std::path::PathBuf;
 
-use dirs::home_dir;
 use ignore::WalkBuilder;
 use wasm_pack::command::{
     build::{BuildOptions, Target},
@@ -49,8 +50,7 @@ fn pack(
 ) -> Result<(), Error> {
     let _ = input.next();
 
-    let home = home_dir().map_or(Err(Error::NoHome), Ok)?;
-    let project = home.join("local").join("jago");
+    let project = workspace::source_directory()?;
 
     pack_binary(&project)?;
 

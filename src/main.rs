@@ -1,3 +1,5 @@
+mod workspace;
+
 fn main() {
     let start = std::time::Instant::now();
 

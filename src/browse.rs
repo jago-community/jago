@@ -22,6 +22,8 @@ pub enum Error {
     NoData,
     #[error("NoHome")]
     NoHome,
+    #[error("Workspace {0}")]
+    Workspace(#[from] workspace::Error),
     #[error("NoProfile")]
     NoProfile,
     #[error("InputOutput {0}")]
@@ -123,15 +125,15 @@ fn browse(
 use std::{fs::OpenOptions, path::Path};
 
 fn install_extension(target: &Path) -> Result<(), Error> {
-    let extension = dirs::home_dir().map_or(Err(Error::NoHome), |home| {
-        Ok(home
-            .join("local")
-            .join("jago")
-            .join("crates")
-            .join("wasm")
-            .join("target")
-            .join("pack"))
-    })?;
+    let extension = workspace::source_directory()
+        .map_err(Error::from)
+        .map(|source| {
+            source
+                .join("crates")
+                .join("wasm")
+                .join("target")
+                .join("pack")
+        })?;
 
     let mut walker = walkdir::WalkDir::new(&extension)
         .into_iter()
