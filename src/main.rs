@@ -49,6 +49,8 @@ pub enum Error {
     JavaScriptObjectNotation(#[from] serde_json::Error),
     #[error("Reason")]
     Reason(#[from] reason::Error),
+    #[error("Handle")]
+    Handle(#[from] handle::Error),
 }
 
 use context::Context;
@@ -56,6 +58,7 @@ use context::Context;
 use std::iter::Peekable;
 
 mod browse;
+mod handle;
 mod pack;
 mod reason;
 mod serve;
@@ -76,6 +79,9 @@ fn gather<'a, Input: Iterator<Item = String>>(
         }),
         Box::new(|mut input, mut context| {
             browse::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+        Box::new(|mut input, mut context| {
+            handle::grasp(&mut input, &mut context).map_err(Error::from)
         }),
         Box::new(|mut input, mut context| pipe(&mut input, &mut context)),
     ];

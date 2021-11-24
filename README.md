@@ -1,6 +1,6 @@
 # Jago
 
-An automating company.
+An automating community.
 
 ## Offer
 
