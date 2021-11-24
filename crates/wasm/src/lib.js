@@ -1,24 +1,28 @@
-import start from './wasm.js';
+import start from "./wasm.js";
 
 function main() {
-    const handle = browser.runtime.connectNative("jago");
+  if (!browser) {
+    return;
+  }
 
-    handle.onMessage.addListener((response) => {
-      console.log("native: ", response);
-    });
+  const handle = browser.runtime.connectNative("jago");
 
-    handle.onDisconnect.addListener((v) => {
-        console.log(v);
-        console.log(browser.runtime.lastError);
-    });
+  handle.onMessage.addListener((response) => {
+    console.log("native: ", response);
+  });
 
-    browser.omnibox.onInputEntered.addListener((input) => {
-        if (input === "g") {
-            handle.postMessage("hello stranger");
-        }
-    });
+  handle.onDisconnect.addListener((v) => {
+    console.log(v);
+    console.log(browser.runtime.lastError);
+  });
+
+  browser.omnibox.onInputEntered.addListener((input) => {
+    if (input === "g") {
+      handle.postMessage("hello stranger");
+    }
+  });
 }
 
 start()
-    .then(main)
-    .catch((error) => console.error(error));
+  .then(main)
+  .catch((error) => console.error(error));

@@ -1,4 +1,8 @@
-pub fn reason<'a>(
+use context::Context;
+
+use std::iter::Peekable;
+
+pub fn handle<'a>(
     input: &mut Peekable<impl Iterator<Item = String>>,
     context: &'a mut Context,
 ) -> Result<(), Error> {

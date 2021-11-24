@@ -13,16 +13,14 @@
       "strict_min_version": "50.0"
     }
   },
-  "permissions": [
-    "nativeMessaging"
-  ],
+  "permissions": ["nativeMessaging"],
   "omnibox": {
     "keyword": "j"
   },
   "browser_action": {
     "default_icon": "images/logo.png",
     "default_title": "jago",
-    "default_popup": "web/lib.html"
+    "default_popup": "./web/lib.html"
   },
   "commands": {
     "open": {
@@ -48,10 +46,11 @@
     }
   ],
   "web_accessible_resources": [
-      "no_modules/wasm_bg.wasm",
-      "web/wasm_bg.wasm"
+    "no_modules/wasm_bg.wasm",
+    "web/wasm_bg.wasm",
+    "./web/lib.html"
   ],
   "background": {
-    "page": "web/lib.html"
+    "page": "./web/lib.html"
   }
 }

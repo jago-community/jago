@@ -638,6 +638,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "context"
+version = "0.1.0"
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2011,6 +2015,7 @@ dependencies = [
  "binary-install",
  "byteorder",
  "cargo 0.57.0",
+ "context",
  "dirs 4.0.0",
  "failure",
  "ignore",
@@ -5125,6 +5130,7 @@ dependencies = [
 name = "workspace"
 version = "0.1.0"
 dependencies = [
+ "context",
  "dirs 4.0.0",
  "thiserror",
 ]

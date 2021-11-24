@@ -1,4 +1,6 @@
-use std::iter::Peekable;
+use context::Context;
+
+use std::{iter::Peekable, mem::replace};
 
 pub fn handle<'a>(
     input: &mut Peekable<impl Iterator<Item = String>>,

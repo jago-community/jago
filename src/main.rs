@@ -1,5 +1,3 @@
-mod workspace;
-
 fn main() {
     let start = std::time::Instant::now();
 
@@ -9,7 +7,7 @@ fn main() {
 
     #[cfg(feature = "logs")]
     if let Err(error) = pretty_env_logger::formatted_builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_module("jago", log::LevelFilter::Info)
         .try_init()
     {
         eprintln!("{}", error);
@@ -53,9 +51,9 @@ pub enum Error {
     Reason(#[from] reason::Error),
 }
 
-use std::iter::Peekable;
+use context::Context;
 
-pub type Context = Vec<u8>;
+use std::iter::Peekable;
 
 mod browse;
 mod pack;

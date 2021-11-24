@@ -1,4 +1,4 @@
-use crate::Context;
+use context::Context;
 
 use std::iter::Peekable;
 
@@ -44,6 +44,24 @@ use wasm_pack::command::{
     run_wasm_pack, Command,
 };
 
+enum BuildProfile {
+    Dev,
+    Release,
+}
+
+impl std::fmt::Display for BuildProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Dev => "debug",
+                Release => "release",
+            }
+        )
+    }
+}
+
 fn pack(
     input: &mut Peekable<impl Iterator<Item = String>>,
     _context: &mut Context,
@@ -52,12 +70,14 @@ fn pack(
 
     let project = workspace::source_directory()?;
 
-    pack_binary(&project)?;
+    let profile = BuildProfile::Dev;
+
+    pack_binary(&project, &profile)?;
 
     let target = project.join("crates").join("wasm");
 
-    for mode in [Target::Web, Target::NoModules] {
-        pack_target(&target, mode)?;
+    for target_mode in [Target::Web, Target::NoModules] {
+        pack_target(&target, target_mode, &profile)?;
     }
 
     Ok(())
@@ -71,12 +91,10 @@ use cargo::{
     util::config::Config,
 };
 
-fn pack_binary(target: &Path) -> Result<(), Error> {
+fn pack_binary(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
     let config = Config::default().map_err(Error::Cargo)?;
 
     let workspace = Workspace::new(&target.join("Cargo.toml"), &config).map_err(Error::Cargo)?;
-
-    let suffix = "debug";
 
     let mut compile_options =
         CompileOptions::new(&config, CompileMode::Build).map_err(Error::Cargo)?;
@@ -84,13 +102,18 @@ fn pack_binary(target: &Path) -> Result<(), Error> {
     compile_options.cli_features =
         CliFeatures::from_command_line(&[], false, false).map_err(Error::Cargo)?;
 
+    compile_options.build_config.requested_profile = profile.to_string().into();
+
     compile(&workspace, &compile_options).map_err(Error::Cargo)?;
 
     let mirror = PathBuf::from(env!("CARGO_HOME"))
         .join("bin")
         .join("cargo-jago");
 
-    std::fs::copy(target.join("target").join(suffix).join("jago"), &mirror)?;
+    std::fs::copy(
+        target.join("target").join(profile.to_string()).join("jago"),
+        &mirror,
+    )?;
 
     let host_manifest = dirs::data_dir().map_or(Err(Error::NoDataDirectory), |data| {
         Ok(data
@@ -119,14 +142,16 @@ fn pack_binary(target: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn pack_target(target: &Path, mode: Target) -> Result<(), Error> {
+fn pack_target(target: &Path, mode: Target, profile: &BuildProfile) -> Result<(), Error> {
     let suffix = match mode {
         Target::Web => "web",
         Target::NoModules => "no_modules",
         _ => return Err(Error::TargetNotSupported(mode)),
     };
 
-    let output = PathBuf::from("target").join("pack");
+    let output = PathBuf::from("target")
+        .join(profile.to_string())
+        .join("pack");
 
     let mut build_options = BuildOptions::default();
     build_options.path = Some(target.to_owned());

@@ -43,6 +43,7 @@ anyhow = "1.0.44"
 zip = "0.5.13"
 walkdir = "2.3.2"
 workspace = { path = "crates/workspace" }
+context = { path = "crates/context" }
 
 [workspace]
 members = ["shelf/*", "crates/*"]
