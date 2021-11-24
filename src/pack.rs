@@ -100,7 +100,8 @@ fn pack_binary(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
         CompileOptions::new(&config, CompileMode::Build).map_err(Error::Cargo)?;
 
     compile_options.cli_features =
-        CliFeatures::from_command_line(&[], false, false).map_err(Error::Cargo)?;
+        CliFeatures::from_command_line(&["handle".to_string()], false, false)
+            .map_err(Error::Cargo)?;
 
     compile_options.build_config.requested_profile = profile.to_string().into();
 

@@ -5,15 +5,29 @@ edition = "2018"
 description = "variable utopia"
 resolver = "2"
 
-[package.metadata.bundle.bin.pipe]
+#[[bin]]
+#name = "pipe"
+#path = "src/main.rs"
+
+#[[bin]]
+#name = "watch"
+#path = "src/main.rs"
+
+[package.metadata.bundle]
 name = "jago"
 identifier = "community.jago"
+
+#[package.metadata.bundle.bin.watch]
+#name="jago"
+#identifier = "community.jago.watch"
+#resources=["target/debug/pipe"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default=["logs"]
 logs=["log", "pretty_env_logger"]
+handle=[]
 
 #[[bin]]
 #name = "pipe"
