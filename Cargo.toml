@@ -3,6 +3,7 @@ name = "jago"
 version = "0.1.0"
 edition = "2018"
 description = "variable utopia"
+resolver = "2"
 
 [package.metadata.bundle.bin.pipe]
 name = "jago"
@@ -44,6 +45,7 @@ zip = "0.5.13"
 walkdir = "2.3.2"
 workspace = { path = "crates/workspace" }
 context = { path = "crates/context" }
+watch = { path = "shelf/watch" }
 
 [workspace]
 members = ["shelf/*", "crates/*"]
