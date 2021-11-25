@@ -2490,7 +2490,6 @@ dependencies = [
  "byteorder",
  "context",
  "dirs 4.0.0",
- "env_logger 0.9.0",
  "failure",
  "ignore",
  "log",
@@ -2500,6 +2499,7 @@ dependencies = [
  "mozprofile",
  "pipe",
  "plant",
+ "pretty_env_logger",
  "program",
  "serde_json",
  "thiserror",
@@ -6006,8 +6006,10 @@ name = "watch"
 version = "0.1.0"
 dependencies = [
  "context",
+ "fixedbitset",
  "font-kit",
  "futures 0.3.18",
+ "log",
  "rand 0.8.4",
  "thiserror",
  "wgpu",

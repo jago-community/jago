@@ -13,7 +13,7 @@ identifier = "community.jago"
 
 [features]
 default=["logs"]
-logs=["log", "env_logger"]
+logs=["log", "pretty_env_logger"]
 handle=[]
 
 [dependencies]
@@ -25,7 +25,7 @@ plant = { path = "shelf/plant", optional = true }
 wasm-pack = "0.10.1"
 thiserror = "1.0.30"
 log = { version = "0.4.14", optional = true }
-env_logger = { version = "0.9.0", optional = true }
+pretty_env_logger = { version = "0.4.0", optional = true }
 dirs = "4.0.0"
 failure = "0.1.8"
 ignore = "0.4.18"

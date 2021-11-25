@@ -8,7 +8,11 @@ fn main() {
     let mut after: Vec<Box<dyn Fn()>> = vec![];
 
     #[cfg(feature = "logs")]
-    if let Err(error) = logs::configure() {
+    if let Err(error) = pretty_env_logger::formatted_builder()
+        .filter_module("jago", log::LevelFilter::Info)
+        .filter_module("watch", log::LevelFilter::Info)
+        .try_init()
+    {
         eprintln!("{}", error);
         code = weight(error);
     }
