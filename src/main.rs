@@ -84,6 +84,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             watch::handle(&mut input, &mut context).map_err(Error::from)
         }),
+        #[cfg(not(feature = "handle"))]
         Box::new(|mut input, mut context| {
             pipe::handle(&mut input, &mut context).map_err(Error::from)
         }),
