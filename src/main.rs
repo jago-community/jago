@@ -1,3 +1,5 @@
+mod logs;
+
 fn main() {
     let start = std::time::Instant::now();
 
@@ -6,10 +8,7 @@ fn main() {
     let mut after: Vec<Box<dyn Fn()>> = vec![];
 
     #[cfg(feature = "logs")]
-    if let Err(error) = pretty_env_logger::formatted_builder()
-        .filter_module("jago", log::LevelFilter::Info)
-        .try_init()
-    {
+    if let Err(error) = logs::configure() {
         eprintln!("{}", error);
         code = weight(error);
     }
@@ -68,6 +67,8 @@ fn gather<'a, Input: Iterator<Item = String>>(
     input: &mut Peekable<Input>,
     context: &'a mut Context,
 ) -> Result<(), Error> {
+    log::info!("gathering");
+
     let handles: &[Box<dyn Fn(&mut Peekable<Input>, &mut Context) -> Result<(), Error>>] = &[
         Box::new(|mut input, mut context| {
             reason::handle(&mut input, &mut context).map_err(Error::from)

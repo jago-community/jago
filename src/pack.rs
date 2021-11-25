@@ -34,6 +34,8 @@ pub enum Error {
     Cargo(anyhow::Error),
     #[error("Workspace: {0}")]
     Workspace(#[from] workspace::Error),
+    #[error("BundleStatus: {0:?}")]
+    BundleStatus(Option<i32>),
 }
 
 use std::path::PathBuf;
@@ -44,6 +46,7 @@ use wasm_pack::command::{
     run_wasm_pack, Command,
 };
 
+#[derive(PartialEq)]
 enum BuildProfile {
     Dev,
     Release,
@@ -55,8 +58,8 @@ impl std::fmt::Display for BuildProfile {
             f,
             "{}",
             match self {
-                Dev => "debug",
-                Release => "release",
+                BuildProfile::Dev => "debug",
+                BuildProfile::Release => "release",
             }
         )
     }
@@ -72,7 +75,7 @@ fn pack(
 
     let profile = BuildProfile::Dev;
 
-    pack_binary(&project, &profile)?;
+    pack_bundle(&project, &profile)?;
 
     let target = project.join("crates").join("wasm");
 
@@ -85,36 +88,47 @@ fn pack(
 
 use std::{io::Write, path::Path};
 
-use cargo::{
-    core::{compiler::CompileMode, resolver::features::CliFeatures, Workspace},
-    ops::{compile, CompileOptions},
-    util::config::Config,
-};
+fn pack_bundle(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
+    let mut args = vec!["bundle", "--features", "handle,logs"];
 
-fn pack_binary(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
-    let config = Config::default().map_err(Error::Cargo)?;
+    if profile == &BuildProfile::Release {
+        args.push("--release");
+    }
 
-    let workspace = Workspace::new(&target.join("Cargo.toml"), &config).map_err(Error::Cargo)?;
+    let bundle_result = std::process::Command::new("cargo")
+        .current_dir(target)
+        .args(args)
+        .status()
+        .map_err(Error::from)?;
 
-    let mut compile_options =
-        CompileOptions::new(&config, CompileMode::Build).map_err(Error::Cargo)?;
+    if !bundle_result.success() {
+        return Err(Error::BundleStatus(bundle_result.code()));
+    }
 
-    compile_options.cli_features =
-        CliFeatures::from_command_line(&["handle".to_string()], false, false)
-            .map_err(Error::Cargo)?;
+    #[cfg(target_os = "macos")]
+    let bundle = target
+        .join("target")
+        .join(profile.to_string())
+        .join("bundle")
+        .join("osx")
+        .join("jago.app");
 
-    compile_options.build_config.requested_profile = profile.to_string().into();
+    #[cfg(target_os = "macos")]
+    let applications = dirs::home_dir()
+        .map(|path| path.join("Applications"))
+        .map_or(Err(Error::NoHome), Ok)?;
 
-    compile(&workspace, &compile_options).map_err(Error::Cargo)?;
+    #[cfg(target_os = "macos")]
+    let destination = applications.join("Jago.app");
 
-    let mirror = PathBuf::from(env!("CARGO_HOME"))
-        .join("bin")
-        .join("cargo-jago");
+    if destination.exists() {
+        std::fs::remove_dir_all(&destination)?;
+    }
 
-    std::fs::copy(
-        target.join("target").join(profile.to_string()).join("jago"),
-        &mirror,
-    )?;
+    std::fs::rename(dbg!(bundle), &destination)?;
+
+    #[cfg(target_os = "macos")]
+    let binary = destination.join("Contents").join("MacOS").join("jago");
 
     let host_manifest = dirs::data_dir().map_or(Err(Error::NoDataDirectory), |data| {
         Ok(data
@@ -136,7 +150,7 @@ fn pack_binary(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
     "allowed_extensions": [ "wasm@jago.community" ]
 }}
 "#,
-            mirror.display()
+            binary.display()
         )?;
     }
 
