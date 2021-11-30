@@ -1,8 +1,10 @@
+# Rust
 target/
-local
-keys
+**/*.rs.bk
 
+# cargo-mobile
+.cargo/
+/gen
 
-# Added by cargo
-
-/target
+# macOS
+.DS_Store

@@ -16,7 +16,7 @@ pub fn handle<'a>(
     let _difference = replace(context, b"why things are the way they are".to_vec());
 
     /// With regards to the computer science, I think the problem is calling it a memory leak.
-    /// It's misleading in my opinion. I meamn I didn't get the joke until I properly learned a low
+    /// It's misleading in my opinion. I mean I didn't get the joke until I properly learned a low
     /// level programming language. I know I'm not the smartest guy but I can't be the only one that
     /// missed the point.
     ///

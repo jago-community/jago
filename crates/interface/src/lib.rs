@@ -1,4 +1,4 @@
-use nannou::prelude::*;
+use nannou::{prelude::*, winit::event::ModifiersState};
 
 use context::Context;
 use std::iter::Peekable;
@@ -38,6 +38,8 @@ struct Model {
     scale: f32,
     factor: f32,
     logo: wgpu::Texture,
+    mode: Mode,
+    modifiers: ModifiersState,
 }
 
 fn model(app: &App) -> Model {
@@ -50,18 +52,26 @@ fn model(app: &App) -> Model {
         scale: 42.,
         factor: 8.,
         logo,
+        mode: Mode::Normal,
+        modifiers: ModifiersState::empty(),
     }
 }
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {}
 
-fn event(_app: &App, model: &mut Model, event: Event) {
+fn event(app: &App, model: &mut Model, event: Event) {
     match event {
         Event::WindowEvent {
             simple: Some(WindowEvent::MouseMoved(pos)),
             ..
         } => {
             model.cursor = pos;
+        }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::Touch(touch)),
+            ..
+        } => {
+            model.cursor = touch.position;
         }
         Event::WindowEvent {
             simple: Some(WindowEvent::KeyPressed(Key::H)),
@@ -87,6 +97,40 @@ fn event(_app: &App, model: &mut Model, event: Event) {
         } => {
             model.cursor -= vec2(0., model.factor);
         }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::KeyPressed(Key::I)),
+            ..
+        } => {
+            model.mode = Mode::Insert;
+        }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::KeyPressed(Key::Space)),
+            ..
+        } => {
+            if model.modifiers.ctrl() {
+                model.mode = Mode::Normal;
+            }
+        }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::KeyPressed(Key::C)),
+            ..
+        } => {
+            if model.modifiers.ctrl() {
+                app.quit();
+            }
+        }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::KeyPressed(Key::LControl | Key::RControl)),
+            ..
+        } => {
+            model.modifiers.insert(ModifiersState::CTRL);
+        }
+        Event::WindowEvent {
+            simple: Some(WindowEvent::KeyReleased(Key::LControl | Key::RControl)),
+            ..
+        } => {
+            model.modifiers.insert(ModifiersState::CTRL);
+        }
         _ => {}
     }
 }
@@ -97,6 +141,18 @@ fn view(app: &App, model: &Model, frame: Frame) {
     draw.texture(&model.logo);
 
     logo(model, &draw);
+
+    let container = app.window_rect().pad(model.factor * 2.);
+
+    draw.text(match model.mode {
+        Mode::Insert => "Insert",
+        Mode::Normal => "Normal",
+    })
+    .align_text_bottom()
+    .left_justify()
+    .color(BLACK)
+    .xy(container.xy())
+    .wh(container.wh());
 
     draw.to_frame(app, &frame).unwrap();
 }

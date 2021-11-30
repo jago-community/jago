@@ -11,10 +11,18 @@ identifier = "community.jago"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [features]
-default=["logs"]
+default=["logs", "handle"]
 logs=["log", "pretty_env_logger"]
+pack=["wasm-pack"]
 handle=[]
+
+[[bin]]
+name = "jago"
+path = "gen/bin/desktop.rs"
 
 [dependencies]
 program = { path = "shelf/program" }
@@ -22,7 +30,7 @@ logger = { path = "shelf/logger", optional = true }
 pipe = { path = "shelf/pipe", optional = true }
 magazine = { path = "shelf/magazine", optional = true }
 plant = { path = "shelf/plant", optional = true }
-wasm-pack = "0.10.1"
+wasm-pack = { version = "0.10.1", optional = true }
 thiserror = "1.0.30"
 log = { version = "0.4.14", optional = true }
 pretty_env_logger = { version = "0.4.0", optional = true }
@@ -31,8 +39,8 @@ failure = "0.1.8"
 ignore = "0.4.18"
 tokio = { version = "1.12.0", features = ["full"] }
 warp = "0.3.1"
-binary-install = "0.0.2"
-mozprofile = "0.7.3"
+#binary-install = "0.0.2"
+#mozprofile = "0.7.3"
 byteorder = "1.4.3"
 serde_json = "1.0.68"
 anyhow = "1.0.44"
@@ -40,9 +48,14 @@ zip = "0.5.13"
 walkdir = "2.3.2"
 workspace = { path = "crates/workspace" }
 context = { path = "crates/context" }
-watch = { path = "shelf/watch" }
-glass = { path = "shelf/glass" }
+#watch = { path = "shelf/watch" }
+#glass = { path = "shelf/glass" }
 interface = { path = "crates/interface" }
+mobile-entry-point = { version = "0.1.0" }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.9.0"
+ndk-glue = "0.2.1"
 
 [workspace]
 members = ["shelf/*", "crates/*"]

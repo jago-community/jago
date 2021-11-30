@@ -1,4 +1,13 @@
-fn main() {
+#[cfg(feature = "logs")]
+mod logs;
+
+//#[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+use mobile_entry_point::mobile_entry_point;
+
+//#[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+
+#[mobile_entry_point]
+pub fn handle() {
     let start = std::time::Instant::now();
 
     let mut input = std::env::args().skip(1).peekable();
@@ -6,11 +15,7 @@ fn main() {
     let mut after: Vec<Box<dyn Fn()>> = vec![];
 
     #[cfg(feature = "logs")]
-    if let Err(error) = pretty_env_logger::formatted_builder()
-        .filter_module("jago", log::LevelFilter::Info)
-        .filter_module("watch", log::LevelFilter::Info)
-        .try_init()
-    {
+    if let Err(error) = logs::before() {
         eprintln!("{}", error);
         code = weight(error);
     }
@@ -38,6 +43,7 @@ pub enum Error {
     Incomplete,
     #[error("NoHome")]
     NoHome,
+    #[cfg(feature = "pack")]
     #[error("Pack {0}")]
     Pack(#[from] pack::Error),
     #[error("Serve {0}")]
@@ -48,12 +54,12 @@ pub enum Error {
     Pipe(#[from] pipe::Error),
     #[error("Reason {0}")]
     Reason(#[from] reason::Error),
-    #[error("Watch {0}")]
-    Watch(#[from] watch::Error),
+    //#[error("Watch {0}")]
+    //Watch(#[from] watch::Error),
     #[error("Watch {0}")]
     Handle(#[from] handle::Error),
-    #[error("Glass {0}")]
-    Glass(#[from] glass::Error),
+    //#[error("Glass {0}")]
+    //Glass(#[from] glass::Error),
     #[error("Glass {0}")]
     Interface(#[from] interface::Error),
 }
@@ -64,6 +70,7 @@ use std::iter::Peekable;
 
 mod browse;
 mod handle;
+#[cfg(feature = "pack")]
 mod pack;
 mod pipe;
 mod reason;
@@ -79,6 +86,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             reason::handle(&mut input, &mut context).map_err(Error::from)
         }),
+        #[cfg(feature = "pack")]
         Box::new(|mut input, mut context| {
             pack::handle(&mut input, &mut context).map_err(Error::from)
         }),
@@ -88,12 +96,12 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             browse::handle(&mut input, &mut context).map_err(Error::from)
         }),
-        Box::new(|mut input, mut context| {
-            watch::handle(&mut input, &mut context).map_err(Error::from)
-        }),
-        Box::new(|mut input, mut context| {
-            glass::handle(&mut input, &mut context).map_err(Error::from)
-        }),
+        //Box::new(|mut input, mut context| {
+        //watch::handle(&mut input, &mut context).map_err(Error::from)
+        //}),
+        //Box::new(|mut input, mut context| {
+        //glass::handle(&mut input, &mut context).map_err(Error::from)
+        //}),
         Box::new(|mut input, mut context| {
             interface::handle(&mut input, &mut context).map_err(Error::from)
         }),

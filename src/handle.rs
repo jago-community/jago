@@ -14,8 +14,8 @@ pub fn grasp<'a>(
             log::info!("is native host message");
             crate::pipe::handle(input, context).map_err(Error::from)
         }
-        _ => watch::handle(
-            &mut ["watch".to_string()]
+        _ => interface::handle(
+            &mut ["interface".to_string()]
                 .iter()
                 .cloned()
                 .chain(input)
@@ -31,7 +31,7 @@ pub enum Error {
     #[error("Incomplete")]
     Incomplete,
     #[error("Watch {0}")]
-    Watch(#[from] watch::Error),
+    Interface(#[from] interface::Error),
     #[error("Pipe {0}")]
     Pipe(#[from] crate::pipe::Error),
 }
