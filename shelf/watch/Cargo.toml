@@ -7,11 +7,14 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bitflags = "1.3.2"
+bytemuck = "1.7.2"
 context = { path = "../../crates/context" }
 fixedbitset = "0.4.0"
 font-kit = "0.10.1"
 futures = "0.3.18"
 log = "0.4.14"
+lyon = { version = "0.17.10", features = ["extra"] }
 rand = "0.8.4"
 thiserror = "1.0.30"
 wgpu = "0.11.0"

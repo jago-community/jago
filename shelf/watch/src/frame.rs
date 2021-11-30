@@ -1,36 +1,39 @@
-use std::sync::Arc;
-
-use crate::font;
+use crate::{font, layer::Layer};
 use futures::{
     executor::{LocalPool, LocalSpawner},
     task::SpawnExt,
 };
-use wgpu::{
-    util::StagingBelt, Backends, Device, Instance, Queue, Surface, SurfaceConfiguration,
-    TextureFormat,
-};
+use wgpu::{util::StagingBelt, Backends, Device, Instance, Queue, Surface, SurfaceConfiguration};
 use wgpu_glyph::{FontId, GlyphBrush, GlyphBrushBuilder, Section, Text};
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, ModifiersState, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
     window::Window,
 };
+
+pub struct Innards {
+    use_color: bool,
+    font_id: FontId,
+    font_size: f32,
+    font_scale: f32,
+    font_color: [f32; 4],
+    fonts: font::Cache,
+}
 
 pub struct Frame {
     window: Window,
     surface_configuration: SurfaceConfiguration,
     device: Device,
     queue: Queue,
-    render_format: TextureFormat,
     surface: Surface,
     size: PhysicalSize<u32>,
     staging_belt: StagingBelt,
     local_spawner: LocalSpawner,
     local_pool: LocalPool,
     modifiers: ModifiersState,
-    fonts: font::Cache,
-    font_id: Option<FontId>,
     font_brush: GlyphBrush<()>,
+    layers: Vec<Layer>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -64,6 +67,10 @@ pub enum Error {
 }
 
 impl Frame {
+    pub fn device(&self) -> &Device {
+        &self.device
+    }
+
     pub async fn new(window: Window) -> Result<Self, Error> {
         let instance = Instance::new(Backends::all());
         let surface = unsafe { instance.create_surface(&window) };
@@ -111,6 +118,81 @@ impl Frame {
 
         let font_brush = GlyphBrushBuilder::using_fonts(vec![]).build(&device, render_format);
 
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipelines = vec![
+            crate::pipelines::triangle(&device, &render_pipeline_layout, &surface_configuration),
+            crate::pipelines::triangle_editable(
+                &device,
+                &render_pipeline_layout,
+                &surface_configuration,
+            ),
+        ];
+
+        let layers = vec![
+            Layer::Pipeline(
+                crate::pipelines::triangle(
+                    &device,
+                    &render_pipeline_layout,
+                    &surface_configuration,
+                ),
+                Box::new(|frame| frame.use_color),
+            ),
+            Layer::Pipeline(
+                crate::pipelines::triangle_editable(
+                    &device,
+                    &render_pipeline_layout,
+                    &surface_configuration,
+                ),
+                Box::new(|frame| !frame.use_color),
+            ),
+            Layer::Handle(Box::new(|frame, view, encoder| {
+                let mut frame = frame.lock().unwrap();
+
+                let font_id = match frame.font_id {
+                    Some(id) => id,
+                    _ => {
+                        let font = frame.fonts.pick_font().expect("pick font");
+
+                        let id = frame.font_brush.add_font(font);
+
+                        frame.font_id = Some(id);
+
+                        id
+                    }
+                };
+
+                frame.font_brush.queue(Section {
+                    screen_position: (30.0, 30.0),
+                    bounds: (frame.size.width as f32, frame.size.height as f32),
+                    text: vec![Text::new("Hello, stranger.")
+                        .with_font_id(font_id)
+                        .with_color([0.0, 0.0, 0.0, 1.0])
+                        .with_scale(40.0)],
+                    ..Section::default()
+                });
+
+                // Draw the text!
+                frame
+                    .font_brush
+                    .draw_queued(
+                        &frame.device,
+                        &mut frame.staging_belt,
+                        encoder,
+                        view,
+                        frame.size.width,
+                        frame.size.height,
+                    )
+                    .map_err(Error::DrawQueue)
+                    .expect("Draw queued");
+            })),
+        ];
+
         Ok(Self {
             window,
             surface_configuration,
@@ -118,7 +200,6 @@ impl Frame {
             queue,
             size,
             surface,
-            render_format,
             staging_belt,
             local_spawner,
             local_pool,
@@ -126,6 +207,8 @@ impl Frame {
             fonts: font::Cache::new(),
             font_id: None,
             font_brush,
+            layers,
+            use_color: true,
         })
     }
 
@@ -156,6 +239,213 @@ impl Frame {
 
     pub fn request_redraw(&self) {
         self.window.request_redraw();
+    }
+
+    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        let pipelines = self.layers.iter().filter_map(|layer| match layer {
+            Layer::Pipeline(pipeline, predicate) => {
+                if predicate(&self) {
+                    Some(pipeline)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: None,
+            });
+
+            for pipeline in pipelines {
+                render_pass.set_pipeline(pipeline);
+            }
+
+            render_pass.draw(0..3, 0..1);
+        }
+
+        use std::sync::{Arc, Mutex};
+
+        let state = Arc::new(Mutex::new(*self));
+
+        let handlers = self.layers.iter_mut().filter_map(|layer| match layer {
+            Layer::Handle(handle) => Some(handle),
+            _ => None,
+        });
+
+        for handle in handlers {
+            handle(state.clone(), &view, &mut encoder);
+        }
+
+        /*
+        let font_id = match self.font_id {
+            Some(id) => id,
+            _ => {
+                let font = self.fonts.pick_font().expect("pick font");
+
+                let id = self.font_brush.add_font(font);
+
+                self.font_id = Some(id);
+
+                id
+            }
+        };
+
+        self.font_brush.queue(Section {
+            screen_position: (30.0, 30.0),
+            bounds: (self.size.width as f32, self.size.height as f32),
+            text: vec![Text::new("Hello, stranger.")
+                .with_font_id(font_id)
+                .with_color([0.0, 0.0, 0.0, 1.0])
+                .with_scale(40.0)],
+            ..Section::default()
+        });
+
+        // Draw the text!
+        self.font_brush
+            .draw_queued(
+                &self.device,
+                &mut self.staging_belt,
+                &mut encoder,
+                &view,
+                self.size.width,
+                self.size.height,
+            )
+            .map_err(Error::DrawQueue)
+            .expect("Draw queued");*/
+
+        self.staging_belt.finish();
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        self.local_spawner
+            .spawn(self.staging_belt.recall())
+            .map_err(Error::from)
+            .expect("Recall staging belt");
+
+        self.local_pool.run_until_stalled();
+
+        Ok(())
+    }
+
+    fn input(&mut self, event: &WindowEvent, control_flow: &mut ControlFlow) -> bool {
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state,
+                        virtual_keycode: Some(VirtualKeyCode::Space),
+                        ..
+                    },
+                ..
+            } => {
+                self.use_color = *state == ElementState::Released;
+                true
+            }
+            winit::event::WindowEvent::KeyboardInput {
+                input:
+                    winit::event::KeyboardInput {
+                        state: winit::event::ElementState::Released,
+                        virtual_keycode,
+                        ..
+                    },
+                ..
+            } => match (self.modifiers.ctrl(), virtual_keycode) {
+                (true, Some(winit::event::VirtualKeyCode::R)) => {
+                    self.font_id = None;
+                    true
+                }
+                (true, Some(winit::event::VirtualKeyCode::C)) => {
+                    *control_flow = winit::event_loop::ControlFlow::Exit;
+                    false
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    pub fn handle(
+        &mut self,
+        event: Event<()>,
+        control_flow: &mut winit::event_loop::ControlFlow,
+    ) -> Result<(), Error> {
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == self.window.id() => {
+                if !self.input(event, control_flow) {
+                    match event {
+                        WindowEvent::CloseRequested
+                        | WindowEvent::KeyboardInput {
+                            input:
+                                KeyboardInput {
+                                    state: ElementState::Pressed,
+                                    virtual_keycode: Some(VirtualKeyCode::Escape),
+                                    ..
+                                },
+                            ..
+                        } => *control_flow = ControlFlow::Exit,
+                        WindowEvent::Resized(physical_size) => {
+                            self.resize(*physical_size);
+                        }
+                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                            // new_inner_size is &mut so w have to dereference it twice
+                            self.resize(**new_inner_size);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Event::RedrawRequested(_) => {
+                //self.update();
+                match self.render() {
+                    Ok(_) => {}
+                    // Reconfigure the surface if lost
+                    Err(wgpu::SurfaceError::Lost) => self.resize(self.size),
+                    // The system is out of memory, we should probably quit
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    // All other errors (Outdated, Timeout) should be resolved by the next frame
+                    Err(e) => eprintln!("{:?}", e),
+                }
+            }
+            Event::MainEventsCleared => {
+                // RedrawRequested will only trigger once, unless we manually
+                // request it.
+                self.window.request_redraw();
+            }
+            _ => {}
+        };
+
+        Ok(())
     }
 
     pub fn spin(
@@ -226,7 +516,7 @@ impl Frame {
                     .create_view(&wgpu::TextureViewDescriptor::default());
 
                 // Clear frame
-                let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Render pass"),
                     color_attachments: &[wgpu::RenderPassColorAttachment {
                         view,
@@ -243,6 +533,9 @@ impl Frame {
                     }],
                     depth_stencil_attachment: None,
                 });
+
+                //render_pass.set_pipeline(&self.render_pipelines[1]); // 2.
+                render_pass.draw(0..3, 0..1); // 3.
 
                 drop(render_pass);
 
@@ -283,6 +576,7 @@ impl Frame {
                     .expect("Draw queued");
 
                 // Submit the work!
+
                 self.staging_belt.finish();
                 self.queue.submit(Some(encoder.finish()));
                 frame.present();

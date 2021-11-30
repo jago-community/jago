@@ -1,5 +1,3 @@
-mod logs;
-
 fn main() {
     let start = std::time::Instant::now();
 
@@ -54,6 +52,10 @@ pub enum Error {
     Watch(#[from] watch::Error),
     #[error("Watch {0}")]
     Handle(#[from] handle::Error),
+    #[error("Glass {0}")]
+    Glass(#[from] glass::Error),
+    #[error("Glass {0}")]
+    Interface(#[from] interface::Error),
 }
 
 use context::Context;
@@ -88,6 +90,12 @@ fn gather<'a, Input: Iterator<Item = String>>(
         }),
         Box::new(|mut input, mut context| {
             watch::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+        Box::new(|mut input, mut context| {
+            glass::handle(&mut input, &mut context).map_err(Error::from)
+        }),
+        Box::new(|mut input, mut context| {
+            interface::handle(&mut input, &mut context).map_err(Error::from)
         }),
         #[cfg(not(feature = "handle"))]
         Box::new(|mut input, mut context| {

@@ -41,7 +41,9 @@ walkdir = "2.3.2"
 workspace = { path = "crates/workspace" }
 context = { path = "crates/context" }
 watch = { path = "shelf/watch" }
-log4rs = "1.0.0"
+glass = { path = "shelf/glass" }
+interface = { path = "crates/interface" }
 
 [workspace]
 members = ["shelf/*", "crates/*"]
+exclude = ["table/phone"]

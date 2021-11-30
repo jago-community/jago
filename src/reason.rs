@@ -8,7 +8,7 @@ pub fn handle<'a>(
 ) -> Result<(), Error> {
     match input.peek() {
         Some(name) if name == "jago" => {
-            let _ = input.next();
+            drop(input.next());
         }
         _ => {}
     };

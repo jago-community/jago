@@ -6,6 +6,7 @@ pub struct Cache {
     source: SystemSource,
     fonts: Option<Vec<FontHandle>>,
     fonts_rng: rand::rngs::ThreadRng,
+    loading: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -30,6 +31,7 @@ impl Cache {
             source,
             fonts: None,
             fonts_rng: rand::thread_rng(),
+            loading: false,
         }
     }
 
