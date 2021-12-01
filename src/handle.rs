@@ -11,7 +11,6 @@ pub fn grasp<'a>(
             if next.exists()
                 && next.ends_with(PathBuf::from("NativeMessagingHosts").join("jago.json")) =>
         {
-            log::info!("is native host message");
             crate::pipe::handle(input, context).map_err(Error::from)
         }
         _ => interface::handle(

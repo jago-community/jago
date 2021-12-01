@@ -5,9 +5,10 @@ edition = "2018"
 description = "variable utopia"
 resolver = "2"
 
-[package.metadata.bundle]
-name = "jago"
+[package.metadata.bundle.bin.jago]
+name="jago"
 identifier = "community.jago"
+resources = ["assets/**/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -10,3 +10,4 @@ context = { path = "../context" }
 log = "0.4.14"
 nannou = "0.18.0"
 thiserror = "1.0.30"
+workspace = { path = "../workspace" }

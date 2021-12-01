@@ -89,7 +89,17 @@ fn pack(
 use std::{io::Write, path::Path};
 
 fn pack_bundle(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
-    let mut args = vec!["bundle", "--features", "handle,logs"];
+    let target_os = "x86_64-apple-darwin";
+
+    let mut args = vec![
+        "bundle",
+        "--target",
+        target_os,
+        "--features",
+        "handle,logs",
+        "--bin",
+        "jago",
+    ];
 
     if profile == &BuildProfile::Release {
         args.push("--release");
@@ -108,6 +118,7 @@ fn pack_bundle(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
     #[cfg(target_os = "macos")]
     let bundle = target
         .join("target")
+        .join(target_os)
         .join(profile.to_string())
         .join("bundle")
         .join("osx")
@@ -125,7 +136,7 @@ fn pack_bundle(target: &Path, profile: &BuildProfile) -> Result<(), Error> {
         std::fs::remove_dir_all(&destination)?;
     }
 
-    std::fs::rename(dbg!(bundle), &destination)?;
+    std::fs::rename(bundle, &destination)?;
 
     #[cfg(target_os = "macos")]
     let binary = destination.join("Contents").join("MacOS").join("jago");

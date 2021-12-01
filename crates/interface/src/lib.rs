@@ -16,6 +16,7 @@ pub fn handle(
     match input.peek() {
         Some(next) if &next == &"interface" => {
             drop(input.next());
+
             nannou::app(model)
                 .update(update)
                 .event(event)
@@ -43,9 +44,11 @@ struct Model {
 }
 
 fn model(app: &App) -> Model {
-    let assets = app.assets_path().unwrap();
-    let img_path = assets.join("favicon.ico");
-    let logo = wgpu::Texture::from_path(app, img_path).unwrap();
+    let resources = workspace::resource_directory().unwrap();
+
+    let logo_path = resources.join("assets").join("favicon.ico");
+
+    let logo = wgpu::Texture::from_path(app, logo_path).unwrap();
 
     Model {
         cursor: pt2(0., 0.),
