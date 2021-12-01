@@ -46,6 +46,7 @@ pub enum Error {
     #[cfg(feature = "pack")]
     #[error("Pack {0}")]
     Pack(#[from] pack::Error),
+    #[cfg(feature = "serve")]
     #[error("Serve {0}")]
     Serve(#[from] serve::Error),
     #[error("Browse {0}")]
@@ -74,6 +75,7 @@ mod handle;
 mod pack;
 mod pipe;
 mod reason;
+#[cfg(feature = "serve")]
 mod serve;
 
 fn gather<'a, Input: Iterator<Item = String>>(
@@ -90,6 +92,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             pack::handle(&mut input, &mut context).map_err(Error::from)
         }),
+    #[cfg(feature = "serve")]
         Box::new(|mut input, mut context| {
             serve::handle(&mut input, &mut context).map_err(Error::from)
         }),

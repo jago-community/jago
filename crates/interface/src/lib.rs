@@ -1,4 +1,4 @@
-use nannou::{prelude::*, winit::event::ModifiersState};
+use nannou::prelude::*;
 
 use context::Context;
 use std::iter::Peekable;
@@ -9,6 +9,8 @@ pub enum Error {
     Incomplete,
 }
 
+mod model;
+
 pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
     _context: &mut Context,
@@ -17,7 +19,7 @@ pub fn handle(
         Some(next) if &next == &"interface" => {
             drop(input.next());
 
-            nannou::app(model)
+            nannou::app(model::handle)
                 .update(update)
                 .event(event)
                 .simple_window(view)
@@ -29,110 +31,30 @@ pub fn handle(
     Ok(())
 }
 
-enum Mode {
-    Normal,
-    Insert,
-}
-
-struct Model {
-    cursor: Point2,
-    scale: f32,
-    factor: f32,
-    logo: wgpu::Texture,
-    mode: Mode,
-    modifiers: ModifiersState,
-}
-
-fn model(app: &App) -> Model {
-    let resources = workspace::resource_directory().unwrap();
-
-    let logo_path = resources.join("assets").join("favicon.ico");
-
-    let logo = wgpu::Texture::from_path(app, logo_path).unwrap();
-
-    Model {
-        cursor: pt2(0., 0.),
-        scale: 42.,
-        factor: 8.,
-        logo,
-        mode: Mode::Normal,
-        modifiers: ModifiersState::empty(),
-    }
-}
+use model::{Mode, Model};
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {}
 
+mod all;
+mod insert;
+mod normal;
+
+use nannou::winit::event_loop::ControlFlow;
+
 fn event(app: &App, model: &mut Model, event: Event) {
-    match event {
-        Event::WindowEvent {
-            simple: Some(WindowEvent::MouseMoved(pos)),
-            ..
-        } => {
-            model.cursor = pos;
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::Touch(touch)),
-            ..
-        } => {
-            model.cursor = touch.position;
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::H)),
-            ..
-        } => {
-            model.cursor -= vec2(model.scale, 0.);
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::L)),
-            ..
-        } => {
-            model.cursor += vec2(model.scale, 0.);
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::K)),
-            ..
-        } => {
-            model.cursor += vec2(0., model.factor);
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::J)),
-            ..
-        } => {
-            model.cursor -= vec2(0., model.factor);
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::I)),
-            ..
-        } => {
-            model.mode = Mode::Insert;
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::Space)),
-            ..
-        } => {
-            if model.modifiers.ctrl() {
-                model.mode = Mode::Normal;
-            }
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::C)),
-            ..
-        } => {
-            if model.modifiers.ctrl() {
-                app.quit();
-            }
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyPressed(Key::LControl | Key::RControl)),
-            ..
-        } => {
-            model.modifiers.insert(ModifiersState::CTRL);
-        }
-        Event::WindowEvent {
-            simple: Some(WindowEvent::KeyReleased(Key::LControl | Key::RControl)),
-            ..
-        } => {
-            model.modifiers.insert(ModifiersState::CTRL);
+    let mut control_flow = ControlFlow::Poll;
+
+    let mode = model.mode.clone();
+
+    //let handles = vec![all::event, insert::event, normal::event];
+
+    for event_handler in [all::event, insert::event, normal::event] {
+        event_handler(&mode, &mut control_flow, model, &event);
+    }
+
+    match control_flow {
+        ControlFlow::Exit => {
+            app.quit();
         }
         _ => {}
     }
@@ -147,6 +69,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     let container = app.window_rect().pad(model.factor * 2.);
 
+    document(app, container, model, &draw);
+
     draw.text(match model.mode {
         Mode::Insert => "Insert",
         Mode::Normal => "Normal",
@@ -158,6 +82,33 @@ fn view(app: &App, model: &Model, frame: Frame) {
     .wh(container.wh());
 
     draw.to_frame(app, &frame).unwrap();
+}
+
+use matches::matches;
+
+fn document(app: &App, container: Rect, model: &Model, draw: &Draw) {
+    let text = text("greetings stranger")
+        .left_justify()
+        .align_top()
+        .font_size(model.scale as u32)
+        .build(container);
+
+    draw.path().fill().color(BLACK).events(text.path_events());
+
+    if matches!(model.mode, Mode::Insert)
+        && app.elapsed_frames() % (model.scale as u64) < (model.scale / 2.) as u64
+    {
+        let line_height = text.height();
+
+        let bar = Rect::from_x_y_w_h(
+            container.left(),
+            container.top() - line_height,
+            1.,
+            line_height,
+        );
+
+        draw.rect().xy(bar.xy()).wh(bar.wh()).color(BLUE);
+    }
 }
 
 fn logo(model: &Model, draw: &Draw) {

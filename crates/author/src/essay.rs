@@ -3,17 +3,17 @@ pub enum Error {
     #[error("Incomplete")]
     Incomplete,
     #[error("StdIoError {0}")]
-    StdIoError(std_io_error)
-    #[error("Incomplete {0}")]
-    BadInput(bad_input)
+    StdIoError(std::io::Error),
+    #[error("BadInput")]
+    BadInput,
     #[error("Unknown error happened while shutting down server. You can probably ignore this.")]
-    Shutdown
+    Shutdown,
 }
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 
-pub fn derive() -> Result<TokenStream, Error> {
+pub fn derive(_: TokenStream) -> Result<TokenStream, Error> {
     let source = "";
     let mut target = TokenStream::new();
     source.to_tokens(&mut target);

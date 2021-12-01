@@ -169,8 +169,11 @@ dependencies = [
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
+ "serde",
  "syn",
  "thiserror",
+ "toml 0.5.8",
+ "workspace",
 ]
 
 [[package]]
@@ -2787,6 +2790,7 @@ version = "0.1.0"
 dependencies = [
  "context",
  "log",
+ "matches",
  "nannou",
  "thiserror",
  "workspace",
@@ -2844,14 +2848,9 @@ dependencies = [
  "ignore",
  "interface",
  "log",
- "logger",
- "magazine",
  "mobile-entry-point",
  "ndk-glue 0.2.1",
- "pipe",
- "plant",
  "pretty_env_logger",
- "program",
  "serde_json",
  "thiserror",
  "tokio 1.14.0",

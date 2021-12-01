@@ -19,6 +19,7 @@ pub fn before() -> Result<(), Error> {
 pub fn before() -> Result<(), Error> {
     pretty_env_logger::formatted_builder()
         .filter_module("jago", log::LevelFilter::Info)
-        .filter_module("watch", log::LevelFilter::Info)
-        .try_init().map_err(Error::from)
+        .filter_module("interface", log::LevelFilter::Info)
+        .try_init()
+        .map_err(Error::from)
 }
