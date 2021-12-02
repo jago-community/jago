@@ -13,7 +13,6 @@ default=["logs", "handle", "interface"]
 logs=["log", "pretty_env_logger"]
 pack=["wasm-pack"]
 serve=["warp", "tokio"]
-handle=[]
 
 [[bin]]
 name = "jago"
@@ -49,6 +48,7 @@ context = { path = "crates/context" }
 #glass = { path = "shelf/glass" }
 interface = { path = "crates/interface",  optional = true }
 mobile-entry-point = { version = "0.1.0" }
+handle = { path = "crates/handle",  optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.9.0"

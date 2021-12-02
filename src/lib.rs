@@ -70,11 +70,15 @@ use context::Context;
 use std::iter::Peekable;
 
 mod browse;
-mod handle;
+
+// mod handle;
+
 #[cfg(feature = "pack")]
 mod pack;
+
 mod pipe;
 mod reason;
+
 #[cfg(feature = "serve")]
 mod serve;
 
@@ -92,7 +96,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             pack::handle(&mut input, &mut context).map_err(Error::from)
         }),
-    #[cfg(feature = "serve")]
+        #[cfg(feature = "serve")]
         Box::new(|mut input, mut context| {
             serve::handle(&mut input, &mut context).map_err(Error::from)
         }),

@@ -2293,6 +2293,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "handle"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "context",
+ "log",
+ "rosc",
+ "serde",
+ "thiserror",
+ "tokio 1.14.0",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2845,6 +2858,7 @@ dependencies = [
  "context",
  "dirs 4.0.0",
  "failure",
+ "handle",
  "ignore",
  "interface",
  "log",
@@ -4945,6 +4959,17 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "winreg 0.7.0",
+]
+
+[[package]]
+name = "rosc"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2f26c70ce40ebff952464df4aa64817459de5ddf8ed7bbc2913adff8b9b31a0"
+dependencies = [
+ "byteorder",
+ "nom",
+ "regex",
 ]
 
 [[package]]

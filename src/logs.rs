@@ -20,6 +20,7 @@ pub fn before() -> Result<(), Error> {
     pretty_env_logger::formatted_builder()
         .filter_module("jago", log::LevelFilter::Info)
         .filter_module("interface", log::LevelFilter::Info)
+        .filter_module("handle", log::LevelFilter::Info)
         .try_init()
         .map_err(Error::from)
 }
