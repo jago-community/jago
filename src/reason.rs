@@ -1,10 +1,10 @@
-use context::{Context, Inner};
+use context::Context;
 
 use std::{iter::Peekable, mem::replace, ops::DerefMut};
 
 pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    context: Context,
+    context: &Context,
 ) -> Result<(), Error> {
     match input.peek() {
         Some(name) if name == "jago" => {
@@ -13,14 +13,9 @@ pub fn handle(
         _ => {}
     };
 
-    let context = context
-        .lock()
-        .map_err(|error| context::Error::Poison(Box::new(error)))?;
-
-    let _difference = replace(
-        context.deref_mut(),
-        Inner::from(b"why things are the way they are".to_vec()),
-    );
+    for byte in b"why things are the way they are" {
+        context.buffer.append(*byte, 1);
+    }
 
     /// With regards to the computer science, I think the problem is calling it a memory leak.
     /// It's misleading in my opinion. I mean I didn't get the joke until I properly learned a low

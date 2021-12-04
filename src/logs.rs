@@ -20,7 +20,7 @@ pub fn before() -> Result<(), Error> {
 use context::Context;
 
 #[cfg(not(target_os = "android"))]
-pub fn before(context: Context) -> Result<(), Error> {
+pub fn before(context: &'static Context) -> Result<(), Error> {
     /*
     pretty_env_logger::formatted_builder()
         .filter_module("jago", log::LevelFilter::Info)
@@ -31,9 +31,9 @@ pub fn before(context: Context) -> Result<(), Error> {
         .map_err(Error::from)
     */
 
-    //unsafe {
-    //log::set_logger_racy(context);
-    //}
+    unsafe {
+        log::set_logger_racy(context).expect("set logger");
+    }
 
     Ok(())
 }

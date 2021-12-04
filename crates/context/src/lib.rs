@@ -1,57 +1,45 @@
-#[derive(Default)]
-pub struct Inner(Vec<u8>);
+use crdts::List;
 
-impl std::ops::Deref for Inner {
-    type Target = [u8];
+#[derive(Clone)]
+pub struct Context {
+    pub buffer: List<u8, u8>,
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            buffer: List::new(),
+        }
+    }
+
+    pub fn read_buffer(&self) -> Vec<u8> {
+        self.buffer.clone().read_into()
     }
 }
 
-impl std::ops::DerefMut for Inner {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+impl From<Vec<u8>> for Context {
+    fn from(input: Vec<u8>) -> Self {
+        let buffer = List::new();
+
+        for byte in input {
+            buffer.append(byte, 0);
+        }
+
+        Self { buffer }
     }
 }
-
-use std::sync::{Arc, Mutex};
-
-pub type Context = Arc<Mutex<Inner>>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Incomplete")]
     Incomplete,
-    #[error("Poison {0}")]
-    Poison(Box<dyn std::error::Error + 'static>),
-}
-
-/*
-
-impl Context {
-    pub fn get<'a>(&'static self) -> Result<impl std::ops::Deref<Target = [u8]>, Error> {
-        //pub fn get<'a>(&'static self) -> Result<std::sync::MutexGuard<'a, &'a [u8]>, Error> {
-        self.0
-            .lock()
-            //.map(|payload| payload.as_ref())
-            .map_err(|error| Error::Poison(Box::new(error)))
-    }
-}
-
-*/
-
-impl From<Vec<u8>> for Inner {
-    fn from(vec: Vec<u8>) -> Self {
-        Inner(vec)
-    }
 }
 
 use std::iter::Peekable;
 
 pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    _context: Context,
+    _context: &Context,
 ) -> Result<(), Error> {
     match input.peek() {
         Some(name) if name == "log" => {
@@ -67,15 +55,16 @@ pub fn handle(
 
 use log::{Level, Metadata, Record};
 
-impl log::Log for Inner {
+impl log::Log for Context {
     fn enabled(&self, metadata: &Metadata) -> bool {
+        println!("enabled {:?}", metadata);
         metadata.level() <= Level::Info
     }
 
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            println!("{} - {}", record.level(), record.args());
-        }
+        //if self.enabled(record.metadata()) {
+        println!("{} - {}", record.level(), record.args());
+        //}
     }
 
     fn flush(&self) {

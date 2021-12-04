@@ -7,8 +7,6 @@ use mobile_entry_point::mobile_entry_point;
 
 // #[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
 
-use std::ops::Deref;
-
 use context::Context;
 
 use once_cell::sync::OnceCell;
@@ -23,10 +21,10 @@ pub fn handle() {
 
     static CONTEXT: OnceCell<Context> = OnceCell::new();
 
-    let context = CONTEXT.get_or_init(|| Context::default());
+    let context = CONTEXT.get_or_init(|| Context::new());
 
     #[cfg(feature = "logs")]
-    if let Err(error) = logs::before(*context) {
+    if let Err(error) = logs::before(context) {
         eprintln!("{}", error);
         code = weight(error);
     }
@@ -34,14 +32,16 @@ pub fn handle() {
     #[cfg(feature = "logs")]
     log::trace!("starting execution");
 
-    gather(&mut input, *context).unwrap();
+    gather(&mut input, context).unwrap();
 
-    let bounty = context
-        .lock()
-        .map_err(|error| context::Error::Poison(Box::new(error)))
-        .unwrap();
+    //let bounty = context
+    //.lock()
+    //.map_err(|error| context::Error::Poison(Box::new(error)))
+    //.unwrap();
 
-    inspect(Ok(bounty.deref()));
+    let bounty = context.read_buffer();
+
+    inspect(Ok(&bounty[..]));
 
     #[cfg(feature = "logs")]
     log::info!("{:?} elapsed", start.elapsed());
@@ -100,12 +100,12 @@ mod reason;
 
 fn gather<'a, Input: Iterator<Item = String>>(
     input: &mut Peekable<Input>,
-    context: Context,
+    context: &Context,
 ) -> Result<(), Error> {
     log::info!("gathering");
 
     let handles: &[Box<dyn Fn(&mut Peekable<Input>) -> Result<(), Error>>] = &[
-        Box::new(|mut input| reason::handle(&mut input, context.clone()).map_err(Error::from)),
+        Box::new(|mut input| reason::handle(&mut input, context).map_err(Error::from)),
         /*
         Box::new(|mut input, mut context| {
             workspace::handle(&mut input, &mut context).map_err(Error::from)
@@ -121,7 +121,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             browse::handle(&mut input, &mut context).map_err(Error::from)
         }),*/
-        Box::new(|mut input| context::handle(&mut input, context.clone()).map_err(Error::from)),
+        Box::new(|mut input| context::handle(&mut input, context).map_err(Error::from)),
         //Box::new(|mut input, mut context| {
         //glass::handle(&mut input, &mut context).map_err(Error::from)
         //}),
