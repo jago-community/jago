@@ -1,10 +1,17 @@
 #[cfg(feature = "logs")]
 mod logs;
 
-//#[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+// #[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+
 use mobile_entry_point::mobile_entry_point;
 
-//#[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+// #[cfg_attr(any(target_os = "android", target_os = "ios"), mobile_entry_point)]
+
+use std::ops::Deref;
+
+use context::Context;
+
+use once_cell::sync::OnceCell;
 
 #[mobile_entry_point]
 pub fn handle() {
@@ -14,8 +21,12 @@ pub fn handle() {
     let mut code = 0;
     let mut after: Vec<Box<dyn Fn()>> = vec![];
 
+    static CONTEXT: OnceCell<Context> = OnceCell::new();
+
+    let context = CONTEXT.get_or_init(|| Context::default());
+
     #[cfg(feature = "logs")]
-    if let Err(error) = logs::before() {
+    if let Err(error) = logs::before(*context) {
         eprintln!("{}", error);
         code = weight(error);
     }
@@ -23,11 +34,14 @@ pub fn handle() {
     #[cfg(feature = "logs")]
     log::trace!("starting execution");
 
-    let mut context = vec![];
+    gather(&mut input, *context).unwrap();
 
-    let bounty = gather(&mut input, &mut context).map(move |_| context);
+    let bounty = context
+        .lock()
+        .map_err(|error| context::Error::Poison(Box::new(error)))
+        .unwrap();
 
-    inspect(bounty);
+    inspect(Ok(bounty.deref()));
 
     #[cfg(feature = "logs")]
     log::info!("{:?} elapsed", start.elapsed());
@@ -49,10 +63,10 @@ pub enum Error {
     #[cfg(feature = "serve")]
     #[error("Serve {0}")]
     Serve(#[from] serve::Error),
-    #[error("Browse {0}")]
-    Browse(#[from] browse::Error),
-    #[error("Pipe {0}")]
-    Pipe(#[from] pipe::Error),
+    //#[error("Browse {0}")]
+    //Browse(#[from] browse::Error),
+    //#[error("Pipe {0}")]
+    //Pipe(#[from] pipe::Error),
     #[error("Reason {0}")]
     Reason(#[from] reason::Error),
     //#[error("Watch {0}")]
@@ -63,34 +77,38 @@ pub enum Error {
     //Glass(#[from] glass::Error),
     #[error("Glass {0}")]
     Interface(#[from] interface::Error),
+    #[error("Workspace {0}")]
+    Workspace(#[from] workspace::Error),
+    #[error("Context {0}")]
+    Context(#[from] context::Error),
 }
-
-use context::Context;
 
 use std::iter::Peekable;
 
-mod browse;
+//mod browse;
 
 // mod handle;
 
-#[cfg(feature = "pack")]
-mod pack;
+//#[cfg(feature = "pack")]
+//mod pack;
 
-mod pipe;
+//mod pipe;
 mod reason;
 
-#[cfg(feature = "serve")]
-mod serve;
+//#[cfg(feature = "serve")]
+//mod serve;
 
 fn gather<'a, Input: Iterator<Item = String>>(
     input: &mut Peekable<Input>,
-    context: &'a mut Context,
+    context: Context,
 ) -> Result<(), Error> {
     log::info!("gathering");
 
-    let handles: &[Box<dyn Fn(&mut Peekable<Input>, &mut Context) -> Result<(), Error>>] = &[
+    let handles: &[Box<dyn Fn(&mut Peekable<Input>) -> Result<(), Error>>] = &[
+        Box::new(|mut input| reason::handle(&mut input, context.clone()).map_err(Error::from)),
+        /*
         Box::new(|mut input, mut context| {
-            reason::handle(&mut input, &mut context).map_err(Error::from)
+            workspace::handle(&mut input, &mut context).map_err(Error::from)
         }),
         #[cfg(feature = "pack")]
         Box::new(|mut input, mut context| {
@@ -102,13 +120,12 @@ fn gather<'a, Input: Iterator<Item = String>>(
         }),
         Box::new(|mut input, mut context| {
             browse::handle(&mut input, &mut context).map_err(Error::from)
-        }),
-        //Box::new(|mut input, mut context| {
-        //watch::handle(&mut input, &mut context).map_err(Error::from)
-        //}),
+        }),*/
+        Box::new(|mut input| context::handle(&mut input, context.clone()).map_err(Error::from)),
         //Box::new(|mut input, mut context| {
         //glass::handle(&mut input, &mut context).map_err(Error::from)
         //}),
+        /*
         Box::new(|mut input, mut context| {
             interface::handle(&mut input, &mut context).map_err(Error::from)
         }),
@@ -120,16 +137,17 @@ fn gather<'a, Input: Iterator<Item = String>>(
         Box::new(|mut input, mut context| {
             handle::grasp(&mut input, &mut context).map_err(Error::from)
         }),
+        */
     ];
 
     for handle in handles {
-        handle(input, context)?;
+        handle(input)?;
     }
 
     Ok(())
 }
 
-fn inspect<Bounty: AsRef<[u8]>>(input: Result<Bounty, Error>) -> u32 {
+fn inspect(input: Result<&[u8], Error>) -> u32 {
     let bounty = match input {
         Ok(bounty) => bounty,
         Err(error) => {

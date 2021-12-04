@@ -1,10 +1,10 @@
-use context::Context;
+use context::{Context, Inner};
 
-use std::{iter::Peekable, mem::replace};
+use std::{iter::Peekable, mem::replace, ops::DerefMut};
 
-pub fn handle<'a>(
+pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &'a mut Context,
+    context: Context,
 ) -> Result<(), Error> {
     match input.peek() {
         Some(name) if name == "jago" => {
@@ -13,7 +13,14 @@ pub fn handle<'a>(
         _ => {}
     };
 
-    let _difference = replace(context, b"why things are the way they are".to_vec());
+    let context = context
+        .lock()
+        .map_err(|error| context::Error::Poison(Box::new(error)))?;
+
+    let _difference = replace(
+        context.deref_mut(),
+        Inner::from(b"why things are the way they are".to_vec()),
+    );
 
     /// With regards to the computer science, I think the problem is calling it a memory leak.
     /// It's misleading in my opinion. I mean I didn't get the joke until I properly learned a low
@@ -40,4 +47,6 @@ pub fn handle<'a>(
 pub enum Error {
     #[error("Incomplete")]
     Incomplete,
+    #[error("Context {0}")]
+    Context(#[from] context::Error),
 }

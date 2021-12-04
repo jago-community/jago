@@ -832,6 +832,10 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 [[package]]
 name = "context"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+]
 
 [[package]]
 name = "convert_case"
@@ -1137,6 +1141,31 @@ checksum = "d82cfc11ce7f2c3faef78d8a684447b40d503d9681acebed6cb728d45940c4db"
 dependencies = [
  "cfg-if 1.0.0",
  "lazy_static 1.4.0",
+]
+
+[[package]]
+name = "crossterm"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c85525306c4291d1b73ce93c8acf9c339f9b213aef6c1d85c3830cbf1c16325c"
+dependencies = [
+ "bitflags",
+ "crossterm_winapi",
+ "libc",
+ "mio 0.7.14",
+ "parking_lot 0.11.2",
+ "signal-hook",
+ "signal-hook-mio",
+ "winapi 0.3.9",
+]
+
+[[package]]
+name = "crossterm_winapi"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ae1b35a484aa10e07fe0638d02301c5ad24de82d310ccbd2f3693da5f09bf1c"
+dependencies = [
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -2856,6 +2885,7 @@ dependencies = [
  "anyhow",
  "byteorder",
  "context",
+ "crdts",
  "dirs 4.0.0",
  "failure",
  "handle",
@@ -2864,6 +2894,7 @@ dependencies = [
  "log",
  "mobile-entry-point",
  "ndk-glue 0.2.1",
+ "once_cell",
  "pretty_env_logger",
  "serde_json",
  "thiserror",
@@ -5433,6 +5464,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "signal-hook"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c98891d737e271a2954825ef19e46bd16bdb98e2746f2eec4f7a4ef7946efd1"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-mio"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29fd5867f1c4f2c5be079aee7a2adf1152ebb04a4bc4d341f504b7dece607ed4"
+dependencies = [
+ "libc",
+ "mio 0.7.14",
+ "signal-hook",
+]
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7207,8 +7259,13 @@ name = "workspace"
 version = "0.1.0"
 dependencies = [
  "context",
+ "crossterm",
  "dirs 4.0.0",
+ "futures 0.3.18",
+ "ignore",
+ "log",
  "thiserror",
+ "tokio 1.14.0",
 ]
 
 [[package]]
