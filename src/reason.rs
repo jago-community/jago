@@ -13,9 +13,7 @@ pub fn handle(
         _ => {}
     };
 
-    for byte in b"why things are the way they are" {
-        context.buffer.append(*byte, 1);
-    }
+    context.write("why things are the way they are")?;
 
     /// With regards to the computer science, I think the problem is calling it a memory leak.
     /// It's misleading in my opinion. I mean I didn't get the joke until I properly learned a low

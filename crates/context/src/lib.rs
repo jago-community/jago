@@ -1,38 +1,41 @@
-use crdts::List;
+mod context;
+pub mod document;
+mod pipe;
 
-#[derive(Clone)]
-pub struct Context {
-    pub buffer: List<u8, u8>,
+pub use context::{Context, Error};
+pub use document::Document;
+
+use once_cell::sync::OnceCell;
+
+static DOCUMENT: OnceCell<Document> = OnceCell::new();
+
+pub fn before() -> Result<(), Error> {
+    use crossterm::terminal::enable_raw_mode;
+
+    let document = DOCUMENT.get_or_init(Document::default);
+
+    log::set_logger(document).map_err(|_| Error::SetLogger)?;
+    log::set_max_level(log::LevelFilter::Info);
+
+    //enable_raw_mode().map_err(Error::from)
+
+    Ok(())
 }
 
-impl Context {
-    pub fn new() -> Self {
-        Self {
-            buffer: List::new(),
-        }
+use log::Log;
+
+pub fn after() -> Result<(), Error> {
+    use crossterm::terminal::disable_raw_mode;
+
+    if let Some(document) = DOCUMENT.get() {
+        document.flush();
     }
 
-    pub fn read_buffer(&self) -> Vec<u8> {
-        self.buffer.clone().read_into()
-    }
-}
+    //context.flush();
 
-impl From<Vec<u8>> for Context {
-    fn from(input: Vec<u8>) -> Self {
-        let buffer = List::new();
+    // disable_raw_mode().map_err(Error::from)
 
-        for byte in input {
-            buffer.append(byte, 0);
-        }
-
-        Self { buffer }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Incomplete")]
-    Incomplete,
+    Ok(())
 }
 
 use std::iter::Peekable;
@@ -50,24 +53,5 @@ pub fn handle(
             Ok(())
         }
         _ => Ok(()),
-    }
-}
-
-use log::{Level, Metadata, Record};
-
-impl log::Log for Context {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        println!("enabled {:?}", metadata);
-        metadata.level() <= Level::Info
-    }
-
-    fn log(&self, record: &Record) {
-        //if self.enabled(record.metadata()) {
-        println!("{} - {}", record.level(), record.args());
-        //}
-    }
-
-    fn flush(&self) {
-        println!("flush");
     }
 }

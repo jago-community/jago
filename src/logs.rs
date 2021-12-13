@@ -31,9 +31,7 @@ pub fn before(context: &'static Context) -> Result<(), Error> {
         .map_err(Error::from)
     */
 
-    unsafe {
-        log::set_logger_racy(context).expect("set logger");
-    }
+    log::set_logger(context).expect("set logger");
 
     Ok(())
 }

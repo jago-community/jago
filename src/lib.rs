@@ -17,14 +17,13 @@ pub fn handle() {
 
     let mut input = std::env::args().skip(1).peekable();
     let mut code = 0;
-    let mut after: Vec<Box<dyn Fn()>> = vec![];
 
     static CONTEXT: OnceCell<Context> = OnceCell::new();
 
-    let context = CONTEXT.get_or_init(|| Context::new());
+    let context = CONTEXT.get_or_init(Context::default);
 
     #[cfg(feature = "logs")]
-    if let Err(error) = logs::before(context) {
+    if let Err(error) = context::before() {
         eprintln!("{}", error);
         code = weight(error);
     }
@@ -32,21 +31,28 @@ pub fn handle() {
     #[cfg(feature = "logs")]
     log::trace!("starting execution");
 
-    gather(&mut input, context).unwrap();
+    if let Err(error) = gather(&mut input, context) {
+        eprintln!("{}", error);
+        code = weight(error);
+    }
 
-    //let bounty = context
-    //.lock()
-    //.map_err(|error| context::Error::Poison(Box::new(error)))
-    //.unwrap();
+    let mut bounty = context.target();
 
-    let bounty = context.read_buffer();
+    if let Err(error) = context.read(&mut bounty) {
+        eprintln!("{}", error);
+        code = weight(error);
+    }
 
     inspect(Ok(&bounty[..]));
 
     #[cfg(feature = "logs")]
     log::info!("{:?} elapsed", start.elapsed());
 
-    after.iter().for_each(|handle| handle());
+    #[cfg(feature = "logs")]
+    if let Err(error) = context::after() {
+        eprintln!("{}", error);
+        code = weight(error);
+    }
 
     std::process::exit(code as i32);
 }
@@ -81,6 +87,8 @@ pub enum Error {
     Workspace(#[from] workspace::Error),
     #[error("Context {0}")]
     Context(#[from] context::Error),
+    #[error("Logs {0}")]
+    Logs(#[from] logs::Error),
 }
 
 use std::iter::Peekable;
@@ -169,7 +177,7 @@ fn inspect(input: Result<&[u8], Error>) -> u32 {
     }
 }
 
-fn weight<Input>(_input: Input) -> u32 {
+fn weight(_error: impl Into<Error>) -> u32 {
     1
 }
 
