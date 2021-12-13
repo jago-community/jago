@@ -5,8 +5,8 @@ use std::{
 
 #[derive(Debug)]
 pub struct Pipe<Inner> {
-    inner: Arc<Mutex<Vec<u8>>>,
-    steps: Arc<Mutex<Vec<usize>>>,
+    inner: Vec<u8>,
+    steps: Vec<usize>,
     target: Inner,
 }
 
@@ -19,18 +19,10 @@ pub enum Error {
 impl From<Stderr> for Pipe<Stderr> {
     fn from(stderr: Stderr) -> Self {
         Pipe {
-            inner: Arc::new(Mutex::new(Vec::new())),
-            steps: Arc::new(Mutex::new(Vec::new())),
+            inner: Vec::new(),
+            steps: Vec::new(),
             target: stderr,
         }
-    }
-}
-
-use std::sync::MutexGuard;
-
-impl Pipe<Stderr> {
-    pub fn inner<'a>(&'a self) -> Result<MutexGuard<'a, impl Write>, Error> {
-        self.inner.lock().map_err(|_| Error::Poisoned)
     }
 }
 
@@ -38,13 +30,8 @@ impl<W: Write> Write for Pipe<W> {
     fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
         let written = self.target.write(input)?;
 
-        if let Ok(mut inner) = self.inner.lock() {
-            inner.extend_from_slice(&input[0..written]);
-
-            if let Ok(mut steps) = self.steps.lock() {
-                steps.push(inner.len());
-            }
-        }
+        self.steps.push(written);
+        self.inner.extend_from_slice(&input[0..written]);
 
         Ok(written)
     }

@@ -1,52 +1,54 @@
-use crate::pipe;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Poisoned")]
     Poisoned,
     #[error("InputOutput {0}")]
     InputOutput(#[from] std::io::Error),
-    #[error("Pipe {0}")]
-    Pipe(#[from] pipe::Error),
 }
 
-use std::{
-    io::{stderr, Stderr},
-    sync::{Arc, Mutex},
-};
-
-use pipe::Pipe;
+use std::io::{stderr, Stderr, Write};
 
 #[derive(Debug)]
 pub struct Document {
-    buffer: Arc<Mutex<Vec<u8>>>,
+    buffer: Vec<u8>,
+    steps: Vec<usize>,
     output: Stderr,
-    pipe: Pipe<Stderr>,
 }
 
 impl Default for Document {
     fn default() -> Self {
         Self {
-            buffer: Arc::new(Mutex::new(vec![])),
+            buffer: vec![],
+            steps: vec![],
             output: stderr(),
-            pipe: stderr().into(),
         }
     }
 }
 
-impl Document {
-    fn record(&self, expression: Expression) -> Result<(), Error> {
-        use crossterm::execute;
+impl Write for Document {
+    fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
+        let step = self.output.write(input)?;
 
-        //execute!(self.output.lock(), expression).map_err(Error::from)
+        self.buffer.extend_from_slice(&input[0..step]);
+        self.steps.push(step);
 
-        let mut pipe = self.pipe.inner()?;
+        Ok(step)
+    }
 
-        execute!(pipe, expression).map_err(Error::from)
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.output.flush()
     }
 }
 
-enum Expression<'a> {
+impl Document {
+    pub fn record(&mut self, expression: Expression) -> Result<(), Error> {
+        use crossterm::execute;
+
+        execute!(self, &expression).map_err(Error::from)
+    }
+}
+
+pub enum Expression<'a> {
     Log(&'a log::Record<'a>),
 }
 
@@ -71,20 +73,4 @@ impl<'a> crossterm::Command for Expression<'a> {
             }
         }
     }
-}
-
-use log::{Log, Metadata, Record};
-
-impl Log for Document {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        true
-    }
-
-    fn log(&self, record: &Record) {
-        if let Err(error) = self.record(Expression::Log(record)) {
-            eprintln!("unable to record log: {}", error);
-        }
-    }
-
-    fn flush(&self) {}
 }
