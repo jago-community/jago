@@ -61,7 +61,7 @@ impl Log for Context {
 
     fn log(&self, record: &Record) {
         if let Ok(mut document) = self.document.lock() {
-            if let Err(error) = document.record(Expression::Log(record)) {
+            if let Err(error) = document.record(Expression::from(record)) {
                 eprintln!("unable to record log: {}", error);
             }
         }

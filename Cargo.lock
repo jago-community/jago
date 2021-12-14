@@ -844,14 +844,17 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "context"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "crossterm",
  "futures 0.3.18",
  "log",
+ "nom",
  "once_cell",
  "sprs",
  "thiserror",
  "tokio 1.14.0",
  "tokio-stream",
+ "unicode-segmentation",
 ]
 
 [[package]]

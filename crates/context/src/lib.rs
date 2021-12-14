@@ -1,6 +1,6 @@
 mod context;
 pub mod document;
-mod pipe;
+//mod parse;
 
 pub use context::{Context, Error};
 
@@ -32,7 +32,7 @@ pub fn after() -> Result<(), Error> {
 
     context.flush();
 
-    // disable_raw_mode().map_err(Error::from)
+    //disable_raw_mode().map_err(Error::from)
 
     Ok(())
 }
