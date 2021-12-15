@@ -67,5 +67,14 @@ impl Log for Context {
         }
     }
 
-    fn flush(&self) {}
+    fn flush(&self) {
+        if let Ok(mut document) = self.document.lock() {
+            match document.read_input() {
+                Ok(input) => {
+                    dbg!(input);
+                }
+                Err(error) => eprintln!("unable to read input: {}", error),
+            }
+        }
+    }
 }

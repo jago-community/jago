@@ -8,12 +8,16 @@ pub enum Error {
     NoThingAtPosition(usize, usize),
 }
 
-use std::io::{stderr, Stderr, Write};
+use std::{
+    io::{stderr, Stderr, Write},
+    ops::Range,
+};
 
 #[derive(Debug)]
 pub struct Document {
     buffer: Vec<u8>,
     steps: Vec<usize>,
+    blocks: Vec<(Range<usize>, bool)>,
     output: Stderr,
 }
 
@@ -23,6 +27,7 @@ impl Default for Document {
             buffer: vec![],
             steps: vec![],
             output: stderr(),
+            blocks: vec![],
         }
     }
 }
@@ -46,55 +51,29 @@ impl Document {
     pub fn record(&mut self, expression: Expression) -> Result<(), Error> {
         use crossterm::execute;
 
+        expression.arrange();
+
+        self.blocks.extend_from_slice(&expression.ranges());
+
         execute!(self, &expression)?;
 
-        let ranges = expression.get_ranges();
-
-        match expression.kind {
-            ExpressionKind::Log(log) => {
-                if log.args().to_string().ends_with('?') {
-                    println!("is question");
-                }
-            }
-        };
-
-        /*
-        if self.is_question() {
-            if let Some(answer) = self.read_input()? {
-                log::info!("{}", String::from_utf8_lossy(answer));
-            }
-        }
-         */
-
         Ok(())
-    }
-
-    pub fn is_question(&self) -> bool {
-        if let Some(part) = self
-            .buffer
-            .get(self.buffer.len() - 2..self.buffer.len() - 1)
-        {
-            if let Ok(part) = std::str::from_utf8(part) {
-                part.trim_end().ends_with("?")
-            } else {
-                false
-            }
-        } else {
-            false
-        }
     }
 
     pub fn read_input(&mut self) -> Result<Option<&[u8]>, Error> {
         use crossterm::{
             cursor::{
-                position, MoveDown, MoveLeft, MoveRight, MoveUp, RestorePosition, SavePosition,
+                position, MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition,
+                SavePosition,
             },
             event::{read, Event, KeyCode, KeyEvent},
             execute,
             terminal::{disable_raw_mode, enable_raw_mode},
         };
 
-        execute!(self, SavePosition, MoveUp(1))?;
+        let (x, y) = self.previous_block_boundary(position()?)?;
+
+        execute!(self, SavePosition, MoveTo(x, y))?;
 
         let mut start = 0;
         let mut stop = 0;
@@ -173,7 +152,102 @@ impl Document {
     }
 }
 
-use std::{cell::RefCell, ops::Range};
+#[test]
+fn test_previous_block_boundary() {
+    let messages = [
+        "gathering",
+        "context yes or no?",
+        "why things are the way they are",
+        "528.453µs elapsed",
+    ];
+
+    let mut document = Document::default();
+
+    for message in messages {
+        document
+            .record(Expression::from(
+                &log::Record::builder()
+                    .target("nope")
+                    .args(format_args!("{}", message))
+                    .level(log::Level::Info)
+                    .file(Some("src/lib.rs"))
+                    .line(Some(0))
+                    .build(),
+            ))
+            .unwrap();
+    }
+
+    println!("{}", String::from_utf8_lossy(&document.buffer));
+
+    let output = String::from_utf8_lossy(&document.buffer);
+
+    let last_line_length = output.lines().rev().next().unwrap().len();
+
+    assert_eq!(
+        (last_line_length as u16 - 1, 3),
+        document.previous_block_boundary((0, 4)).unwrap()
+    );
+}
+
+impl Document {
+    ///              11131517192123252729313335373941434547495153
+    ///   01234567891012141618202224262830323436384042444648505254
+    /// 0INFO jago gathering src/lib.rs:113
+    /// 1INFO context yes or no? crates/context/src/lib.rs:50
+    /// 2INFO jago why things are the way they are src/lib.rs:187
+    /// 3INFO jago 528.453µs elapsed src/lib.rs:49
+    fn previous_block_boundary(&self, (_, y): (u16, u16)) -> Result<(u16, u16), Error> {
+        let mut blocks = self.blocks.iter().rev().peekable();
+
+        let mut mark = self.buffer.len() - 1;
+
+        dbg!(&mark);
+
+        let mut values = (0..mark)
+            .rev()
+            .map(|index| (index, &self.buffer[index]))
+            .peekable();
+
+        let mut dy = 0;
+
+        loop {
+            dbg!((blocks.peek(), values.peek()));
+
+            match (blocks.peek(), values.next()) {
+                (Some((range, relevant)), Some((index, _)))
+                    if *relevant && range.start > index && range.end < index =>
+                {
+                    mark = index;
+                    dbg!("here");
+                    break;
+                }
+                (Some(_), Some((_, b'\n'))) => dy += 1,
+                (Some(block), Some((index, _))) if block.0.start > index => drop(blocks.next()),
+                (Some(_), Some(_)) => {}
+                _ => {
+                    dbg!("there");
+                    break;
+                }
+            };
+        }
+
+        dbg!(&mark);
+
+        let mut column = 0;
+
+        for mark in (0..mark).rev() {
+            column += 1;
+
+            if self.buffer[mark] == b'\n' {
+                break;
+            }
+        }
+
+        Ok((column, y - dy))
+    }
+}
+
+use std::cell::RefCell;
 
 pub struct Expression<'a> {
     kind: ExpressionKind<'a>,
@@ -200,27 +274,15 @@ impl<'a> From<&'a log::Record<'a>> for Expression<'a> {
 use std::fmt::Display;
 
 impl Expression<'_> {
-    pub fn get_ranges(&self) -> Vec<Range<usize>> {
-        match self.kind {
-            ExpressionKind::Log(log) => {
-                let mut ranges = vec![];
-
-                let mut start = 0;
-
-                for line in log.args().to_string().lines() {
-                    let end = start + line.len();
-
-                    ranges.push(start..end);
-
-                    start = end + 1;
-                }
-
-                ranges
-            }
-        }
+    pub fn ranges(&self) -> Vec<(Range<usize>, bool)> {
+        self.ranges.take()
     }
 
     fn arrange(&self) {
+        if self.value.borrow().len() > 0 {
+            return;
+        }
+
         match self.kind {
             ExpressionKind::Log(record) => {
                 use log::Level;
@@ -263,15 +325,9 @@ impl Expression<'_> {
                         },
                     );
 
-                *self.ranges.borrow_mut() = self
-                    .arrangement
-                    .borrow()
-                    .iter()
-                    .enumerate()
-                    .map(|(index, _)| (0..0, index == 6))
-                    .collect();
+                *self.ranges.borrow_mut() = ranges;
 
-                *self.value.borrow_mut() = vec![];
+                *self.value.borrow_mut() = value;
             }
         }
     }
@@ -294,38 +350,10 @@ use crossterm::{
 
 impl<'a> Command for Expression<'a> {
     fn write_ansi(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
-        match self.kind {
-            ExpressionKind::Log(record) => {
-                use log::Level;
+        let buffer = self.value.borrow();
 
-                let blocks: Vec<Box<dyn std::fmt::Display>> = vec![
-                    Box::new(SetForegroundColor(match record.level() {
-                        Level::Error => Color::Red,
-                        Level::Warn => Color::Yellow,
-                        Level::Info => Color::Green,
-                        Level::Debug => Color::Blue,
-                        Level::Trace => Color::White,
-                    })),
-                    Box::new(Print(record.level().to_string())),
-                    Box::new(SetForegroundColor(Color::Blue)),
-                    Box::new(Print(format!(" {}", record.target()))),
-                    Box::new(ResetColor),
-                    Box::new(Print(format!(" {}", record.args()))),
-                    Box::new(SetForegroundColor(Color::DarkGrey)),
-                    Box::new(Print(match (record.file(), record.line()) {
-                        (Some(file), Some(line)) => format!(" {}:{}", file, line),
-                        _ => "".to_string(),
-                    })),
-                    Box::new(ResetColor),
-                    Box::new(Print("\n")),
-                ];
+        let value = std::str::from_utf8(&buffer).map_err(|_| std::fmt::Error)?;
 
-                for block in blocks {
-                    f.write_fmt(format_args!("{}", block))?;
-                }
-
-                Ok(())
-            }
-        }
+        f.write_str(value)
     }
 }
