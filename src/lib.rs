@@ -57,6 +57,9 @@ pub fn handle() {
     std::process::exit(code as i32);
 }
 
+//#[cfg(feature = "serve")]
+//mod serve;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Incomplete")]
@@ -102,9 +105,6 @@ use std::iter::Peekable;
 
 //mod pipe;
 mod reason;
-
-//#[cfg(feature = "serve")]
-//mod serve;
 
 fn gather<'a, Input: Iterator<Item = String>>(
     input: &mut Peekable<Input>,
