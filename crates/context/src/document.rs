@@ -194,17 +194,17 @@ fn test_previous_block_boundary() {
 */
 
 impl Document {
-    ///             1113151719212325272931333537394143454749515355
-    ///  01234567891012141618202224262830323436384042444648505254
-    /// 0INFO jago gathering src/lib.rs:113                      33
-    /// 1INFO context yes or no? crates/context/src/lib.rs:50    84
-    /// 2INFO jago why things are the way they are src/lib.rs:187139
-    /// 3INFO jago 528.453µs elapsed src/lib.rs:49               179
-    ///                            ^
-    /// 4*                                                       180
-    /// 10..18, 46..55, 31..124, 149..165
-    /// * (0,  4) = 33 + 1 + 51 + 1 + 55 + 1 + 40 + 1 = 183
-    /// ^ (26, 3) = 33 + 1 + 51 + 1 + 55 + 1 + 26 = 168
+    //             1113151719212325272931333537394143454749515355
+    //  01234567891012141618202224262830323436384042444648505254
+    // 0INFO jago gathering src/lib.rs:113                      33
+    // 1INFO context yes or no? crates/context/src/lib.rs:50    84
+    // 2INFO jago why things are the way they are src/lib.rs:187139
+    // 3INFO jago 528.453µs elapsed src/lib.rs:49               179
+    //                            ^
+    // 4*                                                       180
+    // 10..18, 46..55, 31..124, 149..165
+    // * (0,  4) = 33 + 1 + 51 + 1 + 55 + 1 + 40 + 1 = 183
+    // ^ (26, 3) = 33 + 1 + 51 + 1 + 55 + 1 + 26 = 168
     fn previous_relevant_position(&self, (_, y): (u16, u16)) -> Result<(u16, u16), Error> {
         unimplemented!()
     }

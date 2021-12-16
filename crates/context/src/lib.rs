@@ -2,7 +2,7 @@ mod context;
 pub mod document;
 //mod parse;
 
-pub use context::{Context, Error};
+pub use crate::context::{Context, Error};
 
 use once_cell::sync::OnceCell;
 
