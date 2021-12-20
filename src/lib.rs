@@ -92,6 +92,8 @@ pub enum Error {
     Context(#[from] context::Error),
     #[error("Logs {0}")]
     Logs(#[from] logs::Error),
+    #[error("Display {0}")]
+    Display(#[from] display::Error),
 }
 
 use std::iter::Peekable;
@@ -146,6 +148,7 @@ fn gather<'a, Input: Iterator<Item = String>>(
             handle::grasp(&mut input, &mut context).map_err(Error::from)
         }),
         */
+        Box::new(|mut input| display::handle(&mut input, context).map_err(Error::from)),
     ];
 
     for handle in handles {

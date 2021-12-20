@@ -13,7 +13,7 @@ pub fn handle(
         _ => {}
     };
 
-    context.write("why things are the way they are")?;
+    context.write("why things are the way they are\n")?;
 
     /// With regards to the computer science, I think the problem is calling it a memory leak.
     /// It's misleading in my opinion. I mean I didn't get the joke until I properly learned a low

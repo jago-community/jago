@@ -30,7 +30,7 @@ pub fn after() -> Result<(), Error> {
 
     let context = CONTEXT.get().ok_or(Error::AfterBefore)?;
 
-    context.flush();
+    //context.flush();
 
     //disable_raw_mode().map_err(Error::from)
 

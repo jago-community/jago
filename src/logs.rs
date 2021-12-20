@@ -21,7 +21,6 @@ use context::Context;
 
 #[cfg(not(target_os = "android"))]
 pub fn before(context: &'static Context) -> Result<(), Error> {
-    /*
     pretty_env_logger::formatted_builder()
         .filter_module("jago", log::LevelFilter::Info)
         .filter_module("interface", log::LevelFilter::Info)
@@ -29,11 +28,9 @@ pub fn before(context: &'static Context) -> Result<(), Error> {
         .filter_module("workspace", log::LevelFilter::Info)
         .try_init()
         .map_err(Error::from)
-    */
 
-    log::set_logger(context).expect("set logger");
-
-    Ok(())
+    //log::set_logger(context).expect("set logger");
+    //Ok(())
 }
 
 //use log::{Level, Metadata, Record};
