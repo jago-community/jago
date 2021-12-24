@@ -1,16 +1,18 @@
+mod document;
+
 use context::Context;
 
 use std::{io::stdout, iter::Peekable};
 
 use crossterm::{
-    cursor::{
-        position, MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition, SavePosition,
-    },
+    cursor::{MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition, SavePosition},
     event::{read, Event, KeyCode, KeyEvent},
     execute,
     style::Print,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+
+use crate::document::Document;
 
 pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
@@ -41,6 +43,7 @@ pub fn handle(
             SavePosition,
             MoveTo(0, 0),
             Print(String::from_utf8_lossy(&target)),
+            Document::from(target.as_ref()),
             RestorePosition,
         )?;
 

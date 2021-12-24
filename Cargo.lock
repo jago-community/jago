@@ -1483,6 +1483,7 @@ dependencies = [
  "dense",
  "thiserror",
  "tokio 1.14.0",
+ "unicode-segmentation",
 ]
 
 [[package]]
