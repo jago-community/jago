@@ -2,13 +2,20 @@ mod document;
 
 use context::Context;
 
-use std::{io::stdout, iter::Peekable};
+use std::{
+    env::current_dir,
+    fs::File,
+    io::{stdout, Read},
+    iter::Peekable,
+};
 
 use crossterm::{
-    cursor::{MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition, SavePosition},
+    cursor::{
+        CursorShape, MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition, SavePosition,
+        SetCursorShape,
+    },
     event::{read, Event, KeyCode, KeyEvent},
     execute,
-    style::Print,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
@@ -16,7 +23,7 @@ use crate::document::Document;
 
 pub fn handle(
     input: &mut Peekable<impl Iterator<Item = String>>,
-    context: &Context,
+    _: &Context,
 ) -> Result<(), Error> {
     match input.peek() {
         Some(name) if name == "display" => {
@@ -25,28 +32,40 @@ pub fn handle(
         _ => {}
     };
 
+    let mut source = vec![];
+
+    let target = current_dir().map_err(Error::from).and_then(|directory| {
+        directory
+            .file_stem()
+            .ok_or_else(|| Error::Incomplete)
+            .map(|file_stem| directory.join(file_stem))
+    })?;
+
+    let mut file = File::open(target)?;
+
+    file.read_to_end(&mut source)?;
+
     let mut output = stdout();
 
-    execute!(output, EnterAlternateScreen)?;
+    execute!(
+        output,
+        EnterAlternateScreen,
+        SetCursorShape(CursorShape::Line)
+    )?;
 
     enable_raw_mode()?;
 
     loop {
-        let mut target = context.target();
-
-        context.read(&mut target)?;
-
         disable_raw_mode()?;
 
         let position = crossterm::cursor::position()?;
 
-        let document = Document::new(&target, position);
+        let document = Document::new(&source, position);
 
         execute!(
             output,
             SavePosition,
             MoveTo(0, 0),
-            Print(String::from_utf8_lossy(&target)),
             document,
             RestorePosition,
         )?;
@@ -54,8 +73,6 @@ pub fn handle(
         enable_raw_mode()?;
 
         let event = read()?;
-
-        // context.write(format!("{:?}\n", event))?;
 
         match event {
             Event::Key(KeyEvent {
@@ -94,7 +111,11 @@ pub fn handle(
 
     disable_raw_mode()?;
 
-    execute!(output, LeaveAlternateScreen)?;
+    execute!(
+        output,
+        SetCursorShape(CursorShape::Block),
+        LeaveAlternateScreen
+    )?;
 
     Ok(())
 }

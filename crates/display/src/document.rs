@@ -29,12 +29,8 @@ impl<'a> From<&'a [u8]> for Document<'a> {
 }
 
 impl<'a> Document<'a> {
-    fn color(&self, index: usize, focus: bool) -> u8 {
-        if focus {
-            231
-        } else {
-            (index % 230) as u8
-        }
+    fn color(&self, index: usize) -> u8 {
+        (index % 230) as u8
     }
 }
 
@@ -48,7 +44,7 @@ impl<'a> crossterm::Command for Document<'a> {
             let focus = self.focus == (x, y);
 
             crossterm::style::SetForegroundColor(crossterm::style::Color::AnsiValue(
-                self.color(index, focus),
+                self.color(index),
             ))
             .write_ansi(out)?;
 
