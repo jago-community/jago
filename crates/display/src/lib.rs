@@ -38,12 +38,16 @@ pub fn handle(
 
         disable_raw_mode()?;
 
+        let position = crossterm::cursor::position()?;
+
+        let document = Document::new(&target, position);
+
         execute!(
             output,
             SavePosition,
             MoveTo(0, 0),
             Print(String::from_utf8_lossy(&target)),
-            Document::from(target.as_ref()),
+            document,
             RestorePosition,
         )?;
 
