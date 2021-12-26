@@ -1,3 +1,4 @@
+mod cursor;
 mod document;
 
 use context::Context;
@@ -5,15 +6,12 @@ use context::Context;
 use std::{
     env::current_dir,
     fs::File,
-    io::{stdout, Read},
+    io::{stdout, Read, Write},
     iter::Peekable,
 };
 
 use crossterm::{
-    cursor::{
-        CursorShape, MoveDown, MoveLeft, MoveRight, MoveTo, MoveUp, RestorePosition, SavePosition,
-        SetCursorShape,
-    },
+    cursor::{CursorShape, MoveTo, RestorePosition, SavePosition, SetCursorShape},
     event::{read, Event, KeyCode, KeyEvent},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -45,6 +43,8 @@ pub fn handle(
 
     file.read_to_end(&mut source)?;
 
+    let mut document = Document::new(&source)?;
+
     let mut output = stdout();
 
     execute!(
@@ -60,19 +60,21 @@ pub fn handle(
 
         let position = crossterm::cursor::position()?;
 
-        let document = Document::new(&source, position);
+        document.focus(position);
 
         execute!(
             output,
             SavePosition,
             MoveTo(0, 0),
-            document,
+            &document,
             RestorePosition,
         )?;
 
         enable_raw_mode()?;
 
         let event = read()?;
+
+        document.handle(&event, &output)?;
 
         match event {
             Event::Key(KeyEvent {
@@ -81,32 +83,10 @@ pub fn handle(
             }) => {
                 break;
             }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('h'),
-                ..
-            }) => {
-                execute!(output, MoveLeft(1))?;
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('l'),
-                ..
-            }) => {
-                execute!(output, MoveRight(1))?;
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('j'),
-                ..
-            }) => {
-                execute!(output, MoveDown(1))?;
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('k'),
-                ..
-            }) => {
-                execute!(output, MoveUp(1))?;
-            }
             _ => {}
         };
+
+        output.flush()?;
     }
 
     disable_raw_mode()?;
@@ -128,4 +108,6 @@ pub enum Error {
     Context(#[from] context::Error),
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
+    #[error("Document {0}")]
+    Document(#[from] crate::document::Error),
 }

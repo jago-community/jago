@@ -5,6 +5,10 @@ edition = "2018"
 description = "variable utopia"
 resolver = "2"
 
+[profile.test]
+opt-level = 0
+debug = true
+
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]
 
