@@ -1,9 +1,4 @@
-use std::{
-    env::current_dir,
-    fs::File,
-    io::{stdout, Read, Write},
-    iter::Peekable,
-};
+use std::io::{stdout, Write};
 
 use crossterm::{
     cursor::{CursorShape, SetCursorShape},
@@ -36,6 +31,8 @@ pub fn buffer(source: &[u8]) -> Result<(), Error> {
         enable_raw_mode()?;
 
         let event = read()?;
+
+        buffer.handle(&event);
 
         match event {
             Event::Key(KeyEvent {
