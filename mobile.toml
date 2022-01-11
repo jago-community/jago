@@ -1,9 +1,0 @@
-[app]
-name = "jago"
-stylized-name = "Jago"
-domain = "jago.community"
-template-pack = "winit"
-
-[apple]
-development-team = "3SA95C9ZFH"
-use-legacy-build-system = false
