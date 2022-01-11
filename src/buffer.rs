@@ -1,6 +1,7 @@
 pub struct Buffer<'a> {
     bytes: &'a [u8],
     cursor: (usize, (usize, usize)),
+    sequence: Vec<char>,
 }
 
 impl<'a> Buffer<'a> {
@@ -8,6 +9,7 @@ impl<'a> Buffer<'a> {
         Buffer {
             bytes,
             cursor: (0, (0, 0)),
+            sequence: vec![],
         }
     }
 
@@ -17,8 +19,8 @@ impl<'a> Buffer<'a> {
 }
 
 use crossterm::{
-    cursor::{position, MoveTo, MoveToColumn},
-    style::{Print, SetForegroundColor},
+    cursor::{MoveTo, MoveToColumn},
+    style::{Color, Print, SetForegroundColor},
     terminal::{Clear, ClearType},
     Command,
 };
@@ -60,7 +62,7 @@ impl<'a> Command for Buffer<'a> {
             return Err(error);
         }
 
-        SetForegroundColor(color_picker.pick()).write_ansi(out)?;
+        SetForegroundColor(Color::Green).write_ansi(out)?;
         Print(format!(
             "\n{:?} {:?}",
             current_grapheme(buffer, self.cursor.0),
@@ -83,10 +85,37 @@ impl<'a> Buffer<'a> {
                 code: KeyCode::Char('l'),
                 ..
             }) => {
-                self.cursor = forward_graphemes(self.as_str(), self.cursor, 1);
+                self.cursor = forward_graphemes(self.as_str(), self.cursor, self.factor());
+
+                if self.sequence.len() > 0 {
+                    self.sequence = vec![];
+                }
+            }
+            Event::Key(KeyEvent {
+                code: KeyCode::Char(code),
+                ..
+            }) => {
+                self.sequence.push(*code);
             }
             _ => {}
         };
+    }
+}
+
+use itertools::{FoldWhile, Itertools};
+
+impl<'a> Buffer<'a> {
+    fn factor(&self) -> usize {
+        self.sequence
+            .iter()
+            .fold_while(0, |scale, c| {
+                if let Some(digit) = c.to_digit(10) {
+                    FoldWhile::Continue(scale * 10 + digit)
+                } else {
+                    FoldWhile::Done(scale)
+                }
+            })
+            .into_inner() as usize
     }
 }
 
@@ -94,28 +123,28 @@ fn current_grapheme<'a>(buffer: &'a str, position: usize) -> Option<&'a str> {
     buffer[position..].graphemes(true).next()
 }
 
-use itertools::{FoldWhile, Itertools};
-
 fn forward_graphemes(
     buffer: &str,
     (start_position, (start_x, start_y)): (usize, (usize, usize)),
     count: usize,
 ) -> (usize, (usize, usize)) {
     buffer[start_position..]
-        .graphemes(true)
+        .grapheme_indices(true)
+        .skip(1)
+        // .batching if current/next == "\n" skip 1
         .fold_while(
             (start_position, (start_x, start_y)),
-            |(position, (x, y)), grapheme| {
-                let next = match dbg!(grapheme) {
-                    "\n" => (position + 1, (0, y + 1)),
-                    _ => (position + grapheme.len(), (x + grapheme.len(), y)),
+            |(position, (x, y)), (index, grapheme)| {
+                let next_position = start_position + index;
+
+                let next = match grapheme {
+                    "\n" => (next_position + 1, (0, y + 1)),
+                    _ => (next_position, (x + grapheme.len(), y)),
                 };
 
-                let wrap = if current_grapheme(buffer, next.0) == Some("\n")
-                    && next.0 - start_position == count
-                {
-                    FoldWhile::Continue
-                } else if next.0 - start_position >= count {
+                let saw = dbg!(dbg!(next).0 - dbg!(start_position) - dbg!(y) - dbg!(start_y));
+
+                let wrap = if saw >= count {
                     FoldWhile::Done
                 } else {
                     FoldWhile::Continue
@@ -134,6 +163,8 @@ fn test_forward_graphemes() {
     let tests = vec![
         ((0, (0, 0)), 1, (1, (1, 0)), "h"),
         ((15, (15, 0)), 1, (17, (0, 1)), "\n"),
+        ((0, (0, 0)), 2, (2, (2, 0)), "e"),
+        ((15, (15, 0)), 3, (19, (1, 2)), "h"),
     ];
 
     for (start, step, want, grapheme) in tests {
