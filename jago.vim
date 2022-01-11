@@ -173,3 +173,6 @@ else
     colorscheme challenger_deep
 endif
 
+let g:vimspector_enable_mappings = 'HUMAN'
+packadd termdebug
+let termdebugger="rust-gdb"
