@@ -1,6 +1,12 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-pub struct Unicode {
-    pub version: String,
-    pub blocks: Vec<Block>,
+pub trait UnicodeExt: UnicodeSegmentation {
+    fn abc(&self) -> String;
+}
+
+#[test]
+fn test() {
+    let input = "abc";
+
+    input.abc();
 }

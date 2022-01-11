@@ -7,8 +7,12 @@ edition = "2021"
 
 [dependencies]
 context = { path = "../context" }
+crdts = "7.0.0"
 crossterm = "0.22.1"
 dense = { path = "../dense" }
+itertools = "0.10.3"
+nom = "7.1.0"
+rand = "0.8.4"
 thiserror = "1.0.30"
 tokio = { version = "1.14.0", features = ["full"] }
 unicode-segmentation = "1.8.0"

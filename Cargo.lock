@@ -1275,6 +1275,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "cursor"
+version = "0.1.0"
+
+[[package]]
 name = "d3d12"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1479,8 +1483,12 @@ name = "display"
 version = "0.1.0"
 dependencies = [
  "context",
+ "crdts",
  "crossterm",
  "dense",
+ "itertools",
+ "nom",
+ "rand 0.8.4",
  "thiserror",
  "tokio 1.14.0",
  "unicode-segmentation",
@@ -2904,9 +2912,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.10.1"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69ddb889f9d0d08a67338271fa9b62996bc788c7796a5c18cf057420aaed5eaf"
+checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
 dependencies = [
  "either",
 ]

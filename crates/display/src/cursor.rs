@@ -1,121 +1,92 @@
 #[derive(Debug, PartialEq)]
 pub struct Cursor {
-    position: u16,
-    x: u16,
-    y: u16,
+    position: usize,
+    chunk: usize,
+    offset: usize,
 }
 
-impl Cursor {
-    fn find_position(&mut self, source: impl AsRef<[u8]>, (x, y): (u16, u16)) {
-        if x == self.x && y == self.y {
-            return;
+impl From<(usize, usize, usize)> for Cursor {
+    fn from((x, y, z): (usize, usize, usize)) -> Self {
+        Self {
+            position: z,
+            chunk: y,
+            offset: x,
         }
-
-        let up = self.y < y || (self.y == y && self.x < x);
-
-        let source = source.as_ref();
-
-        while self.y != y {
-            if up {
-                match self.position.checked_add(1) {
-                    Some(next) if next as usize > source.len() => {
-                        break;
-                    }
-                    Some(next) if source[next as usize] == b'\n' => {
-                        self.y += 1;
-                        self.x = 0;
-                        self.position = next;
-                    }
-                    Some(next) => {
-                        self.position = next;
-                    }
-                    _ => {
-                        break;
-                    }
-                };
-            }
-        }
-
-        while self.x != x {
-            if up {
-                match self.position.checked_add(1) {
-                    Some(next) if next as usize > source.len() => {
-                        break;
-                    }
-                    Some(next) => {
-                        self.position = next;
-                        self.x += 1;
-                    }
-                    _ => {
-                        break;
-                    }
-                };
-            }
-        }
-
-        dbg!(source[self.position as usize] as char);
     }
 }
 
-#[test]
-fn test_find_position() {
-    let source = b"abcdefghij
-klmnopqrstuvwxyz!@#$%^&
-*()-_+=[{]}|<,>./?'
-;:~";
+impl Cursor {
+    fn current<'a>(&self, buffer: &'a str) -> &'a str {
+        &buffer[self.position..].graphemes(true).next().unwrap_or("")
+    }
 
-    let inputs = vec![
-        (
-            (0, 0),
-            Cursor {
-                position: 0,
-                x: 0,
-                y: 0,
-            },
-        ),
-        (
-            (1, 0),
-            Cursor {
-                position: 1,
-                x: 1,
-                y: 0,
-            },
-        ),
-        (
-            (7, 0),
-            Cursor {
-                position: 7,
-                x: 7,
-                y: 0,
-            },
-        ),
-        (
-            (0, 1),
-            Cursor {
-                position: 10,
-                x: 0,
-                y: 1,
-            },
-        ),
-        (
-            (1, 3),
-            Cursor {
-                position: 57,
-                x: 1,
-                y: 3,
-            },
-        ),
+    fn forward(&self, other: Cursor) -> Self {
+        Self {
+            position: self.position + other.position,
+            chunk: self.chunk + other.chunk,
+            offset: other.offset,
+        }
+    }
+
+    fn backward(&self, other: Cursor) -> Self {
+        Self {
+            position: self.position - other.position,
+            chunk: self.chunk - other.chunk,
+            offset: other.offset,
+        }
+    }
+}
+
+use unicode_segmentation::UnicodeSegmentation;
+
+fn forward_graphemes(buffer: &str, count: usize) -> Cursor {
+    let (mut position, mut chunk, mut offset) = (0, 0, 0);
+
+    let graphemes = buffer.graphemes(true);
+
+    unimplemented!()
+}
+
+#[test]
+fn test_forward_graphemes() {
+    let buffer = include_str!("../../../jago");
+
+    let tests = vec![
+        ((0, 0, 0), 1, (1, 0, 1), " "),
+        ((1, 0, 1), 1, (2, 0, 2), "J"),
+        ((2, 0, 2), 1, (3, 0, 3), "a"),
+        ((3, 0, 3), 1, (4, 0, 4), "g"),
+        ((4, 0, 4), 1, (5, 0, 5), "o"),
+        ((5, 0, 5), 1, (0, 1, 7), "\n"),
+        ((0, 0, 0), 1, (1, 0, 1), " "),
+        ((1, 0, 1), 2, (3, 0, 3), "a"),
+        ((3, 0, 3), 3, (0, 1, 7), "\n"),
+        ((0, 1, 7), 4, (3, 2, 11), "C"),
+        ((3, 2, 10), 5, (8, 2, 15), "e"),
     ];
 
-    let mut cursor = Cursor {
-        position: 0,
-        x: 0,
-        y: 0,
-    };
+    for (from, steps, to, want) in tests {
+        let start: Cursor = from.into();
+        let difference = forward_graphemes(&buffer[start.position..], steps);
+        let got = start.forward(difference);
 
-    for (target, want) in inputs {
-        println!("{:?} {:?} {:?}", cursor, target, want);
-        cursor.find_position(source, target);
-        assert_eq!(cursor, want);
+        assert_eq!(
+            got,
+            to.into(),
+            "{:?} + {} = got {:?} want {:?} {:?}",
+            start,
+            steps,
+            got,
+            to,
+            want
+        );
+
+        let got = start.current(buffer);
+
+        assert_eq!(
+            got, want,
+            "{:?} + {} = got {:?} want {:?}",
+            start, steps, got, want
+        );
     }
 }

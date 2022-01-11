@@ -1,5 +1,7 @@
+mod buffer;
 mod cursor;
 mod document;
+//mod unicode;
 
 use context::Context;
 
@@ -17,6 +19,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use crate::buffer::Buffer;
 use crate::document::Document;
 
 pub fn handle(
@@ -43,7 +46,9 @@ pub fn handle(
 
     file.read_to_end(&mut source)?;
 
-    let mut document = Document::new(&source)?;
+    let mut buffer = Buffer::new(&source, 0);
+
+    // let mut document = Document::new(&source)?;
 
     let mut output = stdout();
 
@@ -60,21 +65,15 @@ pub fn handle(
 
         let position = crossterm::cursor::position()?;
 
-        document.focus(position);
+        //document.focus(position);
 
-        execute!(
-            output,
-            SavePosition,
-            MoveTo(0, 0),
-            &document,
-            RestorePosition,
-        )?;
+        execute!(output, SavePosition, MoveTo(0, 0), &buffer, RestorePosition,)?;
 
         enable_raw_mode()?;
 
         let event = read()?;
 
-        document.handle(&event, &output)?;
+        //document.handle(&event, &output)?;
 
         match event {
             Event::Key(KeyEvent {
