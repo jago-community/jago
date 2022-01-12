@@ -132,13 +132,19 @@ fn forward_graphemes(
         .grapheme_indices(true)
         .skip(1)
         // .batching if current/next == "\n" skip 1
+        .batching(|it| match it.next() {
+            Some((_, "\n")) => it.next(), // .map(|(index, grapheme)| (index - 1, grapheme)),
+            Some((index, grapheme)) => Some((index, grapheme)),
+            None => None,
+        })
+        // need to track diffs from batches
         .fold_while(
             (start_position, (start_x, start_y)),
-            |(position, (x, y)), (index, grapheme)| {
+            |(_, (x, y)), (index, grapheme)| {
                 let next_position = start_position + index;
 
                 let next = match grapheme {
-                    "\n" => (next_position + 1, (0, y + 1)),
+                    "\n" => (next_position, (0, y + 1)),
                     _ => (next_position, (x + grapheme.len(), y)),
                 };
 
@@ -153,6 +159,24 @@ fn forward_graphemes(
                 wrap(next)
             },
         )
+        /*
+        .fold_while(
+            (start_position, (start_x, start_y)),
+            |(position, (x, y)), (index, grapheme)| {
+                let next_position = start_position + index;
+                let next = match grapheme {
+                    "\n" => (next_position + 1, (0, y + 1)),
+                    _ => (next_position, (x + grapheme.len(), y)),
+                };
+                let saw = dbg!(dbg!(next).0 - dbg!(start_position) - dbg!(y) - dbg!(start_y));
+                let wrap = if saw >= count {
+                    FoldWhile::Done
+                } else {
+                    FoldWhile::Continue
+                };
+                wrap(next)
+            },
+        )*/
         .into_inner()
 }
 
