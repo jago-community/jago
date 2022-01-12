@@ -133,14 +133,14 @@ fn forward_graphemes(
         .skip(1)
         // .batching if current/next == "\n" skip 1
         .batching(|it| match it.next() {
-            Some((_, "\n")) => it.next(), // .map(|(index, grapheme)| (index - 1, grapheme)),
-            Some((index, grapheme)) => Some((index, grapheme)),
+            Some((_, "\n")) => it.next().map(|(index, grapheme)| (index, grapheme, true)),
+            Some((index, grapheme)) => Some((index, grapheme, false)),
             None => None,
         })
         // need to track diffs from batches
         .fold_while(
             (start_position, (start_x, start_y)),
-            |(_, (x, y)), (index, grapheme)| {
+            |(_, (x, y)), (index, grapheme, start_line)| {
                 let next_position = start_position + index;
 
                 let next = match grapheme {
