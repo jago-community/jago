@@ -7,7 +7,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::unicode::Buffer;
+use crate::buffer::Buffer;
 
 pub fn buffer(source: &[u8]) -> Result<(), Error> {
     let mut buffer = Buffer::from(source);
