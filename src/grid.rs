@@ -1,8 +1,8 @@
 #[derive(Default)]
 pub struct Grid<'a> {
     bytes: &'a [u8],
-    front: Cell<'a>,
-    back: Cell<'a>,
+    front: Cell,
+    back: Cell,
 }
 
 impl<'a> From<&'a [u8]> for Grid<'a> {
@@ -17,50 +17,45 @@ impl<'a> From<&'a [u8]> for Grid<'a> {
 use unicode_segmentation::UnicodeSegmentation;
 
 impl<'a> Grid<'a> {
-    fn rest(&'a self, index: usize) -> &'a str {
+    fn rest(&self, index: usize) -> &'a str {
         unsafe { std::str::from_utf8_unchecked(&self.bytes[index..]) }
     }
 
-    fn after(&'a self, cell: &'a Cell) -> Option<&'a str> {
+    fn after(&self, cell: &'a Cell) -> Option<&'a str> {
         self.bytes
             .get(cell.index + 1..)
             .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
     }
 
-    fn grapheme(&'a self, cell: &'a Cell<'a>) -> Option<&'a str> {
+    fn grapheme(&self, cell: &'a Cell) -> Option<&'a str> {
         self.rest(cell.index).graphemes(true).next()
     }
 }
 
 #[derive(Default, Clone, Debug, PartialEq)]
-pub struct Cell<'a> {
+pub struct Cell {
     index: usize,
     x: usize,
     y: usize,
-    lifetime: std::marker::PhantomData<&'a bool>,
 }
 
-impl Cell<'_> {
+impl Cell {
     fn index_after(&self) -> usize {
         self.index + 1
     }
 }
 
-impl From<(usize, (usize, usize))> for Cell<'_> {
+impl From<(usize, (usize, usize))> for Cell {
     fn from((index, (x, y)): (usize, (usize, usize))) -> Self {
-        Self {
-            index,
-            x,
-            y,
-            lifetime: std::marker::PhantomData,
-        }
+        Self { index, x, y }
     }
 }
 
-use itertools::{FoldWhile, Itertools};
+use itertools::Itertools;
 
 impl<'a> Grid<'a> {
-    fn cells_after(&self) -> impl Iterator<Item = Cell<'a>> {
+    /*
+    fn cells_after(&self) -> impl Iterator<Item = &'a Cell> {
         self.after(&self.front)
             .into_iter()
             .flat_map(|after| after.grapheme_indices(true))
@@ -72,14 +67,13 @@ impl<'a> Grid<'a> {
             // .scan and map
             .scan(self.front.clone(), |mut cell, (index, x, dy)| {
                 // ...
-                *cell = Cell::from((
-                    dbg!(index + self.front.index_after()),
-                    (dbg!(x), self.front.y + dbg!(dy)),
-                ));
+                cell.index = index;
+                cell.x = x;
+                cell.y += dy;
 
-                Some(cell)
+                Some(*cell)
             })
-            .map(|cell| *cell)
+            .map(|cell| &cell)
             //.map(|(index, x, dy)| {
             //Cell::from((
             //dbg!(index + self.front.index_after()),
@@ -90,6 +84,7 @@ impl<'a> Grid<'a> {
                 dbg!(a);
             })
     }
+    */
 }
 
 #[test]

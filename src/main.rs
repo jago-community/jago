@@ -1,7 +1,8 @@
 mod buffer;
 mod color;
 mod display;
-mod grid;
+mod unicode;
+//mod grid;
 
 fn main() {
     let source = include_bytes!("../poems/chris-abani/the-new-religion");

@@ -7,10 +7,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::buffer::Buffer;
+use crate::unicode::Buffer;
 
 pub fn buffer(source: &[u8]) -> Result<(), Error> {
-    let mut buffer = Buffer::new(source);
+    let mut buffer = Buffer::from(source);
 
     let mut output = stdout();
 
@@ -32,7 +32,7 @@ pub fn buffer(source: &[u8]) -> Result<(), Error> {
 
         let event = read()?;
 
-        buffer.handle(&event);
+        //buffer.handle(&event);
 
         match event {
             Event::Key(KeyEvent {
