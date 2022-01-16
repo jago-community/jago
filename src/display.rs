@@ -7,10 +7,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::buffer::Buffer;
+use crate::slice::Slice;
 
 pub fn buffer(source: &[u8]) -> Result<(), Error> {
-    let mut buffer = Buffer::from(source);
+    let mut slice = Slice::from(source);
 
     let mut output = stdout();
 
@@ -18,7 +18,7 @@ pub fn buffer(source: &[u8]) -> Result<(), Error> {
         output,
         EnterAlternateScreen,
         SetCursorShape(CursorShape::UnderScore),
-        &buffer,
+        &slice,
     )?;
 
     enable_raw_mode()?;
@@ -26,13 +26,13 @@ pub fn buffer(source: &[u8]) -> Result<(), Error> {
     loop {
         disable_raw_mode()?;
 
-        execute!(output, &buffer)?;
+        execute!(output, &slice)?;
 
         enable_raw_mode()?;
 
         let event = read()?;
 
-        //buffer.handle(&event);
+        slice.handle(&event);
 
         match event {
             Event::Key(KeyEvent {
@@ -44,7 +44,7 @@ pub fn buffer(source: &[u8]) -> Result<(), Error> {
             _ => {}
         };
 
-        queue!(output, &buffer)?;
+        queue!(output, &slice)?;
 
         output.flush()?;
     }
