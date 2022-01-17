@@ -129,6 +129,33 @@ fn slice_graphemes() {
     itertools::assert_equal(wants.clone().skip(17), gots);
 }
 
+#[test]
+fn slice_lines() {
+    let bytes = include_bytes!("../poems/eltheridge-knight/haiku/1");
+
+    let wants = vec![((20, (0, 1)), "g"), ((52, (0, 2)), "l")]
+        .into_iter()
+        .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+
+    let slice = Slice {
+        bytes,
+        cursor: (0, (0, 0)),
+        ..Default::default()
+    };
+
+    let gots = slice
+        .line_starts_after((0, (0, 0)).into())
+        .map(|reference| (reference.layout(), slice.get(reference)));
+
+    itertools::assert_equal(wants.clone(), gots);
+
+    let gots = slice
+        .line_starts_before((74, (0, 4)).into())
+        .map(|reference| (reference.layout(), slice.get(reference)));
+
+    itertools::assert_equal(wants.rev(), gots);
+}
+
 impl<'a> From<&'a [u8]> for Slice<'a> {
     fn from(bytes: &'a [u8]) -> Self {
         Self {
@@ -259,6 +286,88 @@ impl<'a> Slice<'a> {
                     Some(b'\n') if next.coordinates().0 > 0 => it.next(),
                     _ => Some(next),
                 }
+            })
+    }
+
+    pub fn line_starts_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
+        self.bytes
+            .get(reference.index()..self.bytes.len())
+            .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
+            .into_iter()
+            .flat_map(|slice| slice.split_word_bounds())
+            .scan(reference.layout(), |(index, coordinates), word| {
+                let current = Reference::from((*index, *coordinates));
+
+                *index += word.len();
+
+                match word {
+                    "\n" => {
+                        coordinates.0 = 0;
+                        coordinates.1 += 1;
+                    }
+                    _ => {
+                        coordinates.0 += word.len();
+                    }
+                };
+
+                Some((word, current))
+            })
+            .batching(|it| {
+                if it.find(|(word, _)| *word == "\n").is_none() {
+                    None
+                } else {
+                    it.next().map(|(_, reference)| reference)
+                }
+            })
+    }
+
+    pub fn line_starts_before(&self, reference: Reference) -> impl Iterator<Item = Reference> {
+        self.bytes
+            .get(0..reference.index())
+            .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
+            .into_iter()
+            .flat_map(|slice| slice.split_word_bounds())
+            .rev()
+            .scan(reference.layout(), |(index, coordinates), word| {
+                *index = index.checked_sub(word.len())?;
+
+                if let Some(next) = coordinates.0.checked_sub(word.len()) {
+                    coordinates.0 = next;
+                } else {
+                    coordinates.1 = coordinates.1.checked_sub(1)?;
+
+                    coordinates.0 = *index
+                        - self
+                            .cast_str()
+                            .get(..*index)
+                            .into_iter()
+                            .flat_map(|as_str| as_str.grapheme_indices(true))
+                            .rev()
+                            .find_map(|(index, grapheme)| {
+                                if index == 0 {
+                                    Some(0)
+                                } else if grapheme == "\n" {
+                                    Some(index + 1)
+                                } else {
+                                    None
+                                }
+                            })?;
+                }
+
+                dbg!(Some((word, Reference::from((*index, *coordinates)))))
+            })
+            .batching(|it| {
+                let mut it = it.peekable();
+
+                while let Some((_, reference)) = dbg!(it.next()) {
+                    if let Some((next, _)) = it.peek() {
+                        if *next == "\n" {
+                            return Some(reference);
+                        }
+                    }
+                }
+
+                None
             })
     }
 }
