@@ -16,6 +16,10 @@ cd $HOME/jago
 
 - Make sure everything works by running the tests. If the last line of the output doesn't start with "test result: ok", then something is wrong. 
 
+```
+cargo test
+```
+
 # Run project
 
 ```
