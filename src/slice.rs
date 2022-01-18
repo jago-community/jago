@@ -353,51 +353,94 @@ impl<'a> Slice<'a> {
     }
 
     pub fn line_starts_before(&self, reference: Reference) -> impl Iterator<Item = Reference> {
+        let stop = reference.index();
+
         self.bytes
-            .get(..reference.index())
+            .get(..=stop)
             .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
             .into_iter()
             .flat_map(|slice| slice.split_word_bounds())
             .rev()
             .scan(reference.layout(), |(index, coordinates), word| {
+                let current = Reference::from((*index, dbg!(*coordinates)));
+
                 *index = index.checked_sub(word.len())?;
 
-                if let Some(next) = coordinates.0.checked_sub(word.len()) {
-                    coordinates.0 = next;
-                } else {
-                    coordinates.1 = coordinates.1.checked_sub(1)?;
+                match dbg!(word) {
+                    "\n" => {
+                        coordinates.1 -= 1;
 
-                    coordinates.0 = *index
-                        - self
-                            .bytes
-                            .get(..*index)
-                            .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
-                            .into_iter()
-                            .flat_map(|as_str| as_str.grapheme_indices(true))
-                            .rev()
-                            .find_map(|(index, grapheme)| {
-                                if index == 0 {
-                                    Some(0)
-                                } else if grapheme == "\n" {
-                                    Some(index + 1)
-                                } else {
-                                    None
-                                }
-                            })?;
-                }
+                        coordinates.0 = *index
+                            - self
+                                .bytes
+                                .get(..*index)
+                                .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
+                                .into_iter()
+                                .flat_map(|as_str| as_str.grapheme_indices(true))
+                                .rev()
+                                .find_map(|(index, grapheme)| {
+                                    if index == 0 {
+                                        Some(0)
+                                    } else if grapheme == "\n" {
+                                        Some(index + 1)
+                                    } else {
+                                        None
+                                    }
+                                })?;
+                    }
+                    _ => {
+                        coordinates.0 = coordinates.0.checked_sub(word.len())?;
+                    }
+                };
 
-                Some((word, Reference::from((*index, *coordinates))))
+                Some((word, current))
             })
-            .batching(|it| {
-                if let Some((_, reference)) = it.find(|(word, _)| *word == "\n") {
-                    Some(Reference::from((
-                        reference.index() + 1,
-                        (0, reference.coordinates().1 + 1),
-                    )))
-                } else {
-                    None
-                }
-            })
+            .batching(move |it| {
+                it.inspect(|a| {
+                    dbg!(a);
+                })
+                .find(|(_, reference)| reference.index() > stop && reference.x() == 0)
+                .map(|(_, reference)| reference)
+            }) /*
+               .scan(reference.layout(), |(index, coordinates), word| {
+                   *index = index.checked_sub(word.len())?;
+
+                   if let Some(next) = coordinates.0.checked_sub(word.len()) {
+                       coordinates.0 = next;
+                   } else {
+                       coordinates.1 = coordinates.1.checked_sub(1)?;
+
+                       coordinates.0 = *index
+                           - self
+                               .bytes
+                               .get(..*index)
+                               .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
+                               .into_iter()
+                               .flat_map(|as_str| as_str.grapheme_indices(true))
+                               .rev()
+                               .find_map(|(index, grapheme)| {
+                                   if index == 0 {
+                                       Some(0)
+                                   } else if grapheme == "\n" {
+                                       Some(index + 1)
+                                   } else {
+                                       None
+                                   }
+                               })?;
+                   }
+
+                   Some((word, Reference::from((*index, *coordinates))))
+               })
+               .batching(|it| {
+                   if let Some((_, reference)) = it.find(|(word, _)| *word == "\n") {
+                       Some(Reference::from((
+                           reference.index() + 1,
+                           (0, reference.coordinates().1 + 1),
+                       )))
+                   } else {
+                       None
+                   }
+               })*/
     }
 
     fn closest_x_in_y_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
