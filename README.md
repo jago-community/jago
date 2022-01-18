@@ -1,6 +1,6 @@
 # Jago
 
-A tech community.
+Technically a community.
 
 ## Course
 
@@ -27,3 +27,4 @@ Below are other resources that we find interesting.
 - [How computers reason about language.](https://www.pinecone.io/learn/nlp/)
 - [(*not all free) Online courses provided by universities and industry.](https://www.coursera.org/)
 - [Our community email.](mailto:all@jago.community)
+

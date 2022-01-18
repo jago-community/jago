@@ -8,3 +8,13 @@ target/
 
 # macOS
 .DS_Store
+
+
+# Added by cargo
+
+/target
+
+# trade secrets 🦹
+
+a
+math
