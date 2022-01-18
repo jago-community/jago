@@ -695,6 +695,10 @@ impl<'a> Command for Slice<'a> {
         .write_ansi(out)?;
 
         SetForegroundColor(Color::Magenta).write_ansi(out)?;
+        Print("\n\nq ").write_ansi(out)?;
+        ResetColor.write_ansi(out)?;
+        Print("= quit").write_ansi(out)?;
+        SetForegroundColor(Color::Magenta).write_ansi(out)?;
         Print("\n\nh, j, k, l ").write_ansi(out)?;
         ResetColor.write_ansi(out)?;
         Print("= left, down, up, right").write_ansi(out)?;
