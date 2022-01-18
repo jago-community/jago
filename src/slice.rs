@@ -656,7 +656,7 @@ impl<'a> Slice<'a> {
 
 use crossterm::{
     cursor::MoveTo,
-    style::{Color, Print, SetForegroundColor},
+    style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{Clear, ClearType},
     Command,
 };
@@ -693,6 +693,28 @@ impl<'a> Command for Slice<'a> {
             factor(&self.sequence).1
         ))
         .write_ansi(out)?;
+
+        SetForegroundColor(Color::Magenta).write_ansi(out)?;
+        Print("\n\nh, j, k, l ").write_ansi(out)?;
+        ResetColor.write_ansi(out)?;
+        Print("= left, down, up, right").write_ansi(out)?;
+        SetForegroundColor(Color::Magenta).write_ansi(out)?;
+        Print("\n\nControl+n ").write_ansi(out)?;
+        ResetColor.write_ansi(out)?;
+        Print("= Change poem.").write_ansi(out)?;
+        SetForegroundColor(Color::Magenta).write_ansi(out)?;
+        Print("\n\n{a:some number}").write_ansi(out)?;
+        SetForegroundColor(Color::Blue).write_ansi(out)?;
+        Print("{b:some direction key}").write_ansi(out)?;
+        ResetColor.write_ansi(out)?;
+        Print(" = Move in the ").write_ansi(out)?;
+        SetForegroundColor(Color::Blue).write_ansi(out)?;
+        Print("{b}").write_ansi(out)?;
+        ResetColor.write_ansi(out)?;
+        Print(" direction ").write_ansi(out)?;
+        SetForegroundColor(Color::Magenta).write_ansi(out)?;
+        Print("{a}").write_ansi(out)?;
+        Print(" times.\n").write_ansi(out)?;
 
         let (x, y) = Reference::from(self.cursor).coordinates();
 
