@@ -2,7 +2,7 @@
 pub struct Slice<'a> {
     bytes: &'a [u8],
     cursor: (usize, (usize, usize)),
-    buffer: String,
+    sequence: Vec<char>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -46,7 +46,7 @@ fn slice_graphemes() {
     };
 
     let gots = slice
-        .grapheme_references()
+        .graphemes()
         .take(21)
         .map(|reference| (reference.layout(), slice.get(reference)));
 
@@ -107,7 +107,7 @@ fn slice_graphemes() {
     };
 
     let gots = slice
-        .grapheme_references()
+        .graphemes()
         .take(20)
         .map(|reference| (reference.layout(), slice.get(reference)));
 
@@ -158,7 +158,7 @@ fn slice_lines() {
         .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
 
     let gots = slice
-        .closest_column_in_lines_after((5, (5, 0)).into())
+        .closest_x_in_y_after((5, (5, 0)).into())
         .map(|reference| (reference.layout(), slice.get(reference)));
 
     itertools::assert_equal(wants.clone(), gots);
@@ -186,16 +186,16 @@ fn slice_lines() {
 
     itertools::assert_equal(wants.clone(), gots);
 
-    //let wants = vec![((17, (0, 1)), "\n"), ((23, (5, 2)), "o")]
-    //.into_iter()
-    //.map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+    let wants = vec![((17, (0, 1)), "\n"), ((23, (5, 2)), "o")]
+        .into_iter()
+        .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
 
-    //let gots = slice
-    //.closest_column_in_lines_after((5, (5, 0)).into())
-    //.take(2)
-    //.map(|reference| (reference.layout(), slice.get(reference)));
+    let gots = slice
+        .closest_x_in_y_after((5, (5, 0)).into())
+        .take(2)
+        .map(|reference| (reference.layout(), slice.get(reference)));
 
-    //itertools::assert_equal(wants.clone(), gots);
+    itertools::assert_equal(wants.clone(), gots);
 }
 
 impl<'a> From<&'a [u8]> for Slice<'a> {
@@ -227,12 +227,12 @@ impl<'a> Slice<'a> {
             .next()
     }
 
-    pub fn grapheme_references(&'a self) -> impl Iterator<Item = Reference> {
-        self.grapheme_reference_span((0, (0, 0)).into(), self.bytes.len())
+    pub fn graphemes(&'a self) -> impl Iterator<Item = Reference> {
+        self.grapheme_span((0, (0, 0)).into(), self.bytes.len())
             .into_iter()
     }
 
-    pub fn grapheme_reference_span(
+    pub fn grapheme_span(
         &'a self,
         reference: Reference,
         span: usize,
@@ -271,7 +271,7 @@ impl<'a> Slice<'a> {
     }
 
     pub fn graphemes_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
-        self.grapheme_reference_span(reference.clone(), self.bytes.len() - reference.index())
+        self.grapheme_span(reference.clone(), self.bytes.len() - reference.index())
             .skip(1)
     }
 
@@ -322,8 +322,10 @@ impl<'a> Slice<'a> {
     }
 
     pub fn line_starts_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
+        let start = reference.index();
+
         self.bytes
-            .get(reference.index()..self.bytes.len())
+            .get(start..self.bytes.len())
             .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
             .into_iter()
             .flat_map(|slice| slice.split_word_bounds())
@@ -344,12 +346,9 @@ impl<'a> Slice<'a> {
 
                 Some((word, current))
             })
-            .batching(|it| {
-                if it.find(|(word, _)| *word == "\n").is_none() {
-                    None
-                } else {
-                    it.next().map(|(_, reference)| reference)
-                }
+            .batching(move |it| {
+                it.find(|(_, reference)| reference.index() > start && reference.x() == 0)
+                    .map(|(_, reference)| reference)
             })
     }
 
@@ -401,20 +400,24 @@ impl<'a> Slice<'a> {
             })
     }
 
-    fn closest_column_in_lines_after(
-        &self,
-        reference: Reference,
-    ) -> impl Iterator<Item = Reference> {
+    fn closest_x_in_y_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
         let target = reference.x();
 
         self.line_starts_after(reference)
             .flat_map(move |reference| {
-                self.graphemes_after(reference)
+                self.grapheme_span(reference.clone(), self.bytes.len() - reference.index())
                     .find_map(|reference| {
                         if reference.x() == target {
                             Some(reference)
                         } else if self.get(reference.clone()) == Some("\n") {
-                            Some((reference.index() - 1, (reference.x() - 1, reference.y())).into())
+                            if reference.x() > 0 {
+                                Some(
+                                    (reference.index() - 1, (reference.x() - 1, reference.y()))
+                                        .into(),
+                                )
+                            } else {
+                                Some(reference)
+                            }
                         } else {
                             None
                         }
@@ -446,18 +449,49 @@ impl<'a> Reference<'a> {
     }
 }
 
+fn factor(sequence: &[char]) -> (usize, usize) {
+    let got = sequence
+        .iter()
+        .enumerate()
+        .map(|(index, maybe_digit)| (index, maybe_digit.to_digit(10)))
+        .take_while(|(_, result)| result.is_some())
+        .map(|(index, result)| (index, result.unwrap()))
+        .fold((0, 0), |(_, factor), (index, digit)| {
+            (index, factor * 10 + digit)
+        });
+
+    (got.0 as usize, if got.0 == 0 { 1 } else { got.1 as usize })
+}
+
+#[test]
+fn test_factor() {
+    let sequence = vec!['1', '0', '2'];
+
+    assert_eq!(factor(&sequence).1, 102);
+}
+
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
 impl<'a> Slice<'a> {
     pub fn handle(&mut self, event: &Event) {
         let mut next = self.cursor.clone();
 
+        let mut factor = || {
+            let got = factor(&self.sequence);
+
+            self.sequence = self.sequence.drain(got.0..).collect();
+
+            got.1
+        };
+
         match event {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('l'),
                 ..
             }) => {
-                let mut references = self.graphemes_after(self.cursor.into());
+                let factor = factor();
+
+                let mut references = self.graphemes_after(self.cursor.into()).skip(factor - 1);
 
                 if let Some(next_ref) = references.next() {
                     next = (next_ref.index(), next_ref.coordinates());
@@ -467,7 +501,9 @@ impl<'a> Slice<'a> {
                 code: KeyCode::Char('h'),
                 ..
             }) => {
-                let mut references = self.graphemes_before(self.cursor.into());
+                let factor = factor();
+
+                let mut references = self.graphemes_before(self.cursor.into()).skip(factor - 1);
 
                 if let Some(next_ref) = references.next() {
                     next = (next_ref.index(), next_ref.coordinates());
@@ -477,11 +513,21 @@ impl<'a> Slice<'a> {
                 code: KeyCode::Char('j'),
                 ..
             }) => {
-                let mut references = self.line_starts_after(self.cursor.into());
+                let factor = factor();
+
+                let mut references = self
+                    .closest_x_in_y_after(self.cursor.into())
+                    .skip(factor - 1);
 
                 if let Some(next_ref) = references.next() {
                     next = (next_ref.index(), next_ref.coordinates());
                 }
+            }
+            Event::Key(KeyEvent {
+                code: KeyCode::Char(code),
+                ..
+            }) => {
+                self.sequence.push(*code);
             }
             _ => {}
         }
@@ -504,7 +550,7 @@ impl<'a> Command for Slice<'a> {
         Clear(ClearType::All).write_ansi(out)?;
         MoveTo(0, 0).write_ansi(out)?;
 
-        let mut references = self.grapheme_references();
+        let mut references = self.graphemes();
 
         let mut color_picker = ColorPicker::new();
 
@@ -522,9 +568,11 @@ impl<'a> Command for Slice<'a> {
 
         SetForegroundColor(Color::Green).write_ansi(out)?;
         Print(format!(
-            "\n\n{:?} {:?}",
+            "\n\n{:?} {:?}\n\nfactor {:?} -> {}",
             Reference::from(self.cursor).layout(),
             self.get(Reference::from(self.cursor)),
+            &self.sequence,
+            factor(&self.sequence).1
         ))
         .write_ansi(out)?;
 
