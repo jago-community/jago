@@ -4,6 +4,8 @@ Technically a community.
 
 ## Course
 
+The basics and some more on how to teach online.
+
 ### Criteria
 
 To pass this course you have to feel like you are done. 
@@ -27,4 +29,3 @@ Below are other resources that we find interesting.
 - [How computers reason about language.](https://www.pinecone.io/learn/nlp/)
 - [(*not all free) Online courses provided by universities and industry.](https://www.coursera.org/)
 - [Our community email.](mailto:all@jago.community)
-

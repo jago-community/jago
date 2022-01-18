@@ -147,11 +147,15 @@ fn slice_lines() {
 
     itertools::assert_equal(wants.clone(), gots);
 
+    let wants = vec![((52, (0, 2)), "l"), ((20, (0, 1)), "g"), ((0, (0, 0)), "E")]
+        .into_iter()
+        .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+
     let gots = slice
-        .line_starts_before((74, (0, 3)).into())
+        .line_starts_before((74, (22, 2)).into())
         .map(|reference| (reference.layout(), slice.get(reference)));
 
-    itertools::assert_equal(wants.rev(), gots);
+    itertools::assert_equal(wants, gots);
 
     let wants = vec![((25, (5, 1)), "s"), ((57, (5, 2)), "l")]
         .into_iter()
@@ -159,6 +163,16 @@ fn slice_lines() {
 
     let gots = slice
         .closest_x_in_y_after((5, (5, 0)).into())
+        .map(|reference| (reference.layout(), slice.get(reference)));
+
+    itertools::assert_equal(wants.clone(), gots);
+
+    let wants = vec![((25, (5, 1)), "s"), ((5, (5, 0)), "r")]
+        .into_iter()
+        .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+
+    let gots = slice
+        .closest_x_in_y_before((52, (5, 2)).into())
         .map(|reference| (reference.layout(), slice.get(reference)));
 
     itertools::assert_equal(wants.clone(), gots);
@@ -186,6 +200,21 @@ fn slice_lines() {
 
     itertools::assert_equal(wants.clone(), gots);
 
+    let wants = vec![
+        ((57, (0, 3)), "T"),
+        ((18, (0, 2)), "T"),
+        ((17, (0, 1)), "\n"),
+        ((0, (0, 0)), "T"),
+    ]
+    .into_iter()
+    .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+
+    let gots = slice
+        .line_starts_before((105, (0, 4)).into())
+        .map(|reference| (reference.layout(), slice.get(reference)));
+
+    itertools::assert_equal(wants, gots);
+
     let wants = vec![((17, (0, 1)), "\n"), ((23, (5, 2)), "o")]
         .into_iter()
         .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
@@ -196,6 +225,20 @@ fn slice_lines() {
         .map(|reference| (reference.layout(), slice.get(reference)));
 
     itertools::assert_equal(wants.clone(), gots);
+
+    let wants = vec![
+        ((23, (5, 2)), "o"),
+        ((17, (0, 1)), "\n"),
+        ((5, (5, 0)), "e"),
+    ]
+    .into_iter()
+    .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
+
+    let gots = slice
+        .closest_x_in_y_before((62, (5, 3)).into())
+        .map(|reference| (reference.layout(), slice.get(reference)));
+
+    itertools::assert_equal(wants, gots);
 }
 
 impl<'a> From<&'a [u8]> for Slice<'a> {
@@ -356,17 +399,17 @@ impl<'a> Slice<'a> {
         let stop = reference.index();
 
         self.bytes
-            .get(..=stop)
+            .get(..stop)
             .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
             .into_iter()
             .flat_map(|slice| slice.split_word_bounds())
             .rev()
             .scan(reference.layout(), |(index, coordinates), word| {
-                let current = Reference::from((*index, dbg!(*coordinates)));
+                let current = Reference::from((*index, *coordinates));
 
                 *index = index.checked_sub(word.len())?;
 
-                match dbg!(word) {
+                match word {
                     "\n" => {
                         coordinates.1 -= 1;
 
@@ -396,51 +439,21 @@ impl<'a> Slice<'a> {
                 Some((word, current))
             })
             .batching(move |it| {
-                it.inspect(|a| {
-                    dbg!(a);
+                it.find(|(word, next)| {
+                    next.x() == 0 && next.index() < stop || next.index() - word.len() == 0
                 })
-                .find(|(_, reference)| reference.index() > stop && reference.x() == 0)
-                .map(|(_, reference)| reference)
-            }) /*
-               .scan(reference.layout(), |(index, coordinates), word| {
-                   *index = index.checked_sub(word.len())?;
-
-                   if let Some(next) = coordinates.0.checked_sub(word.len()) {
-                       coordinates.0 = next;
-                   } else {
-                       coordinates.1 = coordinates.1.checked_sub(1)?;
-
-                       coordinates.0 = *index
-                           - self
-                               .bytes
-                               .get(..*index)
-                               .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
-                               .into_iter()
-                               .flat_map(|as_str| as_str.grapheme_indices(true))
-                               .rev()
-                               .find_map(|(index, grapheme)| {
-                                   if index == 0 {
-                                       Some(0)
-                                   } else if grapheme == "\n" {
-                                       Some(index + 1)
-                                   } else {
-                                       None
-                                   }
-                               })?;
-                   }
-
-                   Some((word, Reference::from((*index, *coordinates))))
-               })
-               .batching(|it| {
-                   if let Some((_, reference)) = it.find(|(word, _)| *word == "\n") {
-                       Some(Reference::from((
-                           reference.index() + 1,
-                           (0, reference.coordinates().1 + 1),
-                       )))
-                   } else {
-                       None
-                   }
-               })*/
+                .map(|(word, reference)| {
+                    if reference.x() == 0 {
+                        reference
+                    } else {
+                        (
+                            reference.index() - word.len(),
+                            (reference.x() - word.len(), reference.y()),
+                        )
+                            .into()
+                    }
+                })
+            })
     }
 
     fn closest_x_in_y_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
@@ -451,6 +464,34 @@ impl<'a> Slice<'a> {
                 self.grapheme_span(reference.clone(), self.bytes.len() - reference.index())
                     .find_map(|reference| {
                         if reference.x() == target {
+                            Some(reference)
+                        } else if self.get(reference.clone()) == Some("\n") {
+                            if reference.x() > 0 {
+                                Some(
+                                    (reference.index() - 1, (reference.x() - 1, reference.y()))
+                                        .into(),
+                                )
+                            } else {
+                                Some(reference)
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .into_iter()
+            })
+    }
+
+    fn closest_x_in_y_before(&self, input: Reference) -> impl Iterator<Item = Reference> {
+        let target_x = input.x();
+        let target_y = input.y();
+
+        self.line_starts_before(input.clone())
+            .skip_while(move |reference| reference.y() == target_y)
+            .flat_map(move |reference| {
+                self.grapheme_span(reference.clone(), self.bytes.len() - reference.index())
+                    .find_map(|reference| {
+                        if reference.x() == target_x {
                             Some(reference)
                         } else if self.get(reference.clone()) == Some("\n") {
                             if reference.x() > 0 {
@@ -496,7 +537,7 @@ fn factor(sequence: &[char]) -> (usize, usize) {
     let got = sequence
         .iter()
         .enumerate()
-        .map(|(index, maybe_digit)| (index, maybe_digit.to_digit(10)))
+        .map(|(index, maybe_digit)| (index + 1, maybe_digit.to_digit(10)))
         .take_while(|(_, result)| result.is_some())
         .map(|(index, result)| (index, result.unwrap()))
         .fold((0, 0), |(_, factor), (index, digit)| {
@@ -506,33 +547,49 @@ fn factor(sequence: &[char]) -> (usize, usize) {
     (got.0 as usize, if got.0 == 0 { 1 } else { got.1 as usize })
 }
 
+impl<'a> Slice<'a> {
+    fn consume_factor(&mut self) -> usize {
+        let got = factor(&self.sequence);
+
+        self.sequence = self.sequence.drain(got.0..).collect();
+
+        got.1
+    }
+}
+
 #[test]
 fn test_factor() {
-    let sequence = vec!['1', '0', '2'];
+    let sequences = vec![
+        (vec!['1', '0', '2'], 3, 102),
+        (vec!['2'], 1, 2),
+        (vec![], 0, 1),
+        (vec!['b'], 0, 1),
+    ];
 
-    assert_eq!(factor(&sequence).1, 102);
+    for (sequence, want_took, want_factor) in sequences {
+        let mut slice = Slice {
+            sequence: sequence.clone(),
+            ..Default::default()
+        };
+
+        assert_eq!(slice.consume_factor(), want_factor);
+
+        assert_eq!(&slice.sequence[..], &sequence[want_took..]);
+    }
 }
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
 impl<'a> Slice<'a> {
-    pub fn handle(&mut self, event: &Event) {
+    pub fn handle(&mut self, event: &Event) -> bool {
         let mut next = self.cursor.clone();
-
-        let mut factor = || {
-            let got = factor(&self.sequence);
-
-            self.sequence = self.sequence.drain(got.0..).collect();
-
-            got.1
-        };
 
         match event {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('l'),
                 ..
             }) => {
-                let factor = factor();
+                let factor = self.consume_factor();
 
                 let mut references = self.graphemes_after(self.cursor.into()).skip(factor - 1);
 
@@ -544,7 +601,7 @@ impl<'a> Slice<'a> {
                 code: KeyCode::Char('h'),
                 ..
             }) => {
-                let factor = factor();
+                let factor = self.consume_factor();
 
                 let mut references = self.graphemes_before(self.cursor.into()).skip(factor - 1);
 
@@ -556,7 +613,7 @@ impl<'a> Slice<'a> {
                 code: KeyCode::Char('j'),
                 ..
             }) => {
-                let factor = factor();
+                let factor = self.consume_factor();
 
                 let mut references = self
                     .closest_x_in_y_after(self.cursor.into())
@@ -564,6 +621,22 @@ impl<'a> Slice<'a> {
 
                 if let Some(next_ref) = references.next() {
                     next = (next_ref.index(), next_ref.coordinates());
+                }
+            }
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('k'),
+                ..
+            }) => {
+                let factor = self.consume_factor();
+
+                let mut references = self
+                    .closest_x_in_y_before(self.cursor.into())
+                    .skip(factor - 1);
+
+                if let Some(next_ref) = references.next() {
+                    next = (next_ref.index(), next_ref.coordinates());
+                } else {
+                    return true;
                 }
             }
             Event::Key(KeyEvent {
@@ -576,6 +649,8 @@ impl<'a> Slice<'a> {
         }
 
         self.cursor = next;
+
+        false
     }
 }
 

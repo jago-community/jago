@@ -5,9 +5,7 @@ mod display;
 mod slice;
 
 fn main() {
-    let source = include_bytes!("../poems/chris-abani/the-new-religion");
-
-    if let Err(error) = display::buffer(source) {
+    if let Err(error) = display::buffer() {
         eprintln!("{}", error);
         std::process::exit(1);
     }
