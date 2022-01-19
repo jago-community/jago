@@ -1,8 +1,6 @@
 #[derive(Default)]
 pub struct Slice<'a> {
     bytes: &'a [u8],
-    cursor: (usize, (usize, usize)),
-    sequence: Vec<char>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -39,11 +37,7 @@ fn slice_graphemes() {
     .into_iter()
     .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
 
-    let slice = Slice {
-        bytes,
-        cursor: (0, (0, 0)),
-        ..Default::default()
-    };
+    let slice = Slice { bytes };
 
     let gots = slice
         .graphemes()
@@ -100,11 +94,7 @@ fn slice_graphemes() {
     .into_iter()
     .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
 
-    let slice = Slice {
-        bytes,
-        cursor: (0, (0, 0)),
-        ..Default::default()
-    };
+    let slice = Slice { bytes };
 
     let gots = slice
         .graphemes()
@@ -135,11 +125,7 @@ fn slice_lines() {
         .into_iter()
         .map(|((index, coordinates), want)| ((index, coordinates), Some(want)));
 
-    let slice = Slice {
-        bytes,
-        cursor: (0, (0, 0)),
-        ..Default::default()
-    };
+    let slice = Slice { bytes };
 
     let gots = slice
         .line_starts_after((0, (0, 0)).into())
@@ -179,11 +165,7 @@ fn slice_lines() {
 
     let bytes = include_bytes!("../poems/chris-abani/the-new-religion");
 
-    let slice = Slice {
-        bytes,
-        cursor: (0, (0, 0)),
-        ..Default::default()
-    };
+    let slice = Slice { bytes };
 
     let wants = vec![
         ((17, (0, 1)), "\n"),
@@ -243,11 +225,7 @@ fn slice_lines() {
 
 impl<'a> From<&'a [u8]> for Slice<'a> {
     fn from(bytes: &'a [u8]) -> Self {
-        Self {
-            bytes,
-            cursor: (0, (0, 0)),
-            ..Default::default()
-        }
+        Self { bytes }
     }
 }
 
@@ -261,7 +239,7 @@ use itertools::Itertools;
 use unicode_segmentation::UnicodeSegmentation;
 
 impl<'a> Slice<'a> {
-    fn get(&'a self, reference: Reference) -> Option<&'a str> {
+    pub fn get(&'a self, reference: Reference) -> Option<&'a str> {
         self.bytes
             .get(reference.index()..)
             .map(|slice| unsafe { std::str::from_utf8_unchecked(slice) })
@@ -456,7 +434,7 @@ impl<'a> Slice<'a> {
             })
     }
 
-    fn closest_x_in_y_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
+    pub fn closest_x_in_y_after(&self, reference: Reference) -> impl Iterator<Item = Reference> {
         let target = reference.x();
 
         self.line_starts_after(reference)
@@ -482,7 +460,7 @@ impl<'a> Slice<'a> {
             })
     }
 
-    fn closest_x_in_y_before(&self, input: Reference) -> impl Iterator<Item = Reference> {
+    pub fn closest_x_in_y_before(&self, input: Reference) -> impl Iterator<Item = Reference> {
         let target_x = input.x();
         let target_y = input.y();
 
@@ -512,219 +490,23 @@ impl<'a> Slice<'a> {
 }
 
 impl<'a> Reference<'a> {
-    fn index(&self) -> usize {
+    pub fn index(&self) -> usize {
         self.0
     }
 
-    fn coordinates(&self) -> (usize, usize) {
+    pub fn coordinates(&self) -> (usize, usize) {
         self.1
     }
 
-    fn x(&self) -> usize {
+    pub fn x(&self) -> usize {
         self.1 .0
     }
 
-    fn y(&self) -> usize {
+    pub fn y(&self) -> usize {
         self.1 .1
     }
 
-    fn layout(&self) -> (usize, (usize, usize)) {
+    pub fn layout(&self) -> (usize, (usize, usize)) {
         (self.0, self.1)
-    }
-}
-
-fn factor(sequence: &[char]) -> (usize, usize) {
-    let got = sequence
-        .iter()
-        .enumerate()
-        .map(|(index, maybe_digit)| (index + 1, maybe_digit.to_digit(10)))
-        .take_while(|(_, result)| result.is_some())
-        .map(|(index, result)| (index, result.unwrap()))
-        .fold((0, 0), |(_, factor), (index, digit)| {
-            (index, factor * 10 + digit)
-        });
-
-    (got.0 as usize, if got.0 == 0 { 1 } else { got.1 as usize })
-}
-
-impl<'a> Slice<'a> {
-    fn consume_factor(&mut self) -> usize {
-        let got = factor(&self.sequence);
-
-        self.sequence = self.sequence.drain(got.0..).collect();
-
-        got.1
-    }
-}
-
-#[test]
-fn test_factor() {
-    let sequences = vec![
-        (vec!['1', '0', '2'], 3, 102),
-        (vec!['2'], 1, 2),
-        (vec![], 0, 1),
-        (vec!['b'], 0, 1),
-    ];
-
-    for (sequence, want_took, want_factor) in sequences {
-        let mut slice = Slice {
-            sequence: sequence.clone(),
-            ..Default::default()
-        };
-
-        assert_eq!(slice.consume_factor(), want_factor);
-
-        assert_eq!(&slice.sequence[..], &sequence[want_took..]);
-    }
-}
-
-use crossterm::event::{Event, KeyCode, KeyEvent};
-
-impl<'a> Slice<'a> {
-    pub fn handle(&mut self, event: &Event) -> bool {
-        let mut next = self.cursor.clone();
-
-        match event {
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('l'),
-                ..
-            }) => {
-                let factor = self.consume_factor();
-
-                let mut references = self.graphemes_after(self.cursor.into()).skip(factor - 1);
-
-                if let Some(next_ref) = references.next() {
-                    next = (next_ref.index(), next_ref.coordinates());
-                }
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('h'),
-                ..
-            }) => {
-                let factor = self.consume_factor();
-
-                let mut references = self.graphemes_before(self.cursor.into()).skip(factor - 1);
-
-                if let Some(next_ref) = references.next() {
-                    next = (next_ref.index(), next_ref.coordinates());
-                }
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('j'),
-                ..
-            }) => {
-                let factor = self.consume_factor();
-
-                let mut references = self
-                    .closest_x_in_y_after(self.cursor.into())
-                    .skip(factor - 1);
-
-                if let Some(next_ref) = references.next() {
-                    next = (next_ref.index(), next_ref.coordinates());
-                }
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('k'),
-                ..
-            }) => {
-                let factor = self.consume_factor();
-
-                let mut references = self
-                    .closest_x_in_y_before(self.cursor.into())
-                    .skip(factor - 1);
-
-                if let Some(next_ref) = references.next() {
-                    next = (next_ref.index(), next_ref.coordinates());
-                } else {
-                    return true;
-                }
-            }
-            Event::Key(KeyEvent {
-                code: KeyCode::Char(code),
-                ..
-            }) => {
-                self.sequence.push(*code);
-            }
-            _ => {}
-        }
-
-        self.cursor = next;
-
-        false
-    }
-}
-
-use crossterm::{
-    cursor::MoveTo,
-    style::{Color, Print, ResetColor, SetForegroundColor},
-    terminal::{Clear, ClearType},
-    Command,
-};
-
-use crate::color::ColorPicker;
-
-impl<'a> Command for Slice<'a> {
-    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-        Clear(ClearType::All).write_ansi(out)?;
-        MoveTo(0, 0).write_ansi(out)?;
-
-        let mut references = self.graphemes();
-
-        let mut color_picker = ColorPicker::new();
-
-        while let Some(reference) = references.next() {
-            SetForegroundColor(color_picker.pick()).write_ansi(out)?;
-
-            let (x, y) = reference.coordinates();
-            // TODO: only do this for the one after a new line.
-            MoveTo(x as u16, y as u16).write_ansi(out)?;
-
-            if let Some(grapheme) = self.get(reference) {
-                Print(grapheme).write_ansi(out)?;
-            }
-        }
-
-        SetForegroundColor(Color::Green).write_ansi(out)?;
-        Print(format!(
-            "\n\n{:?} {:?}\n\nfactor {:?} -> {}",
-            Reference::from(self.cursor).layout(),
-            self.get(Reference::from(self.cursor)),
-            &self.sequence,
-            factor(&self.sequence).1
-        ))
-        .write_ansi(out)?;
-
-        SetForegroundColor(Color::Magenta).write_ansi(out)?;
-        Print("\n\nq ").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print("= quit").write_ansi(out)?;
-        SetForegroundColor(Color::Magenta).write_ansi(out)?;
-        Print("\nh, j, k, l ").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print("= left, down, up, right").write_ansi(out)?;
-        SetForegroundColor(Color::Magenta).write_ansi(out)?;
-        Print("\nControl+n ").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print("= Change poem.").write_ansi(out)?;
-        SetForegroundColor(Color::Magenta).write_ansi(out)?;
-        Print("\n{a:some number}").write_ansi(out)?;
-        SetForegroundColor(Color::Blue).write_ansi(out)?;
-        Print("{b:some direction key}").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print(" = Move in the ").write_ansi(out)?;
-        SetForegroundColor(Color::Blue).write_ansi(out)?;
-        Print("{b}").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print(" direction ").write_ansi(out)?;
-        SetForegroundColor(Color::Magenta).write_ansi(out)?;
-        Print("{a}").write_ansi(out)?;
-        ResetColor.write_ansi(out)?;
-        Print(" times.\n").write_ansi(out)?;
-
-        let (x, y) = Reference::from(self.cursor).coordinates();
-
-        MoveTo(x as u16, y as u16).write_ansi(out)?;
-
-        Ok(())
     }
 }

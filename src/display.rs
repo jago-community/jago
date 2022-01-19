@@ -7,7 +7,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::slice::Slice;
+use crate::{buffer::Buffer, slice::Slice};
 
 pub fn buffer() -> Result<(), Error> {
     let sources = &[
@@ -17,7 +17,7 @@ pub fn buffer() -> Result<(), Error> {
 
     let mut index = 0;
 
-    let mut slice = Slice::from(sources[index]);
+    let mut buffer = Buffer::from(sources[index]);
 
     let mut output = stdout();
 
@@ -25,7 +25,7 @@ pub fn buffer() -> Result<(), Error> {
         output,
         EnterAlternateScreen,
         SetCursorShape(CursorShape::UnderScore),
-        &slice,
+        &buffer,
     )?;
 
     enable_raw_mode()?;
@@ -33,13 +33,17 @@ pub fn buffer() -> Result<(), Error> {
     loop {
         disable_raw_mode()?;
 
-        execute!(output, &slice)?;
+        let current = buffer.read_bytes();
+
+        let slice = Slice::from(current.as_ref());
+
+        execute!(output, &buffer)?;
 
         enable_raw_mode()?;
 
         let event = read()?;
 
-        if slice.handle(&event) {
+        if buffer.handle(slice, &event) {
             break;
         }
 
@@ -49,7 +53,7 @@ pub fn buffer() -> Result<(), Error> {
                 modifiers,
             }) if modifiers.contains(KeyModifiers::CONTROL) => {
                 index = (index + 1) % 2;
-                slice = Slice::from(sources[index]);
+                buffer = Buffer::from(sources[index]);
             }
             Event::Key(KeyEvent {
                 code: KeyCode::Char('q'),
@@ -60,7 +64,7 @@ pub fn buffer() -> Result<(), Error> {
             _ => {}
         };
 
-        queue!(output, &slice)?;
+        queue!(output, &buffer)?;
 
         output.flush()?;
     }

@@ -1,6 +1,5 @@
 mod buffer;
 mod color;
-mod cursor;
 mod display;
 mod slice;
 
