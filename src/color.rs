@@ -22,7 +22,7 @@ impl ColorPicker {
 
 use rand::seq::SliceRandom;
 
-use crossterm::style::Color;
+pub use crossterm::style::Color;
 
 impl ColorPicker {
     pub fn pick(&mut self) -> Color {
