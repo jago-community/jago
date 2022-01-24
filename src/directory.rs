@@ -34,6 +34,8 @@ impl From<&Path> for Directory {
     }
 }
 
+use std::borrow::Cow;
+
 #[test]
 fn selected() {
     let entries = vec![
@@ -52,11 +54,19 @@ fn selected() {
         "src",
         "target",
         "README.md",
-    ];
+    ]
+    .into_iter()
+    .map(|a| Cow::from(a))
+    .collect_vec();
+
     let directory = Directory {
         path: PathBuf::new(),
         read: true,
-        entries: entries.clone().into_iter().map(PathBuf::from).collect_vec(),
+        entries: entries
+            .clone()
+            .into_iter()
+            .map(|a| PathBuf::from(&a[..]))
+            .collect_vec(),
         marker: None,
         buffer: String::from("readme"),
     };
@@ -65,24 +75,19 @@ fn selected() {
 }
 
 impl Directory {
-    fn get_entries(&self) -> Vec<String> {
+    fn get_entries<'a>(&self) -> Vec<Cow<'_, str>> {
         self.entries
             .iter()
             .filter_map(|path| path.strip_prefix(&self.path).ok().map(PathBuf::from))
-            .map(|path| path.display().to_string().to_lowercase())
-            .sorted()
+            .map(|path| Cow::from(path.display().to_string().to_lowercase()))
             .collect()
     }
 
-    fn selected_index<A: AsRef<str>>(&self, entries: &[A]) -> Option<usize> {
+    fn selected_index<'a>(&self, entries: &[Cow<'_, str>]) -> Option<usize> {
         let mut index = None;
 
         if self.buffer.len() > 0 {
-            let mut sorted_entry_indices = most_similar_to(
-                entries.iter().map(|entry| entry.as_ref()),
-                self.buffer.as_ref(),
-            )
-            .ok()?;
+            let mut sorted_entry_indices = crate::order::similar(&self.buffer, entries.into_iter());
 
             if let Some(first) = sorted_entry_indices.next() {
                 index = Some(first);
@@ -94,7 +99,7 @@ impl Directory {
         index
     }
 
-    fn selected(&self, entries: &[&str]) -> Option<&Path> {
+    fn selected<'a>(&self, entries: &[Cow<'_, str>]) -> Option<&Path> {
         self.selected_index(entries)
             .iter()
             .flat_map(|index| self.entries.get(*index))
@@ -187,13 +192,7 @@ impl Directory {
 
         let mut color_picker = ColorPicker::new();
 
-        let entries = self
-            .entries
-            .iter()
-            .filter_map(|path| path.strip_prefix(&self.path).ok().map(PathBuf::from))
-            .map(|path| path.display().to_string().to_lowercase())
-            .sorted()
-            .collect::<Vec<_>>();
+        let entries = self.get_entries();
 
         let active = self.selected_index(entries.clone().as_slice());
 
@@ -295,8 +294,6 @@ impl Directory {
                 ..
             }) => {
                 let entries = self.get_entries();
-
-                let entries = entries.iter().map(|abc| abc.as_str()).collect_vec();
 
                 marker = self.selected(&entries);
             }

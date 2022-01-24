@@ -1,1 +1,4 @@
-- use more granular
+- grid
+    - takes iterator of blocks
+    - has scroll position
+    - uses scroll position and terminal height to only render necessary lines

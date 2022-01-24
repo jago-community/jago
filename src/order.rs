@@ -18,18 +18,26 @@ fn test_similar() {
         "target",
     ]
     .into_iter()
-    .map(|a| Cow::from(a));
+    .map(|a| &Cow::from(a));
 
-    assert_eq!(similar(entries).get(0), Some(&6));
+    assert_eq!(similar("readme", entries).next(), Some(6));
 }
 
-use std::{borrow::Cow, iter::IntoIterator};
+use std::{borrow::Cow, cmp::Ordering, iter::IntoIterator};
 
-pub fn similar<'a>(buffer: &'a str, set: impl IntoIterator<Item = Cow<'a, str>>) -> Vec<usize> {
+use itertools::Itertools;
+
+pub fn similar<'a>(
+    buffer: &'a str,
+    set: impl IntoIterator<Item = &'a Cow<'a, str>>,
+) -> impl Iterator<Item = usize> {
+    let buffer = buffer.to_lowercase();
+
     set.into_iter()
-        .map(|item| score(buffer, &item))
-        .map(|_| 0)
-        .collect()
+        .map(|item| score(&buffer, &item.to_lowercase()).unwrap_or(0.))
+        .enumerate()
+        .sorted_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap_or(Ordering::Equal))
+        .map(|(index, _)| index)
 }
 
 use num_traits::cast::FromPrimitive;
