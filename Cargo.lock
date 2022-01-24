@@ -203,6 +203,7 @@ dependencies = [
  "fst",
  "ignore",
  "itertools",
+ "num-traits",
  "once_cell",
  "rand 0.8.4",
  "strsim",

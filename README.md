@@ -1,10 +1,8 @@
 # Jago
 
-Technically a community.
+Ambiguously a community.
 
 ## Course
-
-The basics and some more on how to teach online.
 
 ### Criteria
 
@@ -22,7 +20,7 @@ If you can't think of anything or need some ideas for stepping stones to your bi
 
 [This non-profit](https://www.freecodecamp.org/learn) has more than enough learning material to get you to the point where you know enough to figure out whatever it is you are trying to figure out with the internet. Use them as a resource to get moving on your course's projects. For example, [here's one where you make your own twitter.](https://www.freecodecamp.org/news/create-a-cross-platform-twitter-clone-with-vue-js/)
 
-[This non-profit](https://exercism.org/) also has more than enough learning material to get you started, but takes a different approach. It is more useful when you are trying to grasp programming languages themselves rather than what to do with them.
+[Here is another non-profit](https://exercism.org/) that has more than enough learning material to get you started, but takes a different approach. It is more useful when you are trying to grasp programming languages themselves rather than what to do with them.
 
 Below are other resources that we find interesting.
 
