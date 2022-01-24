@@ -1,6 +1,6 @@
 # Jago
 
-Ambiguously a community.
+An ambiguous community.
 
 ## Course
 
