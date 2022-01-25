@@ -18,9 +18,13 @@ fn test_similar() {
         "target",
     ]
     .into_iter()
-    .map(|a| &Cow::from(a));
+    .map(|a| Cow::from(a))
+    .collect_vec();
 
-    assert_eq!(similar("readme", entries).next(), Some(6));
+    assert_eq!(
+        similar("readme", entries.iter().collect_vec()).next(),
+        Some(6)
+    );
 }
 
 use std::{borrow::Cow, cmp::Ordering, iter::IntoIterator};

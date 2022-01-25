@@ -36,6 +36,8 @@ impl From<&Path> for Directory {
 
 use std::borrow::Cow;
 
+use itertools::Itertools;
+
 #[test]
 fn selected() {
     let entries = vec![
@@ -75,19 +77,38 @@ fn selected() {
 }
 
 impl Directory {
+    fn set_entries(&mut self) -> Result<(), Error> {
+        let directory = std::fs::read_dir(&self.path)?;
+
+        self.read = true;
+        self.entries = directory
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter_map(|path| path.strip_prefix(&self.path).ok().map(PathBuf::from))
+            .sorted_by(|a, b| {
+                a.as_os_str()
+                    .to_ascii_lowercase()
+                    .cmp(&b.as_os_str().to_ascii_lowercase())
+            })
+            .collect();
+
+        Ok(())
+    }
+
     fn get_entries<'a>(&self) -> Vec<Cow<'_, str>> {
         self.entries
             .iter()
-            .filter_map(|path| path.strip_prefix(&self.path).ok().map(PathBuf::from))
-            .map(|path| Cow::from(path.display().to_string().to_lowercase()))
+            .map(|path| Cow::from(path.display().to_string()))
             .collect()
     }
 
-    fn selected_index<'a>(&self, entries: &[Cow<'_, str>]) -> Option<usize> {
+    fn selected_index<'a>(&self) -> Option<usize> {
+        let entries = self.get_entries();
+
         let mut index = None;
 
         if self.buffer.len() > 0 {
-            let mut sorted_entry_indices = crate::order::similar(&self.buffer, entries.into_iter());
+            let mut sorted_entry_indices = crate::order::similar(&self.buffer, entries.iter());
 
             if let Some(first) = sorted_entry_indices.next() {
                 index = Some(first);
@@ -99,8 +120,8 @@ impl Directory {
         index
     }
 
-    fn selected<'a>(&self, entries: &[Cow<'_, str>]) -> Option<&Path> {
-        self.selected_index(entries)
+    fn selected<'a>(&self) -> Option<&Path> {
+        self.selected_index()
             .iter()
             .flat_map(|index| self.entries.get(*index))
             .map(|item| item.as_path())
@@ -110,91 +131,17 @@ impl Directory {
 
 use crate::color::ColorPicker;
 
-use itertools::Itertools;
-
-use fst::{automaton::Levenshtein, IntoStreamer, Set, Streamer};
-
-fn most_similar_to<'a>(
-    items: impl Iterator<Item = &'a str>,
-    buffer: &str,
-) -> Result<impl Iterator<Item = usize>, Error> {
-    let input = items.map(str::to_lowercase).collect::<Vec<_>>();
-
-    let index_cache = input
-        .iter()
-        .enumerate()
-        .map(|(a, b)| (b.as_bytes(), a))
-        .collect::<std::collections::HashMap<_, _>>();
-
-    let input = input.iter().sorted().collect::<Vec<_>>();
-
-    let set = Set::from_iter(&input)?;
-
-    let lev = Levenshtein::new_with_limit(buffer, 5, 300000)?;
-
-    let mut stream = set.search_with_state(lev).into_stream();
-
-    let mut results = vec![];
-
-    while let Some((value, score)) = stream.next() {
-        let c = value.clone().to_vec();
-
-        if let Some(score) = score {
-            if let Some(key) = index_cache.get(&value[..]) {
-                results.push((*key, score, c));
-            }
-        }
-    }
-
-    Ok(results
-        .into_iter()
-        .sorted_by(|(_, a, _), (_, b, _)| b.cmp(a))
-        .map(|(key, _, _)| key))
-}
-
-#[test]
-fn test_most_similar_to() {
-    let set = vec![
-        "README.md",
-        ".cargo",
-        ".ds_store",
-        ".git",
-        ".gitignore",
-        "a",
-        "cargo.lock",
-        "cargo.toml",
-        "entitlements.xml",
-        "jago",
-        "jago.vim",
-        "math",
-        "poems",
-        "src",
-        "target",
-    ];
-
-    assert_eq!(
-        most_similar_to(set.into_iter(), "readme").unwrap().next(),
-        Some(0)
-    );
-}
-
 impl Directory {
     pub fn write_terminal(&mut self) -> Result<Block, Error> {
         if !self.read {
-            let directory = std::fs::read_dir(&self.path)?;
-
-            self.read = true;
-            self.entries = directory
-                .filter_map(Result::ok)
-                .map(|entry| entry.path())
-                .collect();
+            self.set_entries()?;
         }
 
         let mut color_picker = ColorPicker::new();
 
         let entries = self.get_entries();
 
-        let active = self.selected_index(entries.clone().as_slice());
+        let active = self.selected_index();
 
         Ok(Block::Group(
             [
@@ -202,6 +149,12 @@ impl Directory {
                 Block::Text("-> ".into()),
                 Block::Color(None),
                 Block::Text(self.buffer.clone()),
+                Block::Text("\n ".into()),
+                Block::NewLine,
+                Block::Color(Some(Color::Green)),
+                Block::Text("-> ".into()),
+                Block::Color(None),
+                Block::Text(format!("{:?}", self.selected())),
                 Block::Text("\n\n".into()),
                 Block::NewLine,
             ]
@@ -293,9 +246,7 @@ impl Directory {
                 code: KeyCode::Enter,
                 ..
             }) => {
-                let entries = self.get_entries();
-
-                marker = self.selected(&entries);
+                marker = self.selected();
             }
             Event::Key(KeyEvent {
                 code: KeyCode::Char(code),
