@@ -8,7 +8,7 @@ use crossterm::{
     event::read,
     execute,
     terminal::{
-        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+        disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
         LeaveAlternateScreen,
     },
 };
@@ -58,6 +58,8 @@ pub fn directory(path: &Path) -> Result<Option<PathBuf>, Error> {
 
 use std::{fs::OpenOptions, io::Read};
 
+use crossterm::event::Event;
+
 use crate::buffer::Buffer;
 
 pub fn file(path: &Path) -> Result<(), Error> {
@@ -72,6 +74,10 @@ pub fn file(path: &Path) -> Result<(), Error> {
     file.read_to_end(&mut bytes)?;
 
     let mut buffer = Buffer::from(bytes.as_ref());
+
+    let (x, y) = size()?;
+
+    buffer.handle(&Event::Resize(x, y))?;
 
     let mut output = stdout();
 

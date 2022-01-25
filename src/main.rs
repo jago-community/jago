@@ -3,6 +3,7 @@ mod color;
 mod directory;
 mod display;
 mod event;
+mod grid;
 mod order;
 mod resource;
 mod slice;
