@@ -1,52 +1,35 @@
-use std::collections::{HashMap, HashSet};
-
-use ndarray::{arr2, Array2};
-
-pub struct Grid<'a> {
-    parts: Vec<&'a str>,
-    part_map: HashMap<usize, &'a str>,
-    cells: Array2<usize>,
-}
-
 use std::borrow::Cow;
 
-use itertools::Itertools;
-use unicode_segmentation::UnicodeSegmentation;
+pub struct Grid<'a> {
+    source: Cow<'a, str>,
+    dimensions: (usize, usize),
+    cursor: (usize, (usize, usize)),
+}
 
 impl<'a> Grid<'a> {
-    pub fn new((x, y): (u16, u16), input: Cow<'a, str>) -> Self {
-        let input = &input[..];
-
-        let (parts, part_map, cells) = input[..].split_word_bound_indices().fold(
-            (
-                HashSet::new(),
-                HashMap::new(),
-                Array2::zeros([x as usize, y as usize]),
-            ),
-            |(mut parts, mut part_map, mut cells), (index, part)| {
-                if !parts.contains(&part) {
-                    parts.insert(part);
-                    part_map.insert(parts.len(), part);
-                }
-
-                (parts, part_map, cells)
-            },
-        );
-
+    pub fn new(source: &'a str, (x, y): (usize, usize)) -> Self {
         Self {
-            parts: parts.into_iter().collect_vec(),
-            part_map,
-            cells,
+            source: source.into(),
+            dimensions: (x, y),
+            cursor: (0, (0, 0)),
         }
-
-        //let cells = input.split_word_bounds().fold(
-        //,
-        //|sofar, word| {
-        //// ...
-        //sofar
-        //},
-        //);
-
-        //Self { blocks, cells }
     }
+}
+
+impl<'a> Grid<'a> {
+    pub fn spans(&self) -> impl Iterator<Item = (usize, usize)> {
+        vec![].into_iter()
+    }
+
+    pub fn read(&self) -> impl Iterator<Item = Cow<'_, str>> {
+        self.spans()
+            .map(|(index, slots)| self.source.get(index..index + slots).unwrap_or("\n").into())
+    }
+}
+
+#[test]
+fn test_grid() {
+    let bytes = include_str!("../poems/etheridge-knight/haiku/1");
+
+    assert_eq!(bytes, Grid::new(bytes, (31, 3)).read().collect::<String>());
 }

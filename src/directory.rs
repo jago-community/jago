@@ -73,7 +73,7 @@ fn selected() {
         buffer: String::from("readme"),
     };
 
-    assert_eq!(directory.selected(&entries), Some(Path::new("README.md")));
+    assert_eq!(directory.selected(), Some(Path::new("README.md")));
 }
 
 impl Directory {

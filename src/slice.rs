@@ -8,7 +8,7 @@ pub struct Reference<'a>(usize, (usize, usize), std::marker::PhantomData<&'a ()>
 
 #[test]
 fn slice_graphemes() {
-    let bytes = include_bytes!("../poems/eltheridge-knight/haiku/1");
+    let bytes = include_bytes!("../poems/etheridge-knight/haiku/1");
 
     let wants = vec![
         ((0, (0, 0)), "E"),
@@ -119,7 +119,7 @@ fn slice_graphemes() {
 
 #[test]
 fn slice_lines() {
-    let bytes = include_bytes!("../poems/eltheridge-knight/haiku/1");
+    let bytes = include_bytes!("../poems/etheridge-knight/haiku/1");
 
     let wants = vec![((20, (0, 1)), "g"), ((52, (0, 2)), "l")]
         .into_iter()
