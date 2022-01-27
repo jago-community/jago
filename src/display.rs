@@ -58,9 +58,7 @@ pub fn directory(path: &Path) -> Result<Option<PathBuf>, Error> {
 
 use std::{fs::OpenOptions, io::Read};
 
-use crossterm::event::Event;
-
-use crate::buffer::Buffer;
+use crate::grid::Grid;
 
 pub fn file(path: &Path) -> Result<(), Error> {
     let mut file = OpenOptions::new()
@@ -73,30 +71,35 @@ pub fn file(path: &Path) -> Result<(), Error> {
 
     file.read_to_end(&mut bytes)?;
 
-    let mut buffer = Buffer::from(bytes.as_ref());
+    let (x, y) = size()?;
+
+    let mut grid = Grid::new(
+        unsafe { std::str::from_utf8_unchecked(bytes.as_ref()) },
+        (x as usize, y as usize),
+    );
 
     let (x, y) = size()?;
 
-    buffer.handle(&Event::Resize(x, y))?;
+    //buffer.handle(&Event::Resize(x, y))?;
 
     let mut output = stdout();
 
-    let block = buffer.write_terminal()?;
+    //let block = buffer.write_terminal()?;
 
-    execute!(output, EnterAlternateScreen, block,)?;
+    execute!(output, EnterAlternateScreen, &grid)?;
 
     enable_raw_mode()?;
 
     loop {
         let event = read()?;
 
-        if let Err(_) = buffer.handle(&event) {
+        if let Err(_) = grid.handle(&event) {
             break;
         }
 
-        let block = buffer.write_terminal()?;
+        //let block = buffer.write_terminal()?;
 
-        execute!(output, Clear(ClearType::All), MoveTo(0, 0), block)?;
+        execute!(output, Clear(ClearType::All), MoveTo(0, 0), &grid)?;
 
         output.flush()?;
     }
@@ -112,6 +115,44 @@ pub fn file(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
+use crate::iter_view::IterView;
+
+use crossterm::cursor::{Hide, Show};
+
+pub fn iterator<Item: std::fmt::Debug>(iter: impl IntoIterator<Item = Item>) -> Result<(), Error> {
+    let mut view = IterView::from(iter.into_iter());
+
+    view.step();
+
+    let (x, y) = size()?;
+
+    let mut grid = Grid::new(context, (x as usize, y as usize / 2));
+
+    let mut output = stdout();
+
+    execute!(output, EnterAlternateScreen, Hide, &view)?;
+
+    enable_raw_mode()?;
+
+    loop {
+        let event = read()?;
+
+        if let Err(_) = view.handle(&event) {
+            break;
+        }
+
+        execute!(output, Clear(ClearType::All), MoveTo(0, 0), &view)?;
+
+        output.flush()?;
+    }
+
+    disable_raw_mode()?;
+
+    execute!(output, Show, LeaveAlternateScreen)?;
+
+    Ok(())
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Io {0}")]
@@ -120,4 +161,6 @@ pub enum Error {
     Directory(#[from] crate::directory::Error),
     #[error("Directory {0}")]
     Buffer(#[from] crate::buffer::Error),
+    #[error("Directory {0}")]
+    IterView(#[from] crate::iter_view::Error),
 }

@@ -77,7 +77,7 @@ fn selected() {
 }
 
 impl Directory {
-    fn set_entries(&mut self) -> Result<(), Error> {
+    pub fn set_entries(&mut self) -> Result<(), Error> {
         let directory = std::fs::read_dir(&self.path)?;
 
         self.read = true;
@@ -95,7 +95,11 @@ impl Directory {
         Ok(())
     }
 
-    fn get_entries<'a>(&self) -> Vec<Cow<'_, str>> {
+    pub fn get_entry_paths(&self) -> &[PathBuf] {
+        &self.entries
+    }
+
+    pub fn get_entries<'a>(&self) -> Vec<Cow<'_, str>> {
         self.entries
             .iter()
             .map(|path| Cow::from(path.display().to_string()))

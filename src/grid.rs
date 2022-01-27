@@ -1,35 +1,88 @@
 use std::borrow::Cow;
 
 pub struct Grid<'a> {
-    source: Cow<'a, str>,
+    buffer: Cow<'a, str>,
     dimensions: (usize, usize),
-    cursor: (usize, (usize, usize)),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Incomplete")]
+    Incomplete,
 }
 
 impl<'a> Grid<'a> {
-    pub fn new(source: &'a str, (x, y): (usize, usize)) -> Self {
+    pub fn new(buffer: &'a str, (x, y): (usize, usize)) -> Self {
         Self {
-            source: source.into(),
+            buffer: buffer.into(),
             dimensions: (x, y),
-            cursor: (0, (0, 0)),
         }
     }
 }
 
-impl<'a> Grid<'a> {
-    pub fn spans(&self) -> impl Iterator<Item = (usize, usize)> {
-        vec![].into_iter()
-    }
+use textwrap::fill;
 
-    pub fn read(&self) -> impl Iterator<Item = Cow<'_, str>> {
-        self.spans()
-            .map(|(index, slots)| self.source.get(index..index + slots).unwrap_or("\n").into())
+impl<'a> Grid<'a> {
+    pub fn buffer(&self) -> String {
+        fill(&self.buffer, self.dimensions.0 - 10)
     }
 }
 
-#[test]
-fn test_grid() {
-    let bytes = include_str!("../poems/etheridge-knight/haiku/1");
+use crossterm::{
+    style::{Print, SetForegroundColor},
+    Command,
+};
+use unicode_segmentation::UnicodeSegmentation;
 
-    assert_eq!(bytes, Grid::new(bytes, (31, 3)).read().collect::<String>());
+use crate::color::ColorPicker;
+
+impl<'a> Command for Grid<'a> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        let mut color_picker = ColorPicker::new();
+
+        self.buffer()
+            .split_sentence_bounds()
+            .scan(0usize, |mut y, part| {
+                if part == "\n" {
+                    *y += 1;
+                }
+
+                Some((*y, part))
+            })
+            .take_while(|(line, _)| line < &self.dimensions.1)
+            .map(|(_, part)| {
+                SetForegroundColor(color_picker.pick())
+                    .write_ansi(out)
+                    .and(Print(part).write_ansi(out))
+            })
+            .find(Result::is_err)
+            .unwrap_or(Ok(()))
+    }
+}
+
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+
+impl<'a> Grid<'a> {
+    pub fn handle(&mut self, event: &Event) -> Result<(), Error> {
+        let mut stop = false;
+
+        match event {
+            Event::Resize(x, y) => {
+                self.dimensions = (*x as usize, *y as usize);
+            }
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('c'),
+                modifiers,
+            }) if modifiers.contains(KeyModifiers::CONTROL) => {
+                stop = true;
+            }
+            _ => {}
+        };
+
+        if stop {
+            Err(Error::Incomplete)
+        } else {
+            Ok(())
+        }
+    }
 }
