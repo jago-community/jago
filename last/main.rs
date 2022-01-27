@@ -1,6 +1,7 @@
 mod color;
+mod iter_view;
+mod order;
 mod pane;
-mod sequence;
 
 use pane::Pane;
 
@@ -13,7 +14,7 @@ fn main() {
         }
     };
 
-    if let Err(error) = Pane::view(current.display()) {
+    if let Err(error) = Pane::display(&current) {
         eprintln!("{}", error);
         std::process::exit(1);
     }
