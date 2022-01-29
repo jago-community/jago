@@ -26,7 +26,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::Command;
 
 pub trait Viewer {
-    fn view(&self) -> Lense<'_>;
+    type View: Command;
+
+    fn view(&self) -> Self::View;
 }
 
 impl<D: std::fmt::Display> Viewer for D {

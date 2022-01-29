@@ -8,11 +8,11 @@ impl<'a> From<&'a Path> for Resource<'a> {
     }
 }
 
-use crate::traits::{Lense, Viewer};
+use crossterm::{style::Print, Command};
 
-impl Viewer for Resource<'_> {
-    fn view(&self) -> Lense {
-        Lense::Encoded(Box::new(self.0.display()))
+impl<'a> Command for &'a Resource<'a> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        Print(self.0.display()).write_ansi(out)
     }
 }
 

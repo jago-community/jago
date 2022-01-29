@@ -36,14 +36,11 @@ impl<Inner> Plane<Inner> {
     }
 }
 
-use crate::traits::{Lense, Viewer};
+use crossterm::Command;
 
-impl<'a, Inner: Viewer> Viewer for &'a Plane<Inner> {
-    fn view(&self) -> Lense {
-        Lense::Group(vec![
-            Lense::Cursor((0, (self.dimensions.0 / 2, 0))),
-            self.inner.view(),
-        ])
+impl<'a, Inner: Command> Command for &'a Plane<Inner> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        self.inner.write_ansi(out)
     }
 }
 

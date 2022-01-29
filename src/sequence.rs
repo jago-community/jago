@@ -1,5 +1,5 @@
 pub struct Sequence<'a> {
-    sequence: Vec<Box<dyn Viewer + 'a>>,
+    sequence: Vec<Box<dyn crossterm::Command + 'a>>,
     step: usize,
 }
 

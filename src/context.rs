@@ -7,11 +7,13 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
 }
 
-use crate::traits::{Lense, Viewer};
+use crate::traits::Viewer;
 
-impl<'a> Viewer for &'a Context {
-    fn view(&self) -> Lense {
-        Lense::Encoded(Box::new("Hello, stranger."))
+use crossterm::{style::Print, Command};
+
+impl<'a> Command for &'a Context {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        Print("Hello, stranger.").write_ansi(out)
     }
 }
 
