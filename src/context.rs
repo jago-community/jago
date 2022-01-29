@@ -1,4 +1,5 @@
-pub struct Context;
+#[derive(Default)]
+pub struct Context(usize);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -6,25 +7,13 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
 }
 
-use std::fmt;
+use crate::traits::{Lense, Viewer};
 
-impl fmt::Display for Context {
-    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(out, "Hello, stranger.")
+impl<'a> Viewer for &'a Context {
+    fn view(&self) -> Lense {
+        Lense::Encoded(Box::new("Hello, stranger."))
     }
 }
-
-use crossterm::{style::Print, Command};
-
-impl<'a> Command for &'a Context {
-    fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        Print(format!("{}", self)).write_ansi(out)
-    }
-}
-
-use crate::traits::Viewer;
-
-impl<'a> Viewer for &'a Context {}
 
 use crate::traits::{Handler, Outcome};
 
@@ -60,7 +49,7 @@ impl Context {
 
         let mut output = stdout();
 
-        execute!(output, EnterAlternateScreen, Hide, &item)?;
+        execute!(output, EnterAlternateScreen, Hide, item.view())?;
 
         enable_raw_mode()?;
 
@@ -75,7 +64,7 @@ impl Context {
                 _ => {}
             };
 
-            execute!(output, Clear(ClearType::All), MoveTo(0, 0), &item)?;
+            execute!(output, Clear(ClearType::All), MoveTo(0, 0), item.view())?;
 
             output.flush()?;
         }

@@ -6,21 +6,10 @@ mod resource;
 mod sequence;
 mod traits;
 
-use self::{context::Context, plane::Plane, resource::Resource, traits::Outcome};
+use self::{context::Context, plane::Plane, resource::Resource, sequence::Sequence};
 
 fn main() {
-    let context = Context;
-
-    match context.watch(&context) {
-        Ok(Outcome::Exit(code)) => {
-            std::process::exit(code.unwrap_or(0));
-        }
-        Err(error) => {
-            eprintln!("{}", error);
-            std::process::exit(1);
-        }
-        _ => {}
-    };
+    let context = Context::default();
 
     let directory = match std::env::current_dir() {
         Ok(path) => path,
@@ -42,7 +31,11 @@ fn main() {
 
     let plane = Plane::with_dimensions(resource, (x, y));
 
-    if let Err(error) = context.watch(plane) {
+    let end = Plane::with_dimensions("Goodbye, friend.", (x, y));
+
+    let combo = Sequence::from(vec![Sequence::wrap(&context), Sequence::wrap(&plane),Sequence::wrap(&end)]);
+
+    if let Err(error) = context.watch(combo) {
         eprintln!("{}", error);
         std::process::exit(1);
     }
