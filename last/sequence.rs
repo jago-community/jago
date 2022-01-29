@@ -1,38 +1,39 @@
-use crate::filter::Filter;
-
 pub struct Sequence<'a> {
-    sequence: Vec<Box<dyn Filter + 'a>>,
+    sequence: Vec<Box<dyn crossterm::Command + 'a>>,
     step: usize,
 }
 
 impl Sequence<'_> {
-    pub fn wrap<'a>(item: impl Filter + 'a) -> Box<dyn Filter + 'a> {
+    pub fn wrap<'a, V>(item: &'a V) -> Box<dyn Viewer + 'a>
+    where
+        &'a V: Viewer,
+    {
         Box::new(item)
     }
 }
 
-impl<'a> From<Vec<Box<dyn Filter + 'a>>> for Sequence<'a> {
-    fn from(sequence: Vec<Box<dyn Filter + 'a>>) -> Self {
+impl<'a> From<Vec<Box<dyn Viewer + 'a>>> for Sequence<'a> {
+    fn from(sequence: Vec<Box<dyn Viewer + 'a>>) -> Self {
         Self { sequence, step: 0 }
     }
 }
 
-use crate::view::{Op, View};
+use crate::traits::{Lense, Viewer};
 
-impl View for Sequence<'_> {
-    fn view(&self) -> Op<'_> {
+impl Viewer for Sequence<'_> {
+    fn view(&self) -> Lense<'_> {
         self.sequence
             .get(self.step)
             .map(|item| item.view())
-            .unwrap_or(Op::Empty)
+            .unwrap_or_else(|| Lense::Encoded(Box::new("shouldn't see")))
     }
 }
 
-use crate::handle::{Handle, Outcome};
+use crate::traits::{Handler, Outcome};
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
-impl Handle for Sequence<'_> {
+impl Handler for Sequence<'_> {
     fn handle(&mut self, event: &Event) -> Outcome {
         match event {
             Event::Key(KeyEvent {
@@ -52,12 +53,5 @@ impl Handle for Sequence<'_> {
             }
             _ => self.handle_common(event),
         }
-    }
-
-    fn handle_inner(&mut self, event: &Event) -> Outcome {
-        self.sequence
-            .get_mut(self.step)
-            .map(|item| item.handle(event))
-            .unwrap_or(Outcome::Continue)
     }
 }

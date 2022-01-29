@@ -3,7 +3,7 @@ use crdts::{CmRDT, List};
 use std::sync::Mutex;
 
 pub struct Context {
-    logs: Mutex<List<String, u8>>,
+    out: Mutex<List<String, u8>>,
 }
 
 use crate::directives::{Directive, Event, Op};
@@ -19,19 +19,14 @@ impl Directive for Context {
 }
 
 use ::{
-    crossterm::{
-        cursor::MoveTo,
-        style::{Color, Print, SetForegroundColor},
-        terminal::{Clear, ClearType},
-        Command,
-    },
+    crossterm::{style::Print, Command},
     itertools::{FoldWhile, Itertools},
     std::fmt,
 };
 
 impl Command for Context {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        let logs = self.logs.lock().map_err(|_| fmt::Error)?;
+        let logs = self.out.lock().map_err(|_| fmt::Error)?;
 
         let result = logs
             .iter()
@@ -54,10 +49,10 @@ static CONTEXT: OnceCell<Context> = OnceCell::new();
 
 pub fn get() -> Result<&'static Context, log::SetLoggerError> {
     let context = CONTEXT.get_or_init(|| {
-        let logs = List::new();
+        let out = List::new();
 
         Context {
-            logs: Mutex::new(logs),
+            out: Mutex::new(out),
         }
     });
 
@@ -75,7 +70,7 @@ impl Log for Context {
     }
 
     fn log(&self, record: &Record<'_>) {
-        if let Ok(mut logs) = self.logs.lock() {
+        if let Ok(mut logs) = self.out.lock() {
             let op = logs.append(format!("{}", record.level()), 0);
             logs.apply(op);
         }
