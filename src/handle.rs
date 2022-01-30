@@ -8,7 +8,9 @@ pub enum Outcome {
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 pub trait Handle {
-    fn handle(&mut self, event: &Event) -> Outcome;
+    fn handle(&mut self, event: &Event) -> Outcome {
+        self.handle_common(event)
+    }
 
     fn handle_common(&mut self, event: &Event) -> Outcome {
         match event {
