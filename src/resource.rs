@@ -8,19 +8,19 @@ impl<'a> From<&'a Path> for Resource<'a> {
     }
 }
 
-use crate::traits::{Lense, Viewer};
+use crossterm::{style::Print, Command};
 
-impl Viewer for Resource<'_> {
-    fn view(&self) -> Lense {
-        Lense::Encoded(Box::new(self.0.display()))
+impl Command for Resource<'_> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        Print(self.0.display()).write_ansi(out)
     }
 }
 
-use crate::traits::{Handler, Outcome};
+use crate::handle::{Handle, Outcome};
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
-impl Handler for Resource<'_> {
+impl Handle for Resource<'_> {
     fn handle(&mut self, event: &Event) -> Outcome {
         match event {
             Event::Key(KeyEvent {
