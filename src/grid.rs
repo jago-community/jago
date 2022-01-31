@@ -1,6 +1,5 @@
 pub struct Grid {
-    buffer: Vec<u8>,
-    splitter: u8,
+    // ./..
     x: (usize, usize),
     y: (usize, usize),
 }
