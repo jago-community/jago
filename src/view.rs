@@ -1,43 +1,47 @@
+/*
+pub struct View<'a, Inner> {
+    view: Box<dyn Fn() -> Box<Inner> + 'a>,
+}
+
 use crossterm::Command;
 
-//pub struct Lense<'a>(Box<dyn Command + 'a>);
+impl<'a, Inner: Command> Command for View<'a, Inner> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        self.view.as_ref()().write_ansi(out)
+    }
+}
 
-//pub trait View<'a> {
-//fn view(&self) -> Lense<'a>;
-//}
+use std::fmt::Display;
 
-//pub struct Group<'a>(pub Vec<Lense<'a>>);
+use crossterm::style::Print;
 
-//impl<'a> Command for Group<'a> {
-//fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-//for item in self.0 {
-//item.0.write_ansi(out)?;
-//}
+impl<'a, Inner> From<Print<&'a Inner>> for View<'a, Print<&'a Inner>>
+where
+    &'a Inner: Display,
+{
+    fn from(this: Print<&'a Inner>) -> Self {
+        Self {
+            view: Box::new(move || Box::new(this)),
+        }
+    }
+}*/
 
-//Ok(())
-//}
-//}
+use std::fmt;
 
-//use std::fmt::Display;
+pub trait View {
+    fn view(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result;
+}
 
-//pub struct Encoded<'a, A>(pub &'a A);
-
-//impl<'a, A> Display for &'a Encoded<'_, A>
-//where
-//A: Display,
-//{
-//fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//self.0.fmt(out)
-//}
-//}
-
-//use crossterm::style::Print;
-
-//impl<'a, A> Command for &'a Encoded<'a, A>
-//where
-//&'a A: Display,
-//{
-//fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-//Print(&self.0).write_ansi(out)
+//impl<I: fmt::Display> View for I {
+//fn view<'a>(&self, out: &mut fmt::Formatter<'a>) -> fmt::Result {
+//self.fmt(out)
 //}
 //}
+
+use crossterm::Command;
+
+impl<I: Command> View for I {
+    fn view<'a>(&self, out: &mut fmt::Formatter<'a>) -> fmt::Result {
+        self.write_ansi(out)
+    }
+}

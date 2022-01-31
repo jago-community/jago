@@ -41,7 +41,7 @@ impl Context {
         loop {
             let event = read()?;
 
-            match item.handle(&event) {
+            match item.handle_event(&event) {
                 next @ Outcome::Done | next @ Outcome::Exit(_) => {
                     outcome = next;
                     break;

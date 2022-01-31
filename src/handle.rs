@@ -21,4 +21,15 @@ pub trait Handle {
             _ => Outcome::Continue,
         }
     }
+
+    fn handle_inner(&mut self, _: &Event) -> Outcome {
+        Outcome::Continue
+    }
+
+    fn handle_event(&mut self, event: &Event) -> Outcome {
+        match self.handle_inner(event) {
+            Outcome::Continue => self.handle(event),
+            outcome @ _ => outcome,
+        }
+    }
 }

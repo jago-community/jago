@@ -29,24 +29,17 @@ fn main() {
         }
     };
 
-    let resource = Resource::from(directory.as_path());
+    let hello = Plane::with_dimensions("Hello, stranger.", (x, y));
+    let directory = Plane::with_dimensions(Resource::from(directory.as_path()), (x, y));
+    let goodbye = Plane::with_dimensions("Goodbye, friend.", (x, y));
 
-    //let plane = Plane::with_dimensions(resource, (x, y));
+    let combo = Sequence::from(vec![
+        Sequence::wrap(hello),
+        Sequence::wrap(directory),
+        Sequence::wrap(goodbye),
+    ]);
 
-    //let end = Plane::with_dimensions("Goodbye, friend.", (x, y));
-
-    //let combo = Sequence::from(vec![
-    //Sequence::wrap(&context),
-    //Sequence::wrap(&plane),
-    //Sequence::wrap(&end),
-    //]);
-
-    //let encoded = crate::view::Encoded(&context);
-    //let mut common = crate::handle::Common(encoded);
-    //let group = Group(vec![Box::new(&crossterm::style::Print("Hello, stranger"))]);
-
-    if let Err(error) = context.watch(resource) {
-        //if let Err(error) = context.watch(combo) {
+    if let Err(error) = context.watch(combo) {
         eprintln!("{}", error);
         std::process::exit(1);
     }

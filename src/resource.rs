@@ -8,6 +8,14 @@ impl<'a> From<&'a Path> for Resource<'a> {
     }
 }
 
+use std::fmt::Display;
+
+impl Display for Resource<'_> {
+    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.display().fmt(out)
+    }
+}
+
 use crossterm::{style::Print, Command};
 
 impl Command for Resource<'_> {
