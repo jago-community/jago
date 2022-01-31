@@ -5,12 +5,12 @@ mod grid;
 mod handle;
 mod plane;
 mod resource;
-//mod screen;
+mod screen;
 mod sequence;
 mod traits;
 mod view;
 
-use self::{plane::Plane, resource::Resource, sequence::Sequence};
+use self::{plane::Plane, resource::Resource, screen::Cells, sequence::Sequence};
 
 fn main() {
     let directory = match std::env::current_dir() {
@@ -29,17 +29,18 @@ fn main() {
         }
     };
 
-    let hello = Plane::with_dimensions("Hello, stranger.", (x, y));
-    let directory = Plane::with_dimensions(Resource::from(directory.as_path()), (x, y));
-    let goodbye = Plane::with_dimensions("Goodbye, friend.", (x, y));
+    let hello = Cells::from("Hello, stranger.");
+    //let hello = Plane::with_dimensions("Hello, stranger.", (x, y));
+    //let directory = Plane::with_dimensions(Resource::from(directory.as_path()), (x, y));
+    //let goodbye = Plane::with_dimensions("Goodbye, friend.", (x, y));
 
-    let mut combo = Sequence::from(vec![
-        Sequence::wrap(hello),
-        Sequence::wrap(directory),
-        Sequence::wrap(goodbye),
-    ]);
+    //let mut combo = Sequence::from(vec![
+    //Sequence::wrap(hello),
+    //Sequence::wrap(directory),
+    //Sequence::wrap(goodbye),
+    //]);
 
-    if let Err(error) = display::watch(&mut combo) {
+    if let Err(error) = display::watch(hello) {
         eprintln!("{}", error);
         std::process::exit(1);
     }

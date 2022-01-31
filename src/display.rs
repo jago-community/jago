@@ -1,7 +1,4 @@
-use crate::{
-    handle::{Handle, Outcome},
-    view::View,
-};
+use crate::{handle::Outcome, screen::Screen};
 
 use std::io::{stdout, Write};
 
@@ -13,6 +10,7 @@ use crossterm::{
         disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
         LeaveAlternateScreen,
     },
+    Command,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -21,12 +19,12 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
 }
 
-pub fn watch(item: &mut (impl View + Handle)) -> Result<Outcome, Error> {
+pub fn watch(mut item: impl Screen) -> Result<Outcome, Error> {
     let mut outcome = Outcome::Continue;
 
     let mut output = stdout();
 
-    execute!(output, EnterAlternateScreen, Hide, item.view())?;
+    execute!(output, EnterAlternateScreen, Hide, &item)?;
 
     enable_raw_mode()?;
 
@@ -41,7 +39,7 @@ pub fn watch(item: &mut (impl View + Handle)) -> Result<Outcome, Error> {
             _ => {}
         };
 
-        execute!(output, Clear(ClearType::All), MoveTo(0, 0), item.view())?;
+        execute!(output, Clear(ClearType::All), MoveTo(0, 0), &item)?;
 
         output.flush()?;
     }

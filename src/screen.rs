@@ -1,118 +1,66 @@
-use std::fmt::{self, Display};
+pub trait View<'a> {
+    type Filter: Iterator<Item = &'a str>;
 
-#[derive(PartialEq)]
-pub enum Outcome {
-    Continue,
-    Done,
-    Exit(Option<i32>),
+    fn screen(
+        &self,
+    ) -> std::iter::Map<Self::Filter, &'a dyn FnMut(&'a str) -> (&'a str, (usize, usize))>;
 }
 
-use crossterm::{
-    cursor::{Hide, MoveTo, Show},
-    event::{read, Event, KeyCode, KeyEvent, KeyModifiers},
-    execute,
-    style::Print,
-    terminal::{
-        disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
-        LeaveAlternateScreen,
-    },
-};
+use crate::handle::Handle;
 
-use std::io::{stdout, Write};
+use crossterm::Command;
 
-pub trait Screen {
-    type Filter: Display;
+pub trait Screen: Command + Handle {}
 
-    fn screen(&self) -> &Self::Filter;
+impl<Buffer: Handle + Command> Screen for Buffer {}
 
-    fn view(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        write!(out, "{}", self.screen())
-    }
+use std::borrow::Cow;
 
-    fn handle(&mut self, event: &Event) -> Outcome {
-        self.handle_common(event)
-    }
+pub struct Cells<'a> {
+    buffer: Cow<'a, str>,
+}
 
-    fn handle_common(&mut self, event: &Event) -> Outcome {
-        match event {
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('c'),
-                modifiers,
-            }) if modifiers.contains(KeyModifiers::CONTROL) => Outcome::Exit(None),
-            _ => Outcome::Continue,
+impl crate::handle::Handle for Cells<'_> {}
+
+impl<'a> From<&'a str> for Cells<'a> {
+    fn from(buffer: &'a str) -> Self {
+        Self {
+            buffer: buffer.into(),
         }
     }
+}
 
-    fn handle_inner(&mut self, _: &Event) -> Outcome {
-        Outcome::Continue
+use unicode_segmentation::UnicodeSegmentation;
+
+impl Cells<'_> {
+    fn steps(&self) -> impl Iterator<Item = (&str, (usize, usize))> {
+        self.buffer
+            .graphemes(true)
+            .map(|grapheme| (grapheme, (0, 0)))
     }
+}
 
-    fn handle_event(&mut self, event: &Event) -> Outcome {
-        match self.handle_inner(event) {
-            Outcome::Continue => self.handle(event),
-            outcome @ _ => outcome,
-        }
-    }
+use crossterm::style::Print;
+use itertools::{FoldWhile, Itertools};
 
-    fn watch(&mut self) -> Result<Outcome, std::io::Error> {
-        let mut outcome = Outcome::Continue;
-
-        let mut output = stdout();
-
-        execute!(output, EnterAlternateScreen, Hide, Print(self.screen()))?;
-
-        enable_raw_mode()?;
-
-        loop {
-            let event = read()?;
-
-            match self.handle_event(&event) {
-                next @ Outcome::Done | next @ Outcome::Exit(_) => {
-                    outcome = next;
-                    break;
+impl Command for Cells<'_> {
+    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+        self.steps()
+            .scan((0, 0), |(dx, dy), (grapheme, (x, y))| {
+                Some((grapheme, (x, y)))
+            })
+            .map(|(grapheme, _)| Print(grapheme).write_ansi(out))
+            .fold_while(Ok(()), |_, this| {
+                if this.is_ok() {
+                    FoldWhile::Continue(this)
+                } else {
+                    FoldWhile::Done(this)
                 }
-                _ => {}
-            };
-
-            execute!(
-                output,
-                Clear(ClearType::All),
-                MoveTo(0, 0),
-                Print(self.screen())
-            )?;
-
-            output.flush()?;
-        }
-
-        disable_raw_mode()?;
-
-        execute!(output, Show, LeaveAlternateScreen)?;
-
-        Ok(outcome)
+            })
+            .into_inner()
     }
 }
 
-impl<D: Display> Screen for D {
-    type Filter = D;
-
-    fn screen(&self) -> &Self::Filter {
-        self
-    }
-}
-
-use std::path;
-
-pub struct Resource<'a> {
-    path: path::PathBuf,
-    lifetime: std::marker::PhantomData<&'a ()>,
-}
-
-impl<'a> Screen for Resource<'a> {
-    type Filter = path::Display<'a>;
-
-    fn screen(&self) -> &Self::Filter {
-        let display = self.path.display();
-
-        display.as_ref()
-    }
+pub struct Grid<'a> {
+    buffer: Cells<'a>,
 }
