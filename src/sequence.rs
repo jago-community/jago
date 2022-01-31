@@ -1,47 +1,36 @@
-use crate::handle::Handle;
+use crate::filter::Filter;
 
 pub struct Sequence<'a> {
-    sequence: Vec<Box<dyn Display + 'a>>,
+    sequence: Vec<Box<dyn Filter + 'a>>,
     step: usize,
 }
 
 impl Sequence<'_> {
-    pub fn wrap<'a>(item: impl Display + 'a) -> Box<dyn Display + 'a> {
+    pub fn wrap<'a>(item: impl Filter + 'a) -> Box<dyn Filter + 'a> {
         Box::new(item)
     }
 }
 
-impl<'a> From<Vec<Box<dyn Display + 'a>>> for Sequence<'a> {
-    fn from(sequence: Vec<Box<dyn Display + 'a>>) -> Self {
+impl<'a> From<Vec<Box<dyn Filter + 'a>>> for Sequence<'a> {
+    fn from(sequence: Vec<Box<dyn Filter + 'a>>) -> Self {
         Self { sequence, step: 0 }
     }
 }
 
-use std::fmt::Display;
+use crate::view::{Op, View};
 
-impl Display for Sequence<'_> {
-    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl View for Sequence<'_> {
+    fn view(&self) -> Op<'_> {
         self.sequence
             .get(self.step)
-            .map(|item| item.fmt(out))
-            .unwrap_or(Err(std::fmt::Error))
+            .map(|item| item.view())
+            .unwrap_or(Op::Empty)
     }
 }
 
-use crossterm::{style::Print, Command};
-
-impl Command for Sequence<'_> {
-    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-        self.sequence
-            .get(self.step)
-            .map(|item| Print(item).write_ansi(out))
-            .unwrap_or(Err(std::fmt::Error))
-    }
-}
+use crate::handle::{Handle, Outcome};
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
-
-use crate::handle::Outcome;
 
 impl Handle for Sequence<'_> {
     fn handle(&mut self, event: &Event) -> Outcome {
@@ -63,5 +52,12 @@ impl Handle for Sequence<'_> {
             }
             _ => self.handle_common(event),
         }
+    }
+
+    fn handle_inner(&mut self, event: &Event) -> Outcome {
+        self.sequence
+            .get_mut(self.step)
+            .map(|item| item.handle(event))
+            .unwrap_or(Outcome::Continue)
     }
 }

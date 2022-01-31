@@ -44,25 +44,30 @@ impl<Inner> Plane<Inner> {
 
 use std::fmt::Display;
 
-impl<Inner: Display> Display for Plane<Inner> {
-    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner.fmt(out)
-            
-    }
-}
+//impl<Inner: Display> Display for Plane<Inner> {
+//fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//self.inner.fmt(out)
+//}
+//}
 
-use num_traits::FromPrimitive;
+//use num_traits::FromPrimitive;
 
-use crossterm::{cursor::MoveTo, style::Print, Command};
+//use crossterm::{cursor::MoveTo, style::Print, Command};
 
-impl<Inner: Display> Command for Plane<Inner> {
-    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-        let x = u16::from_usize(self.point.0).ok_or(std::fmt::Error)?;
-        let y = u16::from_usize(self.point.1).ok_or(std::fmt::Error)?;
+//impl<Inner: Command> Command for Plane<Inner> {
+//fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+//MoveTo(x, y).write_ansi(out).and(self.inner.write_ansi(out))
+//}
+//}
 
-        MoveTo(x, y)
-            .write_ansi(out)
-            .and(Print(&self.inner).write_ansi(out))
+use crate::view::{self, Op, View};
+
+impl<Inner: Display> View for Plane<Inner> {
+    fn view(&self) -> Op<'_> {
+        Op::And(
+            Box::new(Op::Cursor(self.point.0, self.point.1)),
+            Box::new(Op::from(&self.inner)),
+        )
     }
 }
 
@@ -72,7 +77,7 @@ use crate::handle::{Handle, Outcome};
 
 impl<Inner: Handle> Handle for Plane<Inner> {
     fn handle(&mut self, event: &Event) -> Outcome {
-        self.handle_event(event)
+        self.handle_own(event)
     }
 
     fn handle_inner(&mut self, event: &Event) -> Outcome {
@@ -81,7 +86,7 @@ impl<Inner: Handle> Handle for Plane<Inner> {
 }
 
 impl<Inner: Handle> Plane<Inner> {
-    fn handle_event(&mut self, event: &Event) -> Outcome {
+    fn handle_own(&mut self, event: &Event) -> Outcome {
         match event {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('h'),
@@ -119,3 +124,7 @@ impl<Inner: Handle> Plane<Inner> {
         }
     }
 }
+
+use crate::filter::Filter;
+
+impl<Inner: Display + Handle> Filter for Plane<Inner> {}

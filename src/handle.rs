@@ -33,3 +33,5 @@ pub trait Handle {
         }
     }
 }
+
+impl Handle for &str {}
