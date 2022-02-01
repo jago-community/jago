@@ -1,84 +1,159 @@
-#[derive(PartialEq)]
-pub enum Outcome {
-    Continue,
-    Done,
-    Exit(Option<i32>),
-}
+use std::fmt::Display;
 
-use crossterm::event::Event;
+pub trait View<'a> {
+    type Item: Display;
 
-pub trait Handler {
-    fn handle(&mut self, event: &Event) -> Outcome;
+    type Items: Iterator<Item = Self::Item>;
 
-    fn handle_common(&mut self, event: &Event) -> Outcome {
-        match event {
-            Event::Key(KeyEvent {
-                code: KeyCode::Char('c'),
-                modifiers,
-            }) if modifiers.contains(KeyModifiers::CONTROL) => Outcome::Exit(None),
-            _ => Outcome::Continue,
+    fn split(&'a self) -> Self::Items;
+
+    fn grid(&'a self) -> Grid<'a, Self::Items> {
+        Grid {
+            parts: &self.split(),
         }
     }
 }
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 
-use crossterm::Command;
+impl<'a> View<'a> for &'a str {
+    type Item = Self;
 
-pub trait Viewer {
-    fn view(&self) -> Lense<'_>;
-}
+    type Items = Graphemes<'a>;
 
-impl<D: std::fmt::Display> Viewer for D {
-    fn view(&self) -> Lense<'_> {
-        Lense::Encoded(Box::new(self))
+    fn split(&self) -> Self::Items {
+        self.graphemes(true)
     }
 }
 
-use crate::color::Color;
-
-enum TextStyle {
-    Underline,
+pub struct Grid<'a, Parts> {
+    parts: &'a Parts,
 }
 
-pub enum Lense<'a> {
-    Group(Vec<Lense<'a>>),
-    NewLine,
-    Encoded(Box<dyn std::fmt::Display + 'a>),
-    Active,
-    Inactive,
-    Color(Option<Color>),
-    Cursor((usize, (usize, usize))),
-    Empty,
+use crate::handle::Handle;
+
+pub trait Screen<'a>: View<'a> + Handle {}
+
+impl<'a> Screen<'a> for &'a str {}
+
+/*
+impl<'a> View<'a> for &'a str {
+    type Part = Self;
+    type Segments = Graphemes<'a>;
+
+    fn cells(&self) -> Self::Segments {
+        self.graphemes(true)
+    }
 }
+*/
 
-use crossterm::{
-    cursor::{MoveTo, MoveToColumn},
-    style::{Attribute, SetAttributes},
-    style::{Print, ResetColor, SetForegroundColor},
-};
+//pub trait View<'a> {
+//type Items: Iterator<Item = &'a str>;
 
-impl Command for Lense<'_> {
+//type Segments: UnicodeSegmentation;
+
+//fn cells(&'a self) -> Cells<'a, Self::Items>;
+
+//fn segments(&'a self) -> ;
+
+/*
+fn grid(
+    &self,
+) -> std::iter::Map<Self::Filter, &'a dyn FnMut(&'a str) -> (&'a str, (usize, usize))>;
+*/
+//}
+
+//pub struct Cells<'a, Buffer> {
+//buffer: &'a Buffer,
+//}
+
+//impl<'a, Buffer> Handle for Cells<'a, Buffer> {}
+
+//use unicode_segmentation::UnicodeSegmentation;
+
+//impl<'a, B> From<&'a B> for Cells<'a, B>
+//where
+//B: UnicodeSegmentation,
+//{
+//fn from(buffer: &'a B) -> Self {
+//Self { buffer }
+//}
+//}
+
+//impl<'a, Buffer> View<'a> for Cells<'a, Buffer>
+//where
+//Buffer: UnicodeSegmentation,
+//{
+//type Items = Graphemes<'a>;
+
+//fn cells(&'a self) -> Self::Items {
+//self.buffer.graphemes(true)
+//}
+//}
+
+use crossterm::{style::Print, Command};
+
+use itertools::{FoldWhile, Itertools};
+
+impl<'a, Cell> Command for Grid<'a, Cell>
+where
+    Cell: std::fmt::Display,
+{
     fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-        use Lense::*;
-
-        match self {
-            NewLine => MoveToColumn(0).write_ansi(out),
-            Encoded(display) => Print(display).write_ansi(out),
-            Color(Some(color)) => SetForegroundColor(*color).write_ansi(out),
-            Color(None) => ResetColor.write_ansi(out),
-            Cursor((_, (x, y))) => MoveTo(*x as u16, *y as u16).write_ansi(out),
-            Active => SetAttributes(From::from(
-                [Attribute::Underlined, Attribute::Bold].as_ref(),
-            ))
-            .write_ansi(out),
-            Inactive => SetAttributes(From::from(Attribute::Reset)).write_ansi(out),
-            Group(slice) => slice
-                .iter()
-                .map(|block| block.write_ansi(out))
-                .find(|result| result.is_err())
-                .unwrap_or(Ok(())),
-            Empty => Ok(()),
-        }
+        self.parts
+            .split()
+            .map(|cell| Print(cell).write_ansi(out))
+            .fold_while(Ok(()), |_, next| match next {
+                Err(error) => FoldWhile::Done(Err(error)),
+                _ => FoldWhile::Continue(Ok(())),
+            })
+            .into_inner()
     }
 }
+
+//impl<'a, V> Command for V
+//where
+//V: View<'a, Parts = Graphemes<'a>>,
+//{
+//fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+//self.split()
+//.map(|cell| Print(cell).write_ansi(out))
+//.fold_while(Ok(()), |_, next| match next {
+//Err(error) => FoldWhile::Done(Err(error)),
+//_ => FoldWhile::Continue(Ok(())),
+//})
+//.into_inner()
+//}
+//}
+
+//impl<'a, B> Command for Cells<'a, B>
+//where
+//B: UnicodeSegmentation,
+//{
+//fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+//self.buffer
+//.graphemes(true)
+//.map(|cell| Print(cell).write_ansi(out))
+//.fold_while(Ok(()), |_, next| match next {
+//Err(error) => FoldWhile::Done(Err(error)),
+//_ => FoldWhile::Continue(Ok(())),
+//})
+//.into_inner()
+//}
+//}
+
+//use unicode_segmentation::Graphemes;
+
+//impl<'a, T> View<'a> for &'a T
+//where
+//T: UnicodeSegmentation,
+//{
+//type Items = T;
+
+//fn cells(&'a self) -> Cells<'a, Self::Items> {
+////let g = self.graphemes(true);
+//Cells { buffer: self }
+//}
+//}
+
+//impl<'a> Screen<'a> for &'a str {}

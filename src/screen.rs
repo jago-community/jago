@@ -1,11 +1,3 @@
-pub trait View<'a> {
-    type Filter: Iterator<Item = &'a str>;
-
-    fn screen(
-        &self,
-    ) -> std::iter::Map<Self::Filter, &'a dyn FnMut(&'a str) -> (&'a str, (usize, usize))>;
-}
-
 use crate::handle::Handle;
 
 use crossterm::Command;

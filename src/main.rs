@@ -29,7 +29,6 @@ fn main() {
         }
     };
 
-    let hello = Cells::from("Hello, stranger.");
     //let hello = Plane::with_dimensions("Hello, stranger.", (x, y));
     //let directory = Plane::with_dimensions(Resource::from(directory.as_path()), (x, y));
     //let goodbye = Plane::with_dimensions("Goodbye, friend.", (x, y));
@@ -40,7 +39,7 @@ fn main() {
     //Sequence::wrap(goodbye),
     //]);
 
-    if let Err(error) = display::watch(hello) {
+    if let Err(error) = display::watch("Hello, stranger") {
         eprintln!("{}", error);
         std::process::exit(1);
     }
