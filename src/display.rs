@@ -24,7 +24,7 @@ pub fn watch<'a>(mut item: impl Screen<'a>) -> Result<Outcome, Error> {
 
     let mut output = stdout();
 
-    execute!(output, EnterAlternateScreen, Hide, item.cells())?;
+    execute!(output, EnterAlternateScreen, Hide, item.segments())?;
 
     enable_raw_mode()?;
 
@@ -39,7 +39,7 @@ pub fn watch<'a>(mut item: impl Screen<'a>) -> Result<Outcome, Error> {
             _ => {}
         };
 
-        execute!(output, Clear(ClearType::All), MoveTo(0, 0), item.cells())?;
+        execute!(output, Clear(ClearType::All), MoveTo(0, 0), item.segments())?;
 
         output.flush()?;
     }

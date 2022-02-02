@@ -3,6 +3,7 @@ mod display;
 mod filter;
 mod grid;
 mod handle;
+mod parse;
 mod plane;
 mod resource;
 mod screen;
