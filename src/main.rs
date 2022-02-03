@@ -3,7 +3,9 @@ mod display;
 mod filter;
 mod grid;
 mod handle;
-mod parse;
+//mod parse;
+mod context;
+mod parts;
 mod plane;
 mod resource;
 mod screen;
@@ -30,7 +32,7 @@ fn main() {
         }
     };
 
-    //let hello = Plane::with_dimensions("Hello, stranger.", (x, y));
+    let mut hello = Plane::with_dimensions("Hello, stranger.", (x, y));
     //let directory = Plane::with_dimensions(Resource::from(directory.as_path()), (x, y));
     //let goodbye = Plane::with_dimensions("Goodbye, friend.", (x, y));
 
@@ -40,10 +42,14 @@ fn main() {
     //Sequence::wrap(goodbye),
     //]);
 
-    if let Err(error) = display::watch("Hello, stranger") {
+    //if let Err(error) = display::watch("Hello, stranger") {
+
+    /*
+    if let Err(error) = display::watch(hello) {
         eprintln!("{}", error);
         std::process::exit(1);
     }
+    */
 
     /*
     let mut message = "Hello, stranger".to_string();

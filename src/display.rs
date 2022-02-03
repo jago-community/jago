@@ -1,4 +1,4 @@
-use crate::{handle::Outcome, traits::Screen};
+use crate::{handle::{Handle, Outcome}, screen::Screen};
 
 use std::io::{stdout, Write};
 
@@ -19,12 +19,14 @@ pub enum Error {
     InputOutput(#[from] std::io::Error),
 }
 
-pub fn watch<'a>(mut item: impl Screen<'a>) -> Result<Outcome, Error> {
+//pub trait Screen: Command + Handle {}
+
+pub fn watch(mut item: impl Screen) -> Result<Outcome, Error> {
     let mut outcome = Outcome::Continue;
 
     let mut output = stdout();
 
-    execute!(output, EnterAlternateScreen, Hide, item.segments())?;
+    execute!(output, EnterAlternateScreen, Hide, &item)?;
 
     enable_raw_mode()?;
 
@@ -39,7 +41,7 @@ pub fn watch<'a>(mut item: impl Screen<'a>) -> Result<Outcome, Error> {
             _ => {}
         };
 
-        execute!(output, Clear(ClearType::All), MoveTo(0, 0), item.segments())?;
+        execute!(output, Clear(ClearType::All), MoveTo(0, 0), &item)?;
 
         output.flush()?;
     }
