@@ -1,58 +1,57 @@
-use crate::handle::Handle;
-
-use crossterm::Command;
-
-pub trait Screen: Command + Handle {}
-
-impl<Buffer: Handle + Command> Screen for Buffer {}
-
-use std::borrow::Cow;
-
-pub struct Cells<'a> {
-    buffer: Cow<'a, str>,
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("InputOutput {0}")]
+    InputOutput(#[from] std::io::Error),
 }
 
-impl crate::handle::Handle for Cells<'_> {}
+use ::{
+    crossterm::{
+        cursor::{Hide, MoveTo, Show},
+        event::read,
+        execute,
+        terminal::{
+            disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
+            LeaveAlternateScreen,
+        },
+    },
+    std::io::stdout,
+};
 
-impl<'a> From<&'a str> for Cells<'a> {
-    fn from(buffer: &'a str) -> Self {
-        Self {
-            buffer: buffer.into(),
-        }
+use crate::buffer::{Buffer, Outcome};
+
+pub fn watch<I>(buffer: &Buffer<I>) -> Result<(), Error> {
+    let mut outcome = Outcome::Continue;
+
+    let mut output = stdout();
+
+    execute!(output, EnterAlternateScreen, Hide, buffer.directives())?;
+
+    enable_raw_mode()?;
+
+    loop {
+        let event = read()?;
+
+        match buffer.handle_event(&event) {
+            next @ Outcome::Done | next @ Outcome::Exit(_) => {
+                outcome = next;
+                break;
+            }
+            _ => {}
+        };
+
+        execute!(
+            output,
+            Clear(ClearType::All),
+            MoveTo(0, 0),
+            buffer.directives()
+        )?;
+
+        output.flush()?;
     }
-}
 
-use unicode_segmentation::UnicodeSegmentation;
+    disable_raw_mode()?;
 
-impl Cells<'_> {
-    fn steps(&self) -> impl Iterator<Item = (&str, (usize, usize))> {
-        self.buffer
-            .graphemes(true)
-            .map(|grapheme| (grapheme, (0, 0)))
-    }
-}
+    execute!(output, Show, LeaveAlternateScreen)?;
 
-use crossterm::style::Print;
-use itertools::{FoldWhile, Itertools};
-
-impl Command for Cells<'_> {
-    fn write_ansi(&self, out: &mut impl std::fmt::Write) -> std::fmt::Result {
-        self.steps()
-            .scan((0, 0), |(dx, dy), (grapheme, (x, y))| {
-                Some((grapheme, (x, y)))
-            })
-            .map(|(grapheme, _)| Print(grapheme).write_ansi(out))
-            .fold_while(Ok(()), |_, this| {
-                if this.is_ok() {
-                    FoldWhile::Continue(this)
-                } else {
-                    FoldWhile::Done(this)
-                }
-            })
-            .into_inner()
-    }
-}
-
-pub struct Grid<'a> {
-    buffer: Cells<'a>,
+    Ok(outcome)
 }
