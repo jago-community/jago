@@ -1,21 +1,8 @@
-mod buffer;
 mod color;
-//mod context;
-//mod display;
-//mod filter;
-//mod grid;
-//mod handle;
-//mod parse;
-//mod parts;
-//mod plane;
-//mod resource;
-//mod screen;
-//mod sequence;
+mod document;
 mod terminal;
-//mod traits;
-//mod view;
 
-use self::terminal::Directive; // , plane::Plane, resource::Resource, sequence::Sequence};
+use self::document::Document;
 
 fn main() {
     let directory = match std::env::current_dir() {
@@ -64,9 +51,9 @@ fn main() {
 
     //let buffer = Buffer::from(&"Hello, stranger"[..]);
 
-    let buffer = Directive::from("Hello, stranger");
+    let document = Document::from("Hello, stranger");
 
-    if let Err(error) = terminal::watch(std::iter::once(buffer)) {
+    if let Err(error) = terminal::watch(document) {
         eprintln!("{}", error);
         std::process::exit(1);
     }
