@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+## TODO
+# brew
+# openssh
+# keygen
+# vim
+# alacritty
+
+cache=$HOME/.vim/pack/cache/start
+
+for dep in rust-lang/rust.vim easymotion/vim-easymotion prabirshrestha/vim-lsp mattn/vim-lsp-settings preservim/nerdcommenter Shougo/ddc.vim shun/ddc-vim-lsp tpope/vim-fugitive
+do
+    target=$cache/${dep//\//_}
+
+    if [ -d $target ]
+    then
+        if [[ "$1" == "-u" ]]
+        then
+            bash -c "GIT_DIR=$target/.git git fetch origin"
+        fi
+    else
+        bash -c "git clone git@github.com:$dep $target"
+    fi
+done

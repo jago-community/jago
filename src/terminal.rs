@@ -14,7 +14,10 @@ use ::{
     std::io::{stdout, Write},
 };
 
-use crate::document::{Document, Operation, Span};
+use crate::{
+    directives::Directive,
+    document::{Document, Operation, Span},
+};
 
 use ::{
     crossterm::{style::Print, Command},
