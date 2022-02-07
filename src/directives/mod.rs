@@ -13,74 +13,15 @@ pub enum Error {
 
 pub use traits::{Directive, Op};
 
+pub struct StartFresh;
+
 use ::{
-    crossterm::{
-        cursor::{Hide, Show},
-        event::read,
-        execute, queue,
-        terminal::{
-            disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
-        },
-    },
-    std::io::{stdout, Write},
+    crossterm::terminal::{Clear, ClearType},
+    std::fmt,
 };
 
-pub fn watch<'a, D: Directive>(mut directive: D, screen: bool) -> Result<Op, Error> {
-    let (x, y) = size()?;
-
-    match directive.handle_event(&Event::Resize(x, y)) {
-        op @ Op::Done | op @ Op::Exit(_, _) => {
-            return Ok(op);
-        }
-        _ => {}
-    };
-
-    let mut output = stdout();
-
-    if screen {
-        queue!(output, EnterAlternateScreen)?;
+impl Command for StartFresh {
+    fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
+        Clear(ClearType::All).write_ansi(out)
     }
-
-    execute!(output, Hide, &directive)?;
-
-    enable_raw_mode()?;
-
-    let mut op = Op::Continue;
-
-    loop {
-        let event = read()?;
-
-        match directive.handle_event(&event) {
-            next @ Op::Done | next @ Op::Exit(_, _) => {
-                op = next;
-                break;
-            }
-            _ => {}
-        };
-
-        execute!(output, &directive)?;
-    }
-
-    disable_raw_mode()?;
-
-    if screen {
-        queue!(output, LeaveAlternateScreen)?;
-    }
-
-    execute!(output, Show)?;
-
-    output.flush()?;
-
-    Ok(op)
-}
-
-use futures::stream::{Stream, StreamExt};
-
-use crossterm::event::EventStream;
-
-pub fn listen<D: Directive>(mut directive: D) -> Result<Op, Error> {
-    let mut reader = EventStream::new();
-
-    // ...
-    Ok(Op::Continue)
 }

@@ -35,11 +35,11 @@ use ::{
 
 impl<D: Directive> Command for Shell<D> {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        let x_offset = (self.1 .0 / 2) - self.2 / 2;
+        //let x_offset = (self.1 .0 / 2) - self.2 / 2;
 
         Clear(ClearType::All)
             .write_ansi(out)
-            .and(MoveTo(x_offset, 2).write_ansi(out))
+            .and(MoveTo(0, 0).write_ansi(out))
             .and(SetForegroundColor(Color::Green).write_ansi(out))
             .and(Print("> ").write_ansi(out))
             .and(SetForegroundColor(Color::Reset).write_ansi(out))

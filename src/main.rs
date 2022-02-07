@@ -16,7 +16,9 @@ fn main() {
         }
     };
 
-    if let Err(error) = input::watch(context) {
+    //let shell = Shell::new(context.clone());
+
+    if let Err(error) = input::watch(context.clone()) {
         eprintln!("{}", error);
         std::process::exit(1);
     }

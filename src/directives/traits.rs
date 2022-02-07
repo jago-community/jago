@@ -44,6 +44,15 @@ pub trait Directive: Command {
             op @ _ => op,
         }
     }
+
+    fn step(&mut self) {}
+
+    fn cloned(self: &Self) -> Self
+    where
+        Self: Clone,
+    {
+        self.clone()
+    }
 }
 
 impl<D: Directive> Directive for &D {}

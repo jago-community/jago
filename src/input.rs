@@ -13,109 +13,64 @@ use ::{
             disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
         },
     },
-    futures::stream::StreamExt,
+    futures::{
+        future,
+        stream::{self, StreamExt},
+    },
     std::io::{stdout, Write},
     tokio::runtime,
 };
 
 use crate::directives::{Directive, Op};
 
-pub fn watch<D: Directive>(mut directive: D) -> Result<Op, Error> {
-    let (x, y) = size()?;
-
-    match directive.handle_event(&Event::Resize(x, y)) {
-        op @ Op::Done | op @ Op::Exit(_, _) => {
-            return Ok(op);
-        }
-        _ => {}
-    };
-
-    let mut output = stdout();
-
-    execute!(output, EnterAlternateScreen, Hide, &directive)?;
-
-    enable_raw_mode()?;
-
-    let mut op = Op::Continue;
-
+pub fn watch<D: Directive + Clone>(mut directive: D) -> Result<Op, Error> {
     let runtime = runtime::Builder::new_current_thread().build()?;
 
-    let mut reader = EventStream::new();
+    runtime.block_on(async move {
+        let reader = EventStream::new();
 
-    runtime.block_on(async {
-        reader
-            .map(|event| directive.handle_event(event))
-            .inspect(|_| {
-                queue!(output, &directive)?;
-            })
-            .take_until(|op| op.stop())
-            .for_each_concurrent(None, |op| async move {
-                match directive.handle_event(&event) {
-                    next @ Op::Done | next @ Op::Exit(_, _) => {
-                        op = next;
-                    }
-                    _ => {}
-                };
+        let (x, y) = size()?;
 
-                output.flush();
-            })
-            .await;
-    });
-
-    disable_raw_mode()?;
-
-    execute!(output, LeaveAlternateScreen, Show)?;
-
-    output.flush()?;
-
-    Ok(op)
-}
-
-pub fn hhhhhh<'a, D: Directive>(mut directive: D, screen: bool) -> Result<Op, Error> {
-    let (x, y) = size()?;
-
-    match directive.handle_event(&Event::Resize(x, y)) {
-        op @ Op::Done | op @ Op::Exit(_, _) => {
-            return Ok(op);
-        }
-        _ => {}
-    };
-
-    let mut output = stdout();
-
-    if screen {
-        queue!(output, EnterAlternateScreen)?;
-    }
-
-    execute!(output, Hide, &directive)?;
-
-    enable_raw_mode()?;
-
-    let mut op = Op::Continue;
-
-    loop {
-        let event = read()?;
-
-        match directive.handle_event(&event) {
-            next @ Op::Done | next @ Op::Exit(_, _) => {
-                op = next;
-                break;
+        match directive.handle_event(&Event::Resize(x, y)) {
+            op @ Op::Done | op @ Op::Exit(_, _) => {
+                return Ok(op);
             }
             _ => {}
         };
 
-        execute!(output, &directive)?;
-    }
+        let mut out = stdout();
 
-    disable_raw_mode()?;
+        execute!(&out, EnterAlternateScreen, Hide, &directive)?;
 
-    if screen {
-        queue!(output, LeaveAlternateScreen)?;
-    }
+        enable_raw_mode()?;
 
-    execute!(output, Show)?;
+        let mut handle = directive.cloned();
+        let mut context = directive.cloned();
 
-    output.flush()?;
+        let view = directive.cloned();
 
-    Ok(op)
+        reader
+            .flat_map(|item| stream::iter(item.ok()))
+            .map(|event| handle.handle_event(&event))
+            .take_while(|op| future::ready(!op.stop()))
+            .for_each(move |_| {
+                queue!(out, &view).expect("dop");
+
+                out.flush().expect("gah");
+                context.step();
+
+                future::ready(())
+            })
+            .await;
+
+        disable_raw_mode()?;
+
+        let mut out = stdout();
+
+        execute!(&out, LeaveAlternateScreen, Show)?;
+
+        out.flush()?;
+
+        Ok(Op::Continue)
+    })
 }
