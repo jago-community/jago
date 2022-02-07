@@ -14,7 +14,7 @@ impl<Set: AsRef<str>> From<Set> for Buffer {
     }
 }
 
-use super::traits::{Command, Directive, Event, KeyCode, KeyEvent, Op};
+use crate::directives::{Command, Directive, Event, KeyCode, KeyEvent, Op};
 
 impl Directive for Buffer {
     fn handle(&mut self, event: &Event) -> Op {

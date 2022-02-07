@@ -10,7 +10,7 @@ set -e
 
 cache=$HOME/.vim/pack/cache/start
 
-for dep in rust-lang/rust.vim easymotion/vim-easymotion prabirshrestha/vim-lsp mattn/vim-lsp-settings preservim/nerdcommenter Shougo/ddc.vim shun/ddc-vim-lsp tpope/vim-fugitive
+for dep in rust-lang/rust.vim easymotion/vim-easymotion prabirshrestha/vim-lsp mattn/vim-lsp-settings preservim/nerdcommenter Shougo/ddc.vim shun/ddc-vim-lsp tpope/vim-fugitive challenger-deep-theme/vim
 do
     target=$cache/${dep//\//_}
 

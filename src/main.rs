@@ -1,14 +1,25 @@
-mod color;
+mod buffer;
+mod context;
 mod directives;
-mod document;
-mod terminal;
+mod input;
+
+pub use buffer::Buffer;
 
 fn main() {
-    let buffer = directives::buffer::Buffer::from("");
-    let shell = directives::shell::Shell::new(buffer);
+    let start = std::time::Instant::now();
 
-    if let Err(error) = directives::watch(shell) {
+    let context = match context::get() {
+        Ok(c) => c,
+        Err(error) => {
+            eprintln!("{}", error);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(error) = directives::watch(context, false) {
         eprintln!("{}", error);
         std::process::exit(1);
     }
+
+    log::info!("{:?} elapsed", start.elapsed());
 }

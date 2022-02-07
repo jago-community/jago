@@ -2,7 +2,7 @@
 pub enum Op {
     Continue,
     Done,
-    Exit(Option<i32>),
+    Exit(Option<i32>, Option<String>),
 }
 
 pub use crossterm::{
@@ -20,7 +20,7 @@ pub trait Directive: Command {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('c'),
                 modifiers,
-            }) if modifiers.contains(KeyModifiers::CONTROL) => Op::Exit(None),
+            }) if modifiers.contains(KeyModifiers::CONTROL) => Op::Exit(None, None),
             _ => Op::Continue,
         }
     }
@@ -36,3 +36,5 @@ pub trait Directive: Command {
         }
     }
 }
+
+impl<D: Directive> Directive for &D {}

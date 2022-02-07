@@ -1,5 +1,6 @@
 syntax enable
 filetype plugin indent on
+colorscheme challenger_deep
 
 set noswapfile
 set nobackup
@@ -48,5 +49,14 @@ let g:rustfmt_autosave = 1
 
 map <C-h> :LspHover<CR>
 map <C-j> :LspDefinition<CR>
-map <C-d> :LspDocumentDiagnostics<CR>
+map <C-k> :LspDocumentDiagnostics<CR>
+
 inoremap <C-@> <Esc>
+map <C-u> :source $MYVIMRC<CR>
+
+augroup vim_filetype
+  au!
+  autocmd BufNewFile,BufRead vim set syntax=vim
+augroup END
+
+command! W  write
