@@ -14,14 +14,9 @@ use ::{
     std::io::{stdout, Write},
 };
 
-use crate::document::{Document, Operation, Span};
+use crate::document::{Document, Operation};
 
-use ::{
-    crossterm::{style::Print, Command},
-    std::fmt::Display,
-};
-
-pub fn watch<'a, U: Display + Span>(mut document: Document<U>) -> Result<Operation, Error> {
+pub fn watch(mut document: Document) -> Result<Operation, Error> {
     let mut output = stdout();
 
     execute!(output, EnterAlternateScreen, Hide, &document)?;

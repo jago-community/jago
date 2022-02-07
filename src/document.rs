@@ -2,8 +2,8 @@ use crdts::{CmRDT, Dot, List, MVReg};
 
 type Actor = u8;
 
-pub struct Document<Unit> {
-    units: List<Unit, Actor>,
+pub struct Document {
+    units: List<char, Actor>,
     cursor: MVReg<Cursor, Actor>,
     clock: Dot<Actor>,
 }
@@ -53,10 +53,14 @@ fn cursor() {
 
     let cursor = Cursor::default();
 
-    let got = cursor.find((1, 1), document.chars().collect_vec().as_ref());
+    let cursor = cursor
+        .find((1, 1), document.chars().collect_vec().as_ref(), |u| {
+            u == &'\n'
+        })
+        .unwrap();
 
     assert_eq!(
-        got.unwrap(),
+        cursor,
         Cursor(
             "Eastern guard tower
 g"
@@ -64,46 +68,61 @@ g"
             (1, 1)
         )
     );
+
+    let cursor = cursor
+        .find((0, 0), document.chars().collect_vec().as_ref(), |u| {
+            u == &'\n'
+        })
+        .unwrap();
+
+    assert_eq!(cursor, Cursor(0, (0, 0)));
 }
 
 use itertools::{FoldWhile, Itertools};
 
 impl Cursor {
-    fn find<'a, U>(&self, (dx, dy): (isize, isize), buffer: &[U]) -> Option<Self>
+    fn find<'a, U>(
+        &self,
+        (dx, dy): (isize, isize),
+        buffer: &[U],
+        split: impl Fn(&U) -> bool,
+    ) -> Option<Self>
     where
         U: 'a + Span,
     {
+        let ax = dx.unsigned_abs();
+        let ay = dy.unsigned_abs();
+
         buffer
             .into_iter()
-            .inspect(|next| {
-                dbg!(next);
-            })
-            .scan((dx.unsigned_abs(), dy.unsigned_abs()), |(x, y), next| {
-                let span = next.width();
+            // batching adjust for y
+            // batching adjust for x
+            .scan((0usize, 0usize, 0usize), |(x, y, z), next| {
+                *z += next.width();
 
-                let next_y = if dy.is_positive() {
-                    y.checked_add(span)
+                if split(next) {
+                    *y = if dy.is_positive() {
+                        y.checked_add(next.width())?
+                    } else {
+                        y.checked_sub(next.width())?
+                    };
+
+                    *x = 0;
                 } else {
-                    y.checked_sub(span)
-                };
+                    *x = if dx.is_positive() {
+                        x.checked_add(next.width())?
+                    } else {
+                        x.checked_sub(next.width())?
+                    };
+                }
 
-                let next_x = if dx.is_positive() {
-                    x.checked_add(span)
-                } else {
-                    x.checked_sub(span)
-                };
-
-                self.0
-                    .checked_add(span)
-                    .zip(next_x.zip(next_y))
-                    .map(|(z, (y, x))| (false, Cursor(z, (x, y))))
+                Some(Cursor(*z, (*x, *y)))
             })
-            .find(|(done, _)| *done)
-            .map(|(_, cursor)| cursor)
+            .find(|Cursor(_, (x, y))| y == &ay && x == &ax)
     }
 }
 
-impl<U> Document<U> {
+impl Document {
     fn cursor(&self) -> Cursor {
         let read = self.cursor.read();
 
@@ -115,7 +134,7 @@ impl<U> Document<U> {
     }
 }
 
-impl<Set: AsRef<str>> From<Set> for Document<char> {
+impl<Set: AsRef<str>> From<Set> for Document {
     fn from(set: Set) -> Self {
         let mut units = List::new();
         for item in set.as_ref().chars() {
@@ -131,9 +150,9 @@ impl<Set: AsRef<str>> From<Set> for Document<char> {
 
 use crossterm::{style::Print, Command};
 
-use std::fmt::{self, Display};
+use std::fmt;
 
-impl<U: Display> Command for Document<U> {
+impl Command for Document {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
         self.units
             .iter()
@@ -160,10 +179,7 @@ pub enum Operation {
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-impl<U> Document<U>
-where
-    U: Span,
-{
+impl Document {
     pub fn handle(&mut self, event: &Event) -> Operation {
         match event {
             Event::Key(KeyEvent {
@@ -206,7 +222,7 @@ where
 
         if let Some(next) = self
             .get_cursor(&read_cursor.val)
-            .find((dx, dy), &*read_units)
+            .find((dx, dy), &*read_units, |u| u == &&'\n')
         {
             let read = self.cursor.read();
 
