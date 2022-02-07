@@ -5,6 +5,15 @@ pub enum Op {
     Exit(Option<i32>, Option<String>),
 }
 
+impl Op {
+    pub fn stop(&self) -> bool {
+        match self {
+            Op::Done | Op::Exit(_, _) => true,
+            _ => false,
+        }
+    }
+}
+
 pub use crossterm::{
     event::{Event, KeyCode, KeyEvent, KeyModifiers},
     Command,

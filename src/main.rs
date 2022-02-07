@@ -16,7 +16,7 @@ fn main() {
         }
     };
 
-    if let Err(error) = directives::watch(context, false) {
+    if let Err(error) = input::watch(context) {
         eprintln!("{}", error);
         std::process::exit(1);
     }

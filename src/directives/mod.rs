@@ -73,3 +73,14 @@ pub fn watch<'a, D: Directive>(mut directive: D, screen: bool) -> Result<Op, Err
 
     Ok(op)
 }
+
+use futures::stream::{Stream, StreamExt};
+
+use crossterm::event::EventStream;
+
+pub fn listen<D: Directive>(mut directive: D) -> Result<Op, Error> {
+    let mut reader = EventStream::new();
+
+    // ...
+    Ok(Op::Continue)
+}
