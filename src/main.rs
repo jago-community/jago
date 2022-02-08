@@ -2,6 +2,7 @@ mod buffer;
 mod context;
 mod directives;
 mod input;
+mod view;
 
 pub use buffer::Buffer;
 
@@ -15,8 +16,6 @@ fn main() {
             std::process::exit(1);
         }
     };
-
-    //let shell = Shell::new(context.clone());
 
     if let Err(error) = input::watch(context.clone()) {
         eprintln!("{}", error);

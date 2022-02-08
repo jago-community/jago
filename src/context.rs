@@ -13,14 +13,27 @@ pub struct Context {
     out_colors: Arc<Mutex<Map<usize, MVReg<Color, u8>, u8>>>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Incomplete")]
+    Incomplete,
+    #[error("Lock")]
+    Lock,
+}
+
 use crate::directives::{Directive, Event, Op};
 
 impl Directive for Context {
-    fn before(&mut self) {
-        let span = self.out.clone().lock().expect("oops").len();
+    fn before(&mut self) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        let span = self
+            .out
+            .clone()
+            .lock()
+            .map_err(|_| Box::new(&Error::Lock))?
+            .len();
 
         let cache = self.out_colors.clone();
-        let mut cache = cache.lock().expect("hell na");
+        let mut cache = cache.lock().map_err(|_| Box::new(&Error::Lock))?;
 
         let mut color_picker = ColorPicker::new();
 
@@ -35,6 +48,8 @@ impl Directive for Context {
 
             cache.apply(op);
         }
+
+        Ok(())
     }
 
     fn handle(&mut self, event: &Event) -> Op {

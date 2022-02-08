@@ -20,6 +20,10 @@ pub use crossterm::{
 };
 
 pub trait Directive: Command {
+    fn before(&mut self) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        Ok(())
+    }
+
     fn handle(&mut self, event: &Event) -> Op {
         self.handle_common(event)
     }
@@ -44,8 +48,6 @@ pub trait Directive: Command {
             op @ _ => op,
         }
     }
-
-    fn before(&mut self) {}
 
     fn cloned(self: &Self) -> Self
     where
