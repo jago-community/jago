@@ -1,58 +1,57 @@
-pub struct Buffer<'a, Data> {
-    inner: Data,
-    directives: Vec<Directive<'a, String>>,
+#[derive(Default)]
+pub struct Buffer<'a> {
+    directives: &'a [Directive<'a, String>],
 }
 
-use std::fmt;
-
-impl<W: fmt::Write> fmt::Write for Buffer<W> {
-    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        self.inner.write_str(s)
-    }
-
-    fn write_char(&mut self, c: char) -> Result<(), fmt::Error> {
-        self.inner.write_char(c)
-    }
-
-    fn write_fmt(&mut self, a: fmt::Arguments<'_>) -> Result<(), fmt::Error> {
-        self.inner.write_fmt(a)
+impl<'a> From<&'a [Directive<'a, String>]> for Buffer<'a> {
+    fn from(directives: &'a [Directive<'a, String>]) -> Self {
+        Self { directives }
     }
 }
 
 use crossterm::Command;
 
-impl<'a, D> Command for Buffer<D>
-where
-    D: IntoIterator<Item = Directive<'a, Buffer<String>>>,
-{
+use std::fmt;
+
+impl<'a> Command for Buffer<'a> {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        let mut accum = Buffer {
-            inner: String::new(),
-        };
+        let accum = self.directives.iter().fold(String::new(), |mut a, b| {
+            b.call(&mut a);
 
-        for d in self.inner {
-            d.call(&mut accum)?;
-        }
+            a
+        });
 
-        Ok(())
+        out.write_str(&accum)
     }
 }
 
 pub struct Directive<'a, B> {
-    f: &'a dyn Fn(&mut B) -> fmt::Result,
+    f: Box<dyn 'a + Fn(&mut B) -> fmt::Result>,
+}
+
+impl<'a, C, B> From<C> for Directive<'a, B>
+where
+    C: Command + 'a,
+    B: fmt::Write,
+{
+    fn from(c: C) -> Self {
+        Self {
+            f: Box::new(move |mut b| c.write_ansi(&mut b)),
+        }
+    }
 }
 
 impl<'a, B> Directive<'a, B>
 where
     B: fmt::Write,
 {
-    fn wrap(c: impl Command + 'a) -> Self {
+    pub fn wrap(c: impl Command + 'a) -> Self {
         Self {
-            f: &move |&mut b| c.write_ansi(&mut b),
+            f: Box::new(move |mut b| c.write_ansi(&mut b)),
         }
     }
 
-    fn call(self, out: &mut B) -> fmt::Result {
+    fn call(&self, out: &mut B) -> fmt::Result {
         (*self.f)(out)
     }
 }

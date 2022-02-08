@@ -62,6 +62,26 @@ use ::{
     std::fmt,
 };
 
+impl Buffer {
+    fn view<'a>(&'a self) -> crate::view::Buffer<'a> {
+        let directives: Vec<crate::view::Directive<'a, String>> = self
+            .data
+            .iter()
+            .map(|item| {
+                if item == &'\n' {
+                    crate::view::Directive::from(MoveToNextLine(0))
+                } else {
+                    crate::view::Directive::from(Print(item))
+                }
+            })
+            .collect();
+
+        //From::from(directives.as_slice())
+
+        unimplemented!()
+    }
+}
+
 impl Command for Buffer {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
         self.data

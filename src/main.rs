@@ -1,8 +1,7 @@
 mod buffer;
-mod context;
+mod context1;
 mod directives;
 mod input;
-mod pipe;
 mod screen;
 mod view;
 
@@ -11,7 +10,7 @@ pub use buffer::Buffer;
 fn main() {
     let start = std::time::Instant::now();
 
-    let context = match context::get() {
+    let context = match context1::get() {
         Ok(c) => c,
         Err(error) => {
             eprintln!("{}", error);
