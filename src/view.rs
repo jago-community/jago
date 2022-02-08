@@ -1,5 +1,6 @@
-pub struct Buffer<Data> {
+pub struct Buffer<'a, Data> {
     inner: Data,
+    directives: Vec<Directive<'a, String>>,
 }
 
 use std::fmt;
@@ -20,24 +21,38 @@ impl<W: fmt::Write> fmt::Write for Buffer<W> {
 
 use crossterm::Command;
 
-impl<D: Command> Command for Buffer<D> {
+impl<'a, D> Command for Buffer<D>
+where
+    D: IntoIterator<Item = Directive<'a, Buffer<String>>>,
+{
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
-        self.inner.write_ansi(out)
-    }
-}
+        let mut accum = Buffer {
+            inner: String::new(),
+        };
 
-use std::io::Stdout;
+        for d in self.inner {
+            d.call(&mut accum)?;
+        }
 
-pub trait View {
-    fn terminal(&self, out: &mut Buffer<Stdout>) -> fmt::Result {
         Ok(())
     }
 }
 
-use std::io::stdout;
+pub struct Directive<'a, B> {
+    f: &'a dyn Fn(&mut B) -> fmt::Result,
+}
 
-pub fn view(lense: impl View) -> fmt::Result {
-    let mut buffer = Buffer { inner: stdout() };
+impl<'a, B> Directive<'a, B>
+where
+    B: fmt::Write,
+{
+    fn wrap(c: impl Command + 'a) -> Self {
+        Self {
+            f: &move |&mut b| c.write_ansi(&mut b),
+        }
+    }
 
-    lense.terminal(&mut buffer)
+    fn call(self, out: &mut B) -> fmt::Result {
+        (*self.f)(out)
+    }
 }

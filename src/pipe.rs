@@ -18,6 +18,6 @@ use crossterm::{Command, QueueableCommand};
 
 impl<W: Write> Pipe<W> {
     fn take(&mut self, directive: impl Command) {
-        self.queue(directive).unwrap();
+        self.queue(directive) // .unwrap();
     }
 }

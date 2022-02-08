@@ -3,6 +3,7 @@ mod context;
 mod directives;
 mod input;
 mod pipe;
+mod screen;
 mod view;
 
 pub use buffer::Buffer;
