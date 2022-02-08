@@ -24,9 +24,17 @@ impl Directive for Buffer {
                 ..
             }) => self.append(*code),
             Event::Key(KeyEvent {
+                code: KeyCode::Enter,
+                ..
+            }) => self.append('\n'),
+            Event::Key(KeyEvent {
                 code: KeyCode::Backspace,
                 ..
-            }) => self.delete(self.data.len()),
+            }) if self.data.len() > 0 => {
+                log::info!("{}", self.data.len());
+
+                self.delete(self.data.len() - 1)
+            }
             _ => self.handle_common(event),
         }
     }
@@ -49,11 +57,7 @@ impl Buffer {
 }
 
 use ::{
-    crossterm::{
-        cursor::MoveTo,
-        style::{Color, Print, SetForegroundColor},
-        terminal::{Clear, ClearType},
-    },
+    crossterm::{cursor::MoveToNextLine, style::Print},
     itertools::{FoldWhile, Itertools},
     std::fmt,
 };
@@ -62,7 +66,13 @@ impl Command for Buffer {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
         self.data
             .iter()
-            .map(|item| Print(item).write_ansi(out))
+            .map(|item| {
+                if item == &'\n' {
+                    MoveToNextLine(0).write_ansi(out)
+                } else {
+                    Print(item).write_ansi(out)
+                }
+            })
             .fold_while(Ok(()), |_, next| {
                 if next.is_ok() {
                     FoldWhile::Continue(Ok(()))

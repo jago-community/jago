@@ -3,11 +3,14 @@ use ::{
     std::sync::{Arc, Mutex},
 };
 
-use crate::directives::color_picker::{Color, ColorPicker};
+use crate::{
+    directives::color_picker::{Color, ColorPicker},
+    Buffer,
+};
 
 #[derive(Clone)]
 pub struct Context {
-    buffer: Arc<Mutex<List<char, u8>>>,
+    buffer: Arc<Mutex<Buffer>>,
 
     out: Arc<Mutex<List<String, u8>>>,
     out_colors: Arc<Mutex<Map<usize, MVReg<Color, u8>, u8>>>,
@@ -32,8 +35,7 @@ impl Directive for Context {
             .map_err(|_| Box::new(&Error::Lock))?
             .len();
 
-        let cache = self.out_colors.clone();
-        let mut cache = cache.lock().map_err(|_| Box::new(&Error::Lock))?;
+        let mut cache = self.out_colors.lock().map_err(|_| Box::new(&Error::Lock))?;
 
         let mut color_picker = ColorPicker::new();
 
@@ -49,14 +51,24 @@ impl Directive for Context {
             cache.apply(op);
         }
 
+        let mut buffer = self.buffer.lock().map_err(|_| Box::new(&Error::Lock))?;
+
+        buffer.before()?;
+
         Ok(())
     }
 
     fn handle(&mut self, event: &Event) -> Op {
         log::info!("{:?}", event);
 
-        match event {
-            _ => self.handle_common(event),
+        self.handle_common(event)
+    }
+
+    fn handle_inner(&mut self, event: &Event) -> Op {
+        if let Ok(mut buffer) = self.buffer.lock() {
+            buffer.handle_event(event)
+        } else {
+            Op::Continue
         }
     }
 }
@@ -73,25 +85,26 @@ use ::{
     std::fmt,
 };
 
-impl Command for Context {
-    fn write_ansi(&self, buffer: &mut impl fmt::Write) -> fmt::Result {
-        let (_, height) = size().map_err(|_| fmt::Error)?;
+impl Context {
+    fn write_buffer(&self, (top, bottom): (u16, u16), out: &mut impl fmt::Write) -> fmt::Result {
+        let buffer = self.buffer.lock().map_err(|_| fmt::Error)?;
 
-        let q = self.out.clone();
-        let q = q.lock().map_err(|_| fmt::Error)?;
+        MoveTo(0, top).write_ansi(out).and(buffer.write_ansi(out))
+    }
+
+    fn write_logs(&self, (top, bottom): (u16, u16), out: &mut impl fmt::Write) -> fmt::Result {
+        let q = self.out.lock().map_err(|_| fmt::Error)?;
 
         let end = q.len();
 
-        let upper = usize::from_u16(height).ok_or(fmt::Error)?;
-
-        MoveTo(0, height / 2)
-            .write_ansi(buffer)
-            .and(Clear(ClearType::All).write_ansi(buffer))?;
+        MoveTo(0, top).write_ansi(out)?;
 
         let color_cache = self.out_colors.clone();
         let color_cache = color_cache.lock().expect("hell na");
 
-        let colors = (0..upper / 2)
+        let upper = usize::from_u16(bottom - top).ok_or(fmt::Error)?;
+
+        let colors = (0..upper)
             .flat_map(|from_end| end.checked_sub(from_end))
             .flat_map(|index| {
                 let color = color_cache.get(&index);
@@ -100,7 +113,7 @@ impl Command for Context {
             })
             .flat_map(|set| set.read().val.first().cloned());
 
-        let last_some = (0..upper / 2)
+        let last_some = (0..upper)
             .flat_map(|from_end| end.checked_sub(from_end))
             .flat_map(|index| q.position(index))
             .zip(colors);
@@ -108,10 +121,11 @@ impl Command for Context {
         let result = last_some
             .map(|(item, color)| {
                 SetForegroundColor(color)
-                    .write_ansi(buffer)
-                    .and(Print(item).write_ansi(buffer))
-                    .and(MoveToNextLine(1).write_ansi(buffer))
-                    .and(SetForegroundColor(Color::Reset).write_ansi(buffer))
+                    .write_ansi(out)
+                    .and(Print(item).write_ansi(out))
+                    .and(Clear(ClearType::UntilNewLine).write_ansi(out))
+                    .and(MoveToNextLine(1).write_ansi(out))
+                    .and(SetForegroundColor(Color::Reset).write_ansi(out))
             })
             .fold_while(Ok(()), |_, next| {
                 if next.is_ok() {
@@ -125,13 +139,23 @@ impl Command for Context {
     }
 }
 
+impl Command for Context {
+    fn write_ansi(&self, buffer: &mut impl fmt::Write) -> fmt::Result {
+        let (_, height) = size().map_err(|_| fmt::Error)?;
+
+        self.write_buffer((0, height / 2), buffer)?;
+
+        self.write_logs((height / 2, height), buffer)
+    }
+}
+
 use ::once_cell::sync::OnceCell;
 
 static CONTEXT: OnceCell<Context> = OnceCell::new();
 
 pub fn get() -> Result<&'static Context, log::SetLoggerError> {
     let context = CONTEXT.get_or_init(|| {
-        let buffer = List::new();
+        let buffer = Buffer::from("");
         let out = List::new();
         let colors = Map::new();
 
