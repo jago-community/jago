@@ -25,3 +25,19 @@ impl<D: Command> Command for Buffer<D> {
         self.inner.write_ansi(out)
     }
 }
+
+use std::io::Stdout;
+
+pub trait View {
+    fn terminal(&self, out: &mut Buffer<Stdout>) -> fmt::Result {
+        Ok(())
+    }
+}
+
+use std::io::stdout;
+
+pub fn view(lense: impl View) -> fmt::Result {
+    let mut buffer = Buffer { inner: stdout() };
+
+    lense.terminal(&mut buffer)
+}
