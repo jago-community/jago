@@ -17,3 +17,11 @@ impl<W: fmt::Write> fmt::Write for Buffer<W> {
         self.inner.write_fmt(a)
     }
 }
+
+use crossterm::Command;
+
+impl<D: Command> Command for Buffer<D> {
+    fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
+        self.inner.write_ansi(out)
+    }
+}
