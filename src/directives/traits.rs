@@ -45,7 +45,7 @@ pub trait Directive: Command {
         }
     }
 
-    fn step(&mut self) {}
+    fn before(&mut self) {}
 
     fn cloned(self: &Self) -> Self
     where

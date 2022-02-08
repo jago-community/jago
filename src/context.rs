@@ -1,17 +1,42 @@
 use ::{
-    crdts::{CmRDT, Dot, LWWReg, List},
+    crdts::{CmRDT, List, MVReg, Map},
     std::sync::{Arc, Mutex},
 };
 
+use crate::directives::color_picker::{Color, ColorPicker};
+
 #[derive(Clone)]
 pub struct Context {
-    clock: Dot<u8>,
+    buffer: Arc<Mutex<List<char, u8>>>,
+
     out: Arc<Mutex<List<String, u8>>>,
+    out_colors: Arc<Mutex<Map<usize, MVReg<Color, u8>, u8>>>,
 }
 
 use crate::directives::{Directive, Event, Op};
 
 impl Directive for Context {
+    fn before(&mut self) {
+        let span = self.out.clone().lock().expect("oops").len();
+
+        let cache = self.out_colors.clone();
+        let mut cache = cache.lock().expect("hell na");
+
+        let mut color_picker = ColorPicker::new();
+
+        let keys_to_add = (0..span)
+            .filter(|index| cache.get(&index).val.is_none())
+            .collect::<Vec<_>>();
+
+        for index in keys_to_add {
+            let write = cache.read_ctx().derive_add_ctx(0);
+
+            let op = cache.update(index, write, |v, a| v.write(color_picker.pick(), a));
+
+            cache.apply(op);
+        }
+    }
+
     fn handle(&mut self, event: &Event) -> Op {
         log::info!("{:?}", event);
 
@@ -19,53 +44,59 @@ impl Directive for Context {
             _ => self.handle_common(event),
         }
     }
-
-    fn step(&mut self) {
-        self.clock.apply_inc();
-
-        let out = self.out.clone();
-        let out = out.lock().unwrap();
-
-        let len = out.len();
-
-        let out_offset = self.out_offset.clone();
-        let mut out_offset = out_offset.lock().unwrap();
-
-        out_offset.update(len, self.clock.counter);
-    }
 }
 
 use ::{
     crossterm::{
         cursor::{MoveTo, MoveToNextLine},
-        style::Print,
-        terminal::{Clear, ClearType},
+        style::{Print, SetForegroundColor},
+        terminal::{size, Clear, ClearType},
         Command,
     },
     itertools::{FoldWhile, Itertools},
+    num_traits::FromPrimitive,
     std::fmt,
 };
 
 impl Command for Context {
     fn write_ansi(&self, buffer: &mut impl fmt::Write) -> fmt::Result {
+        let (_, height) = size().map_err(|_| fmt::Error)?;
+
         let q = self.out.clone();
         let q = q.lock().map_err(|_| fmt::Error)?;
 
         let end = q.len();
 
-        let last_some = (0..8)
-            .flat_map(|from_end| end.checked_sub(from_end))
-            .flat_map(|index| q.position(index));
+        let upper = usize::from_u16(height).ok_or(fmt::Error)?;
 
-        MoveTo(0, 0)
+        MoveTo(0, height / 2)
             .write_ansi(buffer)
             .and(Clear(ClearType::All).write_ansi(buffer))?;
 
+        let color_cache = self.out_colors.clone();
+        let color_cache = color_cache.lock().expect("hell na");
+
+        let colors = (0..upper / 2)
+            .flat_map(|from_end| end.checked_sub(from_end))
+            .flat_map(|index| {
+                let color = color_cache.get(&index);
+
+                color.val
+            })
+            .flat_map(|set| set.read().val.first().cloned());
+
+        let last_some = (0..upper / 2)
+            .flat_map(|from_end| end.checked_sub(from_end))
+            .flat_map(|index| q.position(index))
+            .zip(colors);
+
         let result = last_some
-            .map(|item| {
-                Print(item)
+            .map(|(item, color)| {
+                SetForegroundColor(color)
                     .write_ansi(buffer)
+                    .and(Print(item).write_ansi(buffer))
                     .and(MoveToNextLine(1).write_ansi(buffer))
+                    .and(SetForegroundColor(Color::Reset).write_ansi(buffer))
             })
             .fold_while(Ok(()), |_, next| {
                 if next.is_ok() {
@@ -85,13 +116,14 @@ static CONTEXT: OnceCell<Context> = OnceCell::new();
 
 pub fn get() -> Result<&'static Context, log::SetLoggerError> {
     let context = CONTEXT.get_or_init(|| {
+        let buffer = List::new();
         let out = List::new();
-        let clock = Dot::new(0, 0);
+        let colors = Map::new();
 
         Context {
+            buffer: Arc::new(Mutex::new(buffer)),
             out: Arc::new(Mutex::new(out)),
-            out_offset: Arc::new(Mutex::new(LWWReg { val: 0, marker: 0 })),
-            clock,
+            out_colors: Arc::new(Mutex::new(colors)),
         }
     });
 

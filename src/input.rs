@@ -54,10 +54,11 @@ pub fn watch<D: Directive + Clone>(mut directive: D) -> Result<Op, Error> {
             .map(|event| handle.handle_event(&event))
             .take_while(|op| future::ready(!op.stop()))
             .for_each(move |_| {
+                context.before();
+
                 queue!(out, &view).expect("dop");
 
                 out.flush().expect("gah");
-                context.step();
 
                 future::ready(())
             })
