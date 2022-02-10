@@ -39,7 +39,7 @@ impl State {
 
 use ::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-impl CmRDT for Context {
+impl CmRDT for State {
     type Op = Event;
     type Validation = Error;
 
@@ -53,12 +53,7 @@ impl CmRDT for Context {
                 code: KeyCode::Char('c'),
                 modifiers: KeyModifiers::CONTROL,
             }) => {
-                if let Ok(mut state) = self.state.lock() {
-                    let read = state.read_ctx();
-                    let write = read.derive_add_ctx(0);
-                    let op = state.write(State::Done(None), write);
-                    state.apply(op);
-                }
+                *self = State::Done(None);
             }
             _ => {}
         }
@@ -91,37 +86,21 @@ impl Context {
 
             let (x, y) = size()?;
 
-            self.apply(Event::Resize(x, y));
-
-            if let Ok(state) = self.state.lock() {
-                let read = state.read();
-
-                if let Some(current) = read.val.first() {
-                    if current.stop() {
-                        return Ok(());
-                    }
-                }
+            if let State::Done(_) = self.handle(Event::Resize(x, y)) {
+                return Ok(());
             }
 
-            let mut out = stdout();
+            let out = stdout();
 
             execute!(&out, EnterAlternateScreen, Hide)?;
 
             enable_raw_mode()?;
 
-            reader
-                .flat_map(|item| stream::iter(item.ok()))
-                //.map(|event| handle.handle_event(&event))
-                //.take_while(|op| future::ready(!op.stop()))
-                .for_each(move |_| {
-                    //before_result.expect("good bye");
-
-                    // queue!(&mut out, &view).expect("hello");
-
-                    out.flush().expect("gah");
-
-                    future::ready(())
-                })
+            let (_, _) = reader
+                .flat_map(|result| stream::iter(result.ok()))
+                .map(|event| self.handle(event))
+                .filter(|state: &State| future::ready(state.stop()))
+                .into_future()
                 .await;
 
             disable_raw_mode()?;
@@ -134,6 +113,34 @@ impl Context {
 
             Ok(())
         })
+    }
+
+    fn handle(&self, event: Event) -> State {
+        log::info!("handling event {:?}", event);
+
+        if let Ok(state) = self.state.lock() {
+            let read = state.read();
+
+            if let Some(current) = read.val.first() {
+                let mut next = current.clone();
+
+                next.apply(event);
+
+                if next.stop() {
+                    return next;
+                }
+
+                let write = read.derive_add_ctx(0);
+
+                state.write(next.clone(), write);
+
+                next
+            } else {
+                State::Continue
+            }
+        } else {
+            State::Continue
+        }
     }
 }
 
@@ -189,8 +196,6 @@ impl Log for Context {
     }
 
     fn flush(&self) {
-        println!("flush");
-
         if let Ok(logs) = self.logs.lock() {
             if let Ok(mut cursor) = self.cursor.lock() {
                 let read = cursor.read_ctx();
