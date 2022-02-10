@@ -68,6 +68,7 @@ use ::{
         terminal::{
             disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
         },
+        Command,
     },
     futures::{
         future,
@@ -76,6 +77,8 @@ use ::{
     std::io::{stdout, Write},
     tokio::runtime,
 };
+
+use crate::grid::Grid;
 
 impl Context {
     pub fn watch(&self) -> Result<(), Error> {
