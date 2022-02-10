@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs \
+       https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+
 ## TODO
 # brew
 # openssh
@@ -8,19 +14,65 @@ set -e
 # vim
 # alacritty
 
-cache=$HOME/.vim/pack/cache/start
 
-for dep in rust-lang/rust.vim easymotion/vim-easymotion prabirshrestha/vim-lsp mattn/vim-lsp-settings preservim/nerdcommenter Shougo/ddc.vim shun/ddc-vim-lsp tpope/vim-fugitive challenger-deep-theme/vim tpope/vim-eunuch
-do
-    target=$cache/${dep//\//_}
+#cache=$HOME/.vim/pack/cache/start
+#ncache=$HOME/.local/share/nvim/site/pack/plugin/start
 
-    if [ -d $target ]
-    then
-        if [[ "$1" == "-u" ]]
-        then
-            bash -c "GIT_DIR=$target/.git git fetch origin"
-        fi
-    else
-        bash -c "git clone git@github.com:$dep $target"
-    fi
-done
+rm -rf $cache $ncache
+#mkdir -p $cache $ncache
+
+#curl -sfLS https://install-node.vercel.app | bash -s -- 16 -y
+
+#for dep in rust-lang/rust.vim easymotion/vim-easymotion prabirshrestha/vim-lsp mattn/vim-lsp-settings preservim/nerdcommenter Shougo/ddc.vim shun/ddc-vim-lsp tpope/vim-fugitive challenger-deep-theme/vim tpope/vim-eunuch
+#do
+    #target=$cache/${dep//\//_}
+    #link=$ncache/${dep//\//_}
+
+    #if [ -d $target ]
+    #then
+        #if [[ "$1" == "-u" ]]
+        #then
+            #bash -c "GIT_DIR=$target/.git git fetch origin"
+        #fi
+    #else
+        #bash -c "git clone git@github.com:$dep $target"
+        #bash -c "ln -s $target $link"
+    #fi
+#done
+
+#for dep in prabirshrestha/vim-lsp mattn/vim-lsp-settings Shougo/ddc.vim shun/ddc-vim-lsp challenger-deep-theme/vim
+#do
+    #target=$cache/${dep//\//_}
+
+    #if [ -d $target ]
+    #then
+        #if [[ "$1" == "-u" ]]
+        #then
+            #bash -c "GIT_DIR=$target/.git git fetch origin"
+        #fi
+    #else
+        #bash -c "git clone git@github.com:$dep $target"
+    #fi
+#done
+
+#for dep in neoclide/coc.nvim
+#do
+    #target=$ncache/${dep//\//_}
+
+    #if [ -d $target ]
+    #then
+        #if [[ "$1" == "-u" ]]
+        #then
+            #bash -c "GIT_DIR=$target/.git git fetch origin"
+        #fi
+    #else
+        #bash -c "git clone --branch release git@github.com:$dep $target --depth=1"
+    #fi
+#done
+
+#for dep in neoclide/coc-tsserver
+#do
+    #target=$ncache/${dep//\//_}
+
+    #bash -c "git clone git@github.com:$dep $target"
+#done
