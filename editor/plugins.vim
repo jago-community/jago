@@ -6,6 +6,8 @@ Plug 'preservim/nerdcommenter'
 Plug 'tpope/vim-fugitive'
 Plug 'challenger-deep-theme/vim'
 Plug 'tpope/vim-eunuch'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
 
 if has('nvim')
 
