@@ -13,5 +13,3 @@ if has("nvim")
 else
   source ~/jago/editor/vim
 endif
-
-let g:airline#extensions#tabline#enabled = 1

@@ -85,7 +85,10 @@ nmap <silent> [g <Plug>(coc-diagnostic-prev)
 nmap <silent> ]g <Plug>(coc-diagnostic-next)
 
 " GoTo code navigation.
-nmap <silent> gd <Plug>(coc-definition)
+map <C-h> <Plug>(coc-hover)
+map <C-j> <Plug>(coc-definition)
+map <C-k> :CocList diagnostics<CR>
+
 nmap <silent> gy <Plug>(coc-type-definition)
 nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
@@ -93,7 +96,6 @@ nmap <silent> gr <Plug>(coc-references)
 nmap <silent> mb :CocList buffers<CR>
 nmap <silent> mf :CocList files<CR>
 nmap <silent> <Leader>p :CocCommand prettier.formatFile<CR>
-
 
 " Use K to show documentation in preview window.
 nnoremap <silent> sj :call <SID>show_documentation()<CR>
