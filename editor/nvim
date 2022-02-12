@@ -88,6 +88,7 @@ nmap <silent> ]g <Plug>(coc-diagnostic-next)
 map <C-h> <Plug>(coc-hover)
 map <C-j> <Plug>(coc-definition)
 map <C-k> :CocList diagnostics<CR>
+map <C-l> :Cargo check<CR>
 
 nmap <silent> gy <Plug>(coc-type-definition)
 nmap <silent> gi <Plug>(coc-implementation)

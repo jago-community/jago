@@ -62,23 +62,26 @@ impl CmRDT for State {
 
 use ::{
     crossterm::{
-        cursor::{Hide, Show},
+        cursor::{Hide, MoveTo, Show},
         event::EventStream,
-        execute, queue,
+        execute,
         terminal::{
-            disable_raw_mode, enable_raw_mode, size, EnterAlternateScreen, LeaveAlternateScreen,
+            disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
+            LeaveAlternateScreen,
         },
-        Command,
     },
     futures::{
         future,
         stream::{self, StreamExt},
     },
-    std::io::{stdout, Write},
+    std::{
+        io::{stdout, Write},
+        ops::Deref,
+    },
     tokio::runtime,
 };
 
-use crate::grid::Grid;
+use crate::grid::CharGrid;
 
 impl Context {
     pub fn watch(&self) -> Result<(), Error> {
@@ -93,7 +96,7 @@ impl Context {
                 return Ok(());
             }
 
-            let out = stdout();
+            let mut out = stdout();
 
             execute!(&out, EnterAlternateScreen, Hide)?;
 
@@ -102,6 +105,15 @@ impl Context {
             let (_, _) = reader
                 .flat_map(|result| stream::iter(result.ok()))
                 .map(|event| self.handle(event))
+                .flat_map(|state| stream::iter(self.render().map(|result| (state, result))))
+                .flat_map(|(state, grid)| {
+                    stream::iter(
+                        execute!(&mut out, Clear(ClearType::All), MoveTo(0, 0), grid)
+                            .map(|_| state)
+                            .map_err(Error::from)
+                            .ok(),
+                    )
+                })
                 .filter(|state: &State| future::ready(state.stop()))
                 .into_future()
                 .await;
@@ -144,6 +156,14 @@ impl Context {
         } else {
             State::Continue
         }
+    }
+
+    fn render<'a>(&'a self) -> Option<CharGrid> {
+        self.logs
+            .lock()
+            .map(|list| list.deref().iter().cloned().collect::<Vec<_>>())
+            .map(CharGrid::new)
+            .ok()
     }
 }
 

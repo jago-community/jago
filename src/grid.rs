@@ -1,31 +1,21 @@
-pub struct Grid<'a, I> {
-    buffer: I,
-    ph: std::marker::PhantomData<&'a ()>,
+pub struct CharGrid {
+    buffer: Vec<char>,
 }
 
-impl<'a, I> From<I> for Grid<'a, I> {
-    fn from(buffer: I) -> Self {
-        Grid {
+impl CharGrid {
+    pub fn new(buffer: Vec<char>) -> Self {
+       Self {
             buffer,
-            ph: Default::default(),
-        }
+       }
     }
 }
 
-/*
-use ::{
-    crossterm::{cursor::MoveToNextLine, style::Print, Command},
-    itertools::{FoldWhile, Itertools},
-    std::fmt,
-};
+use ::{std::fmt, itertools::{Itertools, FoldWhile}, crossterm::{style::Print, Command, cursor::MoveToNextLine}};
 
-impl<'a, I> Command for Grid<'a, I>
-where
-    I: IntoIterator<Item = char>,
-{
+impl Command for CharGrid {
     fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
         self.buffer
-            .into_iter()
+            .iter()
             .map(|ch| match ch {
                 '\n' => MoveToNextLine(1).write_ansi(out),
                 _ => Print(ch).write_ansi(out),
@@ -40,4 +30,3 @@ where
             .into_inner()
     }
 }
-*/
