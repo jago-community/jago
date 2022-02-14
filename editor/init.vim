@@ -13,3 +13,5 @@ if has("nvim")
 else
   source ~/jago/editor/vim
 endif
+
+let g:rustfmt_autosave = 1

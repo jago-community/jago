@@ -27,6 +27,7 @@ rand = "0.8.4"
 strsim = "0.10.0"
 textwrap = "0.14.2"
 untrusted = "0.9.0"
+serde = "1.0.136"
 
 [dependencies.ide]
 git = "https://github.com/rust-analyzer/rust-analyzer"

@@ -1,5 +1,7 @@
 mod context;
+mod cursor;
 mod grid;
+mod view;
 
 use context::Context;
 

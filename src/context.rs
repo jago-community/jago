@@ -105,7 +105,8 @@ impl Context {
             let (_, _) = reader
                 .flat_map(|result| stream::iter(result.ok()))
                 .map(|event| self.handle(event))
-                .flat_map(|state| stream::iter(self.render().map(|result| (state, result))))
+                .map(|state| self.render().map(|result| (state, result)))
+                .flat_map(|maybe| stream::iter(maybe))
                 .flat_map(|(state, grid)| {
                     stream::iter(
                         execute!(&mut out, Clear(ClearType::All), MoveTo(0, 0), grid)
