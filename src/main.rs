@@ -1,7 +1,8 @@
 mod context;
 mod cursor;
 mod grid;
-mod view;
+mod serialize;
+//mod view;
 
 use context::Context;
 

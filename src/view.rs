@@ -30,12 +30,12 @@ impl ser::Error for Error {
 
 use ::{serde::Serialize, std::io::Write};
 
-pub struct SerializeSeq<'a, 'b, B> {
-    view: &'b mut View<'a, B>,
+pub struct SerializeSeq<'a, B> {
+    buffer: &'a mut B,
     len: Option<usize>,
 }
 
-impl<'a, 'b, B> ser::SerializeSeq for SerializeSeq<'a, 'b, B>
+impl<'a, B> ser::SerializeSeq for SerializeSeq<'a, B>
 where
     B: Write + 'a,
 {
@@ -46,18 +46,18 @@ where
     where
         T: ser::Serialize,
     {
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<(), Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeMap<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     len: Option<usize>,
 }
 
@@ -72,7 +72,7 @@ where
     where
         T: Serialize,
     {
-        key.serialize(&mut View::new(&mut self.view.buffer))?;
+        key.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
@@ -81,18 +81,18 @@ where
     where
         T: Serialize,
     {
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeTuple<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     len: usize,
 }
 
@@ -107,18 +107,18 @@ where
     where
         T: Serialize,
     {
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeStruct<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     name: &'static str,
     len: usize,
 }
@@ -138,19 +138,19 @@ where
     where
         T: Serialize,
     {
-        key.serialize(&mut View::new(&mut self.view.buffer))?;
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        key.serialize(&mut View::new(&mut self.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeStructVariant<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     name: &'static str,
     variant_index: u32,
     variant: &'static str,
@@ -172,19 +172,19 @@ where
     where
         T: Serialize,
     {
-        key.serialize(&mut View::new(&mut self.view.buffer))?;
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        key.serialize(&mut View::new(&mut self.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeTupleStruct<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     len: usize,
 }
 
@@ -199,18 +199,18 @@ where
     where
         T: Serialize,
     {
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
 pub struct SerializeTupleVariant<'a, B> {
-    view: &'a mut View<'a, B>,
+    buffer: &'a mut B,
     name: &'static str,
     variant_index: u32,
     variant: &'static str,
@@ -228,13 +228,13 @@ where
     where
         T: Serialize,
     {
-        value.serialize(&mut View::new(&mut self.view.buffer))?;
+        value.serialize(&mut View::new(&mut self.buffer))?;
 
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.view.buffer.flush().map_err(Error::from)
+        self.buffer.flush().map_err(Error::from)
     }
 }
 
@@ -245,13 +245,13 @@ where
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = SerializeSeq<'a, 'b, &'b mut B>;
+    type SerializeSeq = SerializeSeq<'a, B>;
     type SerializeMap = SerializeMap<'a, B>;
-    type SerializeTuple = SerializeTuple<'a, &'a mut B>;
-    type SerializeStruct = SerializeStruct<'a, &'a mut B>;
-    type SerializeStructVariant = SerializeStructVariant<'a, &'a mut B>;
-    type SerializeTupleStruct = SerializeTupleStruct<'a, &'a mut B>;
-    type SerializeTupleVariant = SerializeTupleVariant<'a, &'a mut B>;
+    type SerializeTuple = SerializeTuple<'a, B>;
+    type SerializeStruct = SerializeStruct<'a, B>;
+    type SerializeStructVariant = SerializeStructVariant<'a, B>;
+    type SerializeTupleStruct = SerializeTupleStruct<'a, B>;
+    type SerializeTupleVariant = SerializeTupleVariant<'a, B>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         v.serialize(&mut View::new(&mut self.buffer))?;
@@ -411,14 +411,14 @@ where
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         Ok(SerializeSeq {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             len,
         })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
         Ok(SerializeTuple {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             len,
         })
     }
@@ -429,7 +429,7 @@ where
         len: usize,
     ) -> Result<Self::SerializeTupleStruct, Self::Error> {
         Ok(SerializeTupleStruct {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             len,
         })
     }
@@ -442,7 +442,7 @@ where
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
         Ok(SerializeTupleVariant {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             name,
             variant_index,
             variant,
@@ -452,7 +452,7 @@ where
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
         Ok(SerializeMap {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             len,
         })
     }
@@ -463,7 +463,7 @@ where
         len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
         Ok(SerializeStruct {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             name,
             len,
         })
@@ -477,7 +477,7 @@ where
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(SerializeStructVariant {
-            view: &mut View::new(&mut self.buffer),
+            buffer: &mut self.buffer,
             name,
             variant_index,
             variant,
