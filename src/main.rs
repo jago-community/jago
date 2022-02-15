@@ -1,26 +1,24 @@
 mod context;
-mod cursor;
-mod grid;
+mod handle;
 mod serialize;
-//mod view;
+mod view;
 
-use context::Context;
+pub use context::Context;
+pub use handle::{Directives, Handle};
+pub use view::View;
 
 fn main() {
     let start = std::time::Instant::now();
+    let mut code = 0;
 
-    let mut context = match Context::get() {
-        Ok(c) => c,
-        Err(error) => {
-            eprintln!("{}", error);
-            std::process::exit(1);
-        }
-    };
+    let mut message = String::from("Hello, stranger.");
 
-    if let Err(error) = context.watch() {
-        eprintln!("{}", error);
-        std::process::exit(1);
+    if let Err(error) = message.watch() {
+        eprintln!("{:?}", error);
+        code = 1;
     }
 
     log::info!("{:?} elapsed", start.elapsed());
+
+    std::process::exit(code);
 }
