@@ -1,7 +1,9 @@
-use std::marker::PhantomData;
+use once_cell::sync::OnceCell;
 
 #[derive(Default)]
-pub struct Cargo(PhantomData<()>);
+pub struct Cargo {
+    context: OnceCell<Arc<Mutex<Context>>>,
+}
 
 use serde::{ser::Error as _, Serialize, Serializer};
 
@@ -10,13 +12,11 @@ impl Serialize for Cargo {
     where
         S: Serializer,
     {
-        if let Some(context) = self.context() {
-            let programs = context.read_programs().map_err(S::Error::custom)?;
+        let context = self.context().map_err(|error| S::Error::custom(error))?;
 
-            programs.serialize(serializer)?;
-        }
+        let binaries = context.read_binaries().map_err(S::Error::custom)?;
 
-        Err(S::Error::custom("no context"))
+        binaries.serialize(serializer)
     }
 }
 
@@ -59,40 +59,39 @@ impl Handle for Cargo {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('?'),
                 ..
-            }) => {
-                if let Some(mut context) = self.context() {
+            }) => match self.context() {
+                Ok(mut context) => {
                     context.apply(Op::Read);
 
                     Directives::empty()
-                } else {
-                    log::error!("no context");
-
-                    Directives::empty()
                 }
-            }
+                Err(error) => {
+                    log::error!("{}", error);
+                    eprintln!("{}", error);
+
+                    Directives::STOP
+                }
+            },
             _ => Directives::empty(),
         }
     }
 }
 
-#[derive(Clone)]
-pub struct Context;
-
-use once_cell::sync::OnceCell;
+#[derive(Default, Clone)]
+pub struct Context {
+    home: OnceCell<Arc<Mutex<Result<PathBuf, Error>>>>,
+    binaries: OnceCell<Arc<Mutex<Result<Vec<PathBuf>, Error>>>>,
+}
 
 impl Cargo {
-    fn context(&self) -> Option<Context> {
-        static CONTEXT: OnceCell<Arc<Mutex<Context>>> = OnceCell::new();
-
-        let context = CONTEXT
-            .get_or_init(|| Arc::new(Mutex::new(Context)))
+    fn context(&self) -> Result<Context, Error> {
+        let context = self
+            .context
+            .get_or_init(|| Default::default())
             .lock()
             .map_err(Error::lock);
 
-        match context {
-            Ok(context) => Some(context.deref().clone()),
-            Err(_) => None,
-        }
+        context.as_deref().map(Clone::clone).map_err(Error::from)
     }
 }
 
@@ -119,49 +118,50 @@ impl CmRDT for Context {
 
 impl Context {
     fn read(&self) {
-        let _ = self.read_programs();
+        let _ = self.read_binaries();
     }
 }
 
-use std::ops::Deref;
-
 impl Context {
-    fn read_programs(&self) -> Result<Vec<PathBuf>, Error> {
-        static PROGRAMS: OnceCell<Arc<Mutex<Result<Vec<PathBuf>, Error>>>> = OnceCell::new();
+    fn read_binaries(&self) -> Result<Vec<PathBuf>, Error> {
+        let binaries = self
+            .binaries
+            .get_or_init(|| Arc::new(Mutex::new(self.read_bin_directory())));
 
-        let programs = PROGRAMS.get_or_init(|| Arc::new(Mutex::new(read_bin_directory())));
+        let binaries = binaries.lock().map_err(Error::lock)?;
 
-        let programs = programs.lock().map_err(Error::lock)?;
-
-        programs
+        binaries
             .as_deref()
             .clone()
             .map(ToOwned::to_owned)
             .map_err(Error::from)
     }
+
+    fn read_bin_directory(&self) -> Result<Vec<PathBuf>, Error> {
+        let home = self.read_home_directory()?;
+
+        read_directory(&home)
+    }
+
+    fn read_home_directory(&self) -> Result<PathBuf, Error> {
+        let home = self
+            .home
+            .get_or_init(|| {
+                Arc::new(Mutex::new(
+                    std::env::var("$CARGO_HOME")
+                        .map(PathBuf::from)
+                        .map(|path| path.join("bin"))
+                        .map_err(Error::from),
+                ))
+            })
+            .lock()
+            .map_err(Error::lock)?;
+
+        home.as_deref().map(ToOwned::to_owned).map_err(Error::from)
+    }
 }
 
 use std::path::Path;
-
-fn read_bin_directory() -> Result<Vec<PathBuf>, Error> {
-    static HOME: OnceCell<Arc<Mutex<Result<PathBuf, Error>>>> = OnceCell::new();
-
-    let home = HOME
-        .get_or_init(|| {
-            Arc::new(Mutex::new(
-                std::env::var("$CARGO_HOME")
-                    .map(PathBuf::from)
-                    .map(|path| path.join("bin"))
-                    .map_err(Error::from),
-            ))
-        })
-        .lock()
-        .map_err(Error::lock)?;
-
-    let home = home.as_deref()?;
-
-    read_directory(home)
-}
 
 fn read_directory(path: &Path) -> Result<Vec<PathBuf>, Error> {
     let directory = std::fs::read_dir(path)?;
