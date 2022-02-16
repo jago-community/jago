@@ -28,6 +28,7 @@ strsim = "0.10.0"
 textwrap = "0.14.2"
 untrusted = "0.9.0"
 serde = "1.0.136"
+anyhow = "1.0.53"
 
 [dependencies.ide]
 git = "https://github.com/rust-analyzer/rust-analyzer"

@@ -28,10 +28,16 @@ pub enum Error {
     Lock,
     #[error("Lock")]
     Variable(#[from] std::env::VarError),
-    #[error("NoHome")]
-    NoHome,
-    #[error("NoPrograms")]
-    NoPrograms,
+}
+
+impl From<&Error> for Error {
+    fn from(error: &Error) -> Self {
+        match error {
+            Error::Lock => Self::Lock,
+            Error::Io(error) => Self::Io(std::io::Error::new(error.kind(), "")),
+            Error::Variable(error) => Self::Variable(error.clone()),
+        }
+    }
 }
 
 use std::{
@@ -121,20 +127,24 @@ use std::ops::Deref;
 
 impl Context {
     fn read_programs(&self) -> Result<Vec<PathBuf>, Error> {
-        static PROGRAMS: OnceCell<Arc<Mutex<Option<Vec<PathBuf>>>>> = OnceCell::new();
+        static PROGRAMS: OnceCell<Arc<Mutex<Result<Vec<PathBuf>, Error>>>> = OnceCell::new();
 
-        let programs = PROGRAMS.get_or_init(|| Arc::new(Mutex::new(read_bin_directory().ok())));
+        let programs = PROGRAMS.get_or_init(|| Arc::new(Mutex::new(read_bin_directory())));
 
         let programs = programs.lock().map_err(Error::lock)?;
 
-        programs.deref().clone().map_or(Err(Error::NoPrograms), Ok)
+        programs
+            .as_deref()
+            .clone()
+            .map(ToOwned::to_owned)
+            .map_err(Error::from)
     }
 }
 
 use std::path::Path;
 
 fn read_bin_directory() -> Result<Vec<PathBuf>, Error> {
-    static HOME: OnceCell<Arc<Mutex<Option<PathBuf>>>> = OnceCell::new();
+    static HOME: OnceCell<Arc<Mutex<Result<PathBuf, Error>>>> = OnceCell::new();
 
     let home = HOME
         .get_or_init(|| {
@@ -142,16 +152,15 @@ fn read_bin_directory() -> Result<Vec<PathBuf>, Error> {
                 std::env::var("$CARGO_HOME")
                     .map(PathBuf::from)
                     .map(|path| path.join("bin"))
-                    .ok(),
+                    .map_err(Error::from),
             ))
         })
         .lock()
         .map_err(Error::lock)?;
 
-    match home.deref() {
-        Some(path) => read_directory(&path),
-        _ => Err(Error::NoHome),
-    }
+    let home = home.as_deref()?;
+
+    read_directory(home)
 }
 
 fn read_directory(path: &Path) -> Result<Vec<PathBuf>, Error> {
