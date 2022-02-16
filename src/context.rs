@@ -6,7 +6,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("Serialize {0}")]
     Serialize(#[from] crate::serialize::Error),
-    // ...
     #[error("View {0}")]
     View(#[from] crate::view::Error),
 }
@@ -29,7 +28,7 @@ use ::{
     tokio::runtime,
 };
 
-use crate::{Directives, Handle, View};
+use crate::{Directive, Directives, Handle, View};
 
 pub trait Context: View + Handle {
     fn watch(&mut self) -> Result<(), Error> {

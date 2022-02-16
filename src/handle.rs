@@ -1,17 +1,3 @@
-use bitflags::bitflags;
-
-bitflags! {
-    pub struct Directives: u32 {
-        const STOP = 0b00000001;
-    }
-}
-
-impl Directives {
-    pub fn stop(&self) -> bool {
-        self.contains(Directives::STOP)
-    }
-}
-
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 pub trait Handle {
@@ -30,4 +16,20 @@ pub trait Handle {
     }
 }
 
-impl<S: Sized> Handle for S {}
+pub trait Directive {
+    fn stop(&self) -> bool;
+}
+
+use bitflags::bitflags;
+
+bitflags! {
+    pub struct Directives: u32 {
+        const STOP = 0b00000001;
+    }
+}
+
+impl Directive for Directives {
+    fn stop(&self) -> bool {
+        self.contains(Directives::STOP)
+    }
+}
