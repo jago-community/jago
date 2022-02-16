@@ -24,16 +24,16 @@ impl Serialize for Cargo {
 pub enum Error {
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
-    #[error("Lock")]
-    Lock,
-    #[error("Lock")]
+    #[error("Lock {0}")]
+    Lock(anyhow::Error),
+    #[error("Variable {0}")]
     Variable(#[from] std::env::VarError),
 }
 
 impl From<&Error> for Error {
     fn from(error: &Error) -> Self {
         match error {
-            Error::Lock => Self::Lock,
+            Error::Lock(g) => Self::Lock(anyhow::anyhow!("{}", g)),
             Error::Io(error) => Self::Io(std::io::Error::new(error.kind(), "")),
             Error::Variable(error) => Self::Variable(error.clone()),
         }
@@ -46,8 +46,8 @@ use std::{
 };
 
 impl Error {
-    fn lock<Guard>(_: PoisonError<Guard>) -> Self {
-        Error::Lock
+    fn lock<Guard>(error: PoisonError<Guard>) -> Self {
+        Error::Lock(anyhow::anyhow!("{}", error))
     }
 }
 
@@ -67,7 +67,6 @@ impl Handle for Cargo {
                 }
                 Err(error) => {
                     log::error!("{}", error);
-                    eprintln!("{}", error);
 
                     Directives::STOP
                 }
@@ -148,7 +147,7 @@ impl Context {
             .home
             .get_or_init(|| {
                 Arc::new(Mutex::new(
-                    std::env::var("$CARGO_HOME")
+                    std::env::var("CARGO_HOME")
                         .map(PathBuf::from)
                         .map(|path| path.join("bin"))
                         .map_err(Error::from),

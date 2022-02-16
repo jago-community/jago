@@ -9,10 +9,6 @@ pub struct Logger {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Incomplete")]
-    Incomplete,
-    #[error("Lock")]
-    Lock,
     #[error("SetLogger {0}")]
     SetLogger(#[from] log::SetLoggerError),
     #[error("Io {0}")]
