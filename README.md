@@ -6,6 +6,8 @@ Despite the exponential increase in possibilities that industry has brought abou
 
 Jago's purpose is to leverage open source software and good will to ensure a sustainable future for projects that provide positive impact on communities without requiring a business model.
 
-The best way to get involved is to contribute. While [monetary contributions](https://opencollective.com/jago-community) will help ensure more of us will be able to devote more time to community oriented projects, intellectual contributions are what we appreciate the most. We are currently working on a framework to make the creation of software applications much easier and accessible. If you want to see how you might contribute, take a look around this software repository. If you'd like to contribute but don't know how you would or you don't think you have the skills, don't worry: that's part of the goal. We maintain a [sort of psuedo-course](./course.md) that might help orient you're direction.
+The best way to get involved is to contribute. While [monetary contributions](https://opencollective.com/jago-community) will help ensure more people and time can be devoted to community oriented projects, thoughtful contributions are what we appreciate the most. Write questions, suggestions or anything you'd like our community to see to us at [all@jago.community](mailto:all@jago.community). 
+
+Additionally, we are currently working on a framework to make the creation of generally useful software much easier and accessible. If you want to see how you might contribute, take a look around this software repository. If you'd like to contribute but don't know how you would or you don't think you have the skills, don't worry: that's part of the goal. We maintain a [sort of psuedo-course](./course.md) that might help orient you're direction.
 
 Thanks, ahora vamos a bailar.
