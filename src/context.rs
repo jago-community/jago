@@ -47,8 +47,9 @@ pub trait Context: View + Handle {
                 return Ok(());
             }
 
-            //serializer.consume(EnterAlternateScreen)?;
-            //serializer.consume(Hide)?;
+            serializer.consume(EnterAlternateScreen)?;
+            serializer.consume(Hide)?;
+            serializer.consume(MoveTo(0, 0))?;
 
             self.serialize(&mut serializer)?;
 
@@ -76,8 +77,8 @@ pub trait Context: View + Handle {
 
             disable_raw_mode()?;
 
-            //serializer.consume(Show)?;
-            //serializer.consume(LeaveAlternateScreen)?;
+            serializer.consume(Show)?;
+            serializer.consume(LeaveAlternateScreen)?;
 
             Ok(())
         })

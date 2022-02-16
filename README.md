@@ -1,29 +1,11 @@
-# Jago
+Hello strangers,
 
-An ambiguous community.
+Jago is a community dedicated to working on technological projects with no monetary incentive.
 
-## Course
+Despite the exponential increase in possibilities that industry has brought about, there are remarkably few long standing projects dedicated to working for individual and community well-being rather than for corporate gain. In spite of the time requirements of general employment in the technology industry, the open source software world is an example of the communal heart and soul of human nature.
 
-### Criteria
+Jago's purpose is to leverage open source software and good will to ensure a sustainable future for projects that provide positive impact on communities without requiring a business model.
 
-To pass this course you have to feel like you are done. 
+The best way to get involved is to contribute. While monetary contributions will help ensure more of us will be able to devote more time to community oriented projects, intellectual contributions are what we appreciate the most. We are currently working on a framework to make the creation of software applications much easier and accessible. If you want to see how you might contribute, take a look around this software repository. If you'd like to contribute but don't know how you would or you don't think you have the skills, don't worry: that's part of the goal. We maintain a [sort of psuedo-course](./course.md) that might help orient you're direction.
 
-### Projects
-
-You will work on a set of projects you find useful. The usefullness may be found in the process of figuring it out or in the result itself.
-
-If you can't think of anything or need some ideas for stepping stones to your big idea, just try to make your own version of something that already exists.
-
-### Resources 
-
-#### Software
-
-[This non-profit](https://www.freecodecamp.org/learn) has more than enough learning material to get you to the point where you know enough to figure out whatever it is you are trying to figure out with the internet. Use them as a resource to get moving on your course's projects. For example, [here's one where you make your own twitter.](https://www.freecodecamp.org/news/create-a-cross-platform-twitter-clone-with-vue-js/)
-
-[Here is another non-profit](https://exercism.org/) that has more than enough learning material to get you started, but takes a different approach. It is more useful when you are trying to grasp programming languages themselves rather than what to do with them.
-
-Below are other resources that we find interesting.
-
-- [How computers reason about language.](https://www.pinecone.io/learn/nlp/)
-- [(*not all free) Online courses provided by universities and industry.](https://www.coursera.org/)
-- [Our community email.](mailto:all@jago.community)
+Thanks, ahora vamos a bailar.

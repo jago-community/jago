@@ -71,7 +71,7 @@ impl Handle for Cargo {
                     Directives::STOP
                 }
             },
-            _ => Directives::empty(),
+            _ => self.handle_base(event),
         }
     }
 }

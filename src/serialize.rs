@@ -17,7 +17,7 @@ impl<'a, W> Serializer<'a, W> {
 }
 
 use ::{
-    crossterm::{style::Print, Command, QueueableCommand},
+    crossterm::{cursor::MoveToNextLine, style::Print, Command, QueueableCommand},
     std::fmt::Display,
 };
 
@@ -45,6 +45,11 @@ impl ser::Error for Error {
         Error::Serialize(msg.to_string())
     }
 }
+
+use ::{
+    itertools::{FoldWhile, Itertools},
+    unicode_segmentation::UnicodeSegmentation,
+};
 
 impl<'a, 'b, B> ser::Serializer for &'b mut Serializer<'a, B>
 where
@@ -134,7 +139,16 @@ where
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
-        self.display(v)?;
+        for grapheme in v.graphemes(true) {
+            match grapheme {
+                "\n" => {
+                    self.consume(MoveToNextLine(1))?;
+                }
+                _ => {
+                    self.display(grapheme)?;
+                }
+            }
+        }
 
         Ok(())
     }
@@ -292,6 +306,8 @@ where
         T: ser::Serialize,
     {
         value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+
+        self.serializer.consume(MoveToNextLine(0))?;
 
         Ok(())
     }
