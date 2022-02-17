@@ -14,7 +14,7 @@ word = ?
 
 Which word means mory to you?
 
-{indefinite_article(word)} for your disdain towards capitalism.
+{indefinite_article(word)} for your disdain towards {capitalism}.
 
 ## Bounty
 
