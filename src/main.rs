@@ -5,6 +5,7 @@ mod handle;
 mod logs;
 mod serialize;
 mod view;
+mod window;
 
 pub use context::Context;
 pub use handle::{Directive, Directives, Handle};

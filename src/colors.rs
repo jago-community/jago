@@ -2,6 +2,7 @@ use rand::rngs::ThreadRng;
 
 pub use crossterm::style::Color;
 
+#[derive(Clone)]
 pub struct ColorPicker {
     seq: [usize; 231],
     rng: ThreadRng,

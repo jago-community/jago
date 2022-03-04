@@ -6,35 +6,15 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-use crate::colors::ColorPicker;
+use crdts::List;
 
-use std::ops::Range;
-
-pub struct Serializer<'a, W> {
-    buffer: &'a mut W,
-    colors: ColorPicker,
-    window: (Range<u16>, Range<u16>),
+pub struct Screen<'a, W> {
+    mat: &'a mut Array2,
 }
 
-impl<'a, W> Serializer<'a, W> {
-    pub fn new(buffer: &'a mut W, (x, y): (u16, u16)) -> Self {
-        Self {
-            buffer,
-            colors: ColorPicker::default(),
-            window: (0..x, 0..y),
-        }
-    }
-
-    pub fn with_window(buffer: &'a mut W, (x, y): (Range<u16>, Range<u16>)) -> Self {
-        Self {
-            buffer,
-            colors: ColorPicker::default(),
-            window: (x, y),
-        }
-    }
-
-    pub fn scroll(&self, step: isize) {
-        // ...
+impl<'a, W> Screen<'a, W> {
+    pub fn new(mat: &'a mut Array2<u8>) -> Self {
+        Self { mat }
     }
 }
 
@@ -43,7 +23,7 @@ use ::{
     std::fmt::Display,
 };
 
-impl<'a, W> Serializer<'a, W>
+impl<'a, W> Screen<'a, W>
 where
     W: Write,
 {

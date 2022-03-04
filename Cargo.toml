@@ -35,3 +35,6 @@ git = "https://github.com/rust-analyzer/rust-analyzer"
 branch = "release"
 package = "ide"
 optional = true
+
+[workspace]
+members = ["crates/*"]
