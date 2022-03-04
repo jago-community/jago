@@ -1,4 +1,5 @@
 mod cargo;
+mod colors;
 mod context;
 mod handle;
 mod logs;

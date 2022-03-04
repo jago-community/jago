@@ -6,13 +6,31 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
+use crate::colors::ColorPicker;
+
+use std::ops::Range;
+
 pub struct Serializer<'a, W> {
     buffer: &'a mut W,
+    colors: ColorPicker,
+    window: (Range<u16>, Range<u16>),
 }
 
 impl<'a, W> Serializer<'a, W> {
-    pub fn new(buffer: &'a mut W) -> Self {
-        Self { buffer }
+    pub fn new(buffer: &'a mut W, (x, y): (u16, u16)) -> Self {
+        Self {
+            buffer,
+            colors: ColorPicker::default(),
+            window: (0..x, 0..y),
+        }
+    }
+
+    pub fn with_window(buffer: &'a mut W, (x, y): (Range<u16>, Range<u16>)) -> Self {
+        Self {
+            buffer,
+            colors: ColorPicker::default(),
+            window: (x, y),
+        }
     }
 }
 
@@ -46,10 +64,7 @@ impl ser::Error for Error {
     }
 }
 
-use ::{
-    itertools::{FoldWhile, Itertools},
-    unicode_segmentation::UnicodeSegmentation,
-};
+use ::unicode_segmentation::UnicodeSegmentation;
 
 impl<'a, 'b, B> ser::Serializer for &'b mut Serializer<'a, B>
 where
@@ -292,7 +307,7 @@ pub struct SerializeSeq<'a, 'b, W> {
     len: Option<usize>,
 }
 
-use ::{serde::Serialize, std::io::Write};
+use ::{crossterm::style::SetForegroundColor, serde::Serialize, std::io::Write};
 
 impl<'a, 'b, B> ser::SerializeSeq for SerializeSeq<'a, 'b, B>
 where
@@ -305,7 +320,13 @@ where
     where
         T: ser::Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        self.serializer
+            .consume(SetForegroundColor(self.serializer.colors.pick()))?;
+
+        value.serialize(&mut Serializer::with_window(
+            &mut self.serializer.buffer,
+            self.serializer.window,
+        ))?;
 
         self.serializer.consume(MoveToNextLine(0))?;
 

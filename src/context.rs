@@ -34,14 +34,14 @@ pub trait Context: View + Handle {
     fn watch(&mut self) -> Result<(), Error> {
         let mut buffer = std::io::stdout();
 
-        let mut serializer = Serializer::new(&mut buffer);
+        let (x, y) = size()?;
+
+        let mut serializer = Serializer::new(&mut buffer, (x, y));
 
         let runtime = runtime::Builder::new_current_thread().build()?;
 
         runtime.block_on(async move {
             let reader = EventStream::new();
-
-            let (x, y) = size()?;
 
             if self.handle(&Event::Resize(x, y)).stop() {
                 return Ok(());
