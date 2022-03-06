@@ -8,33 +8,17 @@ pub enum Error {
 
 use crate::colors::ColorPicker;
 
-use std::ops::Range;
-
 pub struct Serializer<'a, W> {
     buffer: &'a mut W,
     colors: ColorPicker,
-    window: (Range<u16>, Range<u16>),
 }
 
 impl<'a, W> Serializer<'a, W> {
-    pub fn new(buffer: &'a mut W, (x, y): (u16, u16)) -> Self {
+    pub fn new(buffer: &'a mut W) -> Self {
         Self {
             buffer,
             colors: ColorPicker::default(),
-            window: (0..x, 0..y),
         }
-    }
-
-    pub fn with_window(buffer: &'a mut W, (x, y): (Range<u16>, Range<u16>)) -> Self {
-        Self {
-            buffer,
-            colors: ColorPicker::default(),
-            window: (x, y),
-        }
-    }
-
-    pub fn scroll(&self, step: isize) {
-        // ...
     }
 }
 
@@ -225,6 +209,10 @@ where
     where
         T: Serialize,
     {
+        dbg!(name);
+        dbg!(variant_index);
+        dbg!(variant);
+
         unimplemented!()
     }
 
@@ -327,10 +315,7 @@ where
         self.serializer
             .consume(SetForegroundColor(self.serializer.colors.pick()))?;
 
-        value.serialize(&mut Serializer::with_window(
-            &mut self.serializer.buffer,
-            self.serializer.window,
-        ))?;
+        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
 
         self.serializer.consume(MoveToNextLine(0))?;
 
