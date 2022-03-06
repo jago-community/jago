@@ -1,88 +1,87 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Incomplete")]
-    Incomplete,
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
-    #[error("Serialize {0}")]
-    Serialize(#[from] crate::serialize::Error),
-    #[error("View {0}")]
-    View(#[from] crate::view::Error),
 }
 
-use crate::serialize::Serializer;
+pub trait Directive {
+    fn stop(&self) -> bool;
+}
+
+use bitflags::bitflags;
+
+bitflags! {
+    pub struct Directives: u32 {
+        const STOP = 0b00000001;
+    }
+}
+
+impl Directive for Directives {
+    fn stop(&self) -> bool {
+        self.contains(Directives::STOP)
+    }
+}
 
 use ::{
     crossterm::{
         cursor::{Hide, MoveTo, Show},
-        event::{Event, EventStream},
+        event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
         terminal::{
-            disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
+            disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
             LeaveAlternateScreen,
         },
+        QueueableCommand,
     },
-    futures::{
-        future,
-        stream::{self, StreamExt},
-    },
+    std::io::{stdout, Write},
     tokio::runtime,
 };
 
-use crate::{Directive, Directives, Handle, View};
+use crate::Document;
 
-pub trait Context: View + Handle {
-    fn watch(&mut self) -> Result<(), Error> {
-        let mut buffer = std::io::stdout();
+pub fn watch(document: Document) -> Result<(), Error> {
+    let runtime = runtime::Builder::new_current_thread().build()?;
 
-        let mut serializer = Serializer::new(&mut buffer);
+    runtime.block_on(async {
+        let mut buffer = stdout();
 
-        let runtime = runtime::Builder::new_current_thread().build()?;
+        enable_raw_mode()?;
 
-        runtime.block_on(async move {
-            let reader = EventStream::new();
+        buffer
+            .queue(EnterAlternateScreen)?
+            .queue(Hide)?
+            .queue(MoveTo(0, 0))?;
 
-            let (x, y) = size()?;
+        document.queue_ansi(&mut buffer)?;
 
-            if self.handle(&Event::Resize(x, y)).stop() {
-                return Ok(());
+        buffer.flush()?;
+
+        loop {
+            let directives = match event::read() {
+                Ok(event) => match event {
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                    }) => Directives::STOP,
+                    _ => Directives::empty(),
+                },
+                _ => Directives::STOP,
+            };
+
+            if directives.stop() {
+                break;
+            } else {
+                buffer.queue(Clear(ClearType::All))?.queue(MoveTo(0, 0))?;
+
+                document.queue_ansi(&mut buffer)?;
+
+                buffer.flush()?;
             }
+        }
 
-            //serializer.consume(EnterAlternateScreen)?;
-            //serializer.consume(Hide)?;
-            //serializer.consume(MoveTo(0, 0))?;
+        buffer.queue(Show)?.queue(LeaveAlternateScreen)?.flush()?;
 
-            self.serialize(&mut serializer)?;
+        disable_raw_mode()?;
 
-            serializer.flush()?;
-
-            enable_raw_mode()?;
-
-            let (_, _) = reader
-                .flat_map(|result| stream::iter(result.ok()))
-                .map(|event| self.handle(&event))
-                .map(|directives| -> Result<Directives, Error> {
-                    //serializer.consume(Clear(ClearType::All))?;
-                    //serializer.consume(MoveTo(0, 0))?;
-
-                    self.serialize(&mut serializer)?;
-
-                    serializer.flush()?;
-
-                    Ok(directives)
-                })
-                .flat_map(|result| stream::iter(result))
-                .filter(|directives| future::ready(directives.stop()))
-                .into_future()
-                .await;
-
-            disable_raw_mode()?;
-
-            //serializer.consume(Show)?;
-            //serializer.consume(LeaveAlternateScreen)?;
-
-            Ok(())
-        })
-    }
+        Ok(())
+    })
 }
-
-impl<'a, C> Context for C where C: Handle + View {}
