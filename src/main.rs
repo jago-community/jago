@@ -1,5 +1,6 @@
 mod context;
 mod document;
+mod mat;
 
 pub use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
