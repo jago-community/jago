@@ -19,3 +19,4 @@ ndarray = "0.15.4"
 serde = { version = "1.0.136", features = ["derive"] }
 unicode-segmentation = "1.9.0"
 textwrap = "0.15.0"
+syn = { version = "1.0.86", features = ["full"] }

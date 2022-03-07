@@ -1,3 +1,9 @@
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Io {0}")]
+    Io(#[from] std::io::Error),
+}
+
 use crdts::{CmRDT, List};
 
 pub struct Document {
@@ -31,6 +37,16 @@ impl Document {
                 buffer.queue(Print(*c))?;
             }
         }
+
+        Ok(())
+    }
+}
+
+impl Document {
+    fn parse(&self) -> Result<(), Error> {
+        let source = self.source.read::<String>();
+
+        let syntax = syn::parse_file(&source).expect("Unable to parse file");
 
         Ok(())
     }

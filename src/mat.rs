@@ -1,16 +1,19 @@
-#[test]
-fn test_mat() {
-    let mut mat = Array2::zeros((10, 5));
+use ndarray::array;
 
-    let mut serializer = Serializer::new(&mut mat);
+#[test]
+#[ignore]
+fn test_mat() {
+    let mat = Array2::zeros((10, 5));
+
+    let mut serializer = Serializer::new(Rc::new(RefCell::new(mat)));
 
     use serde::Serialize;
 
     "Hello, stranger.\n\n:D".serialize(&mut serializer).unwrap();
 
     assert_eq!(
-        mat,
-        ndarray::array![
+        *serializer.buffer.borrow(),
+        array![
             [b'H', b'e', b'l', b'l', b'o'],
             [b',', b' ', b'S', b't', b'r'],
             [b'a', b'n', b'g', b'e', b'r'],
@@ -78,15 +81,15 @@ impl Cursor {
 
 use ndarray::Array2;
 
-pub type Matrix = Array2<u8>;
+pub type Matrix = Rc<RefCell<Array2<u8>>>;
 
-pub struct Serializer<'a> {
-    buffer: &'a mut Matrix,
+pub struct Serializer {
+    buffer: Matrix,
     cursor: Cursor,
 }
 
-impl<'a> Serializer<'a> {
-    pub fn new(buffer: &'a mut Matrix) -> Self {
+impl Serializer {
+    pub fn new(buffer: Matrix) -> Self {
         Self {
             buffer,
             cursor: Cursor::from((0, 0)),
@@ -96,13 +99,14 @@ impl<'a> Serializer<'a> {
 
 use ::{
     crossterm::{cursor::MoveToNextLine, style::Print, Command, QueueableCommand},
+    itertools::Itertools,
     std::fmt::Display,
     unicode_segmentation::UnicodeSegmentation,
 };
 
-impl<'a> Serializer<'a> {
+impl Serializer {
     fn width(&self) -> usize {
-        self.buffer.ncols()
+        self.buffer.borrow().ncols()
     }
 
     pub fn consume(&mut self, directive: impl Command) -> Result<(), Error> {
@@ -126,17 +130,17 @@ impl ser::Error for Error {
     }
 }
 
-impl<'a, 'b> ser::Serializer for &'b mut Serializer<'a> {
+impl<'a> ser::Serializer for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = SerializeSeq<'a, 'b>;
-    type SerializeMap = SerializeMap<'a, 'b>;
-    type SerializeTuple = SerializeTuple<'a, 'b>;
-    type SerializeStruct = SerializeStruct<'a, 'b>;
-    type SerializeStructVariant = SerializeStructVariant<'a, 'b>;
-    type SerializeTupleStruct = SerializeTupleStruct<'a, 'b>;
-    type SerializeTupleVariant = SerializeTupleVariant<'a, 'b>;
+    type SerializeSeq = SerializeSeq<'a>;
+    type SerializeMap = SerializeMap<'a>;
+    type SerializeTuple = SerializeTuple<'a>;
+    type SerializeStruct = SerializeStruct<'a>;
+    type SerializeStructVariant = SerializeStructVariant<'a>;
+    type SerializeTupleStruct = SerializeTupleStruct<'a>;
+    type SerializeTupleVariant = SerializeTupleVariant<'a>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         self.display(v)?;
@@ -224,11 +228,24 @@ impl<'a, 'b> ser::Serializer for &'b mut Serializer<'a> {
 
             let yx = self.cursor.yx();
 
-            //for c in grapheme {
-            //self.buffer.
-            //}
+            let mut buffer = self.buffer.borrow_mut();
 
-            self.buffer.slice_mut(ndarray::s![yx.1..next_x]); //  = grapheme.chars().collect::<Vec<_>>();
+            for (i, c) in grapheme.char_indices() {
+                // ...
+                //buffer[yx.1 + i..yx.1 + i + c.len_utf8()] = c;
+            }
+
+            /*
+            let chars = grapheme.chars().collect_vec();
+
+            let mut slice = buffer.slice_mut(ndarray::s![yx.1..next_x]);
+
+            let this = array![chars];
+
+            ndarray::Zip::from(&mut slice)
+                .and(&this)
+                .for_each(|a, &b| *a = b);
+            */
 
             /*else {
                 *self.cursor.x_mut() = next_x;
@@ -376,14 +393,14 @@ impl<'a, 'b> ser::Serializer for &'b mut Serializer<'a> {
     }
 }
 
-pub struct SerializeSeq<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeSeq<'a> {
+    serializer: &'a mut Serializer,
     len: Option<usize>,
 }
 
 use ::{crossterm::style::SetForegroundColor, serde::Serialize, std::io::Write};
 
-impl<'a, 'b> ser::SerializeSeq for SerializeSeq<'a, 'b> {
+impl<'a> ser::SerializeSeq for SerializeSeq<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -391,7 +408,7 @@ impl<'a, 'b> ser::SerializeSeq for SerializeSeq<'a, 'b> {
     where
         T: ser::Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -401,12 +418,12 @@ impl<'a, 'b> ser::SerializeSeq for SerializeSeq<'a, 'b> {
     }
 }
 
-pub struct SerializeMap<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeMap<'a> {
+    serializer: &'a mut Serializer,
     len: Option<usize>,
 }
 
-impl<'a, 'b> ser::SerializeMap for SerializeMap<'a, 'b> {
+impl<'a> ser::SerializeMap for SerializeMap<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -414,7 +431,7 @@ impl<'a, 'b> ser::SerializeMap for SerializeMap<'a, 'b> {
     where
         T: Serialize,
     {
-        key.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        key.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -423,7 +440,7 @@ impl<'a, 'b> ser::SerializeMap for SerializeMap<'a, 'b> {
     where
         T: Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -433,12 +450,12 @@ impl<'a, 'b> ser::SerializeMap for SerializeMap<'a, 'b> {
     }
 }
 
-pub struct SerializeTuple<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeTuple<'a> {
+    serializer: &'a mut Serializer,
     len: usize,
 }
 
-impl<'a, 'b> ser::SerializeTuple for SerializeTuple<'a, 'b> {
+impl<'a> ser::SerializeTuple for SerializeTuple<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -446,7 +463,7 @@ impl<'a, 'b> ser::SerializeTuple for SerializeTuple<'a, 'b> {
     where
         T: Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -457,13 +474,13 @@ impl<'a, 'b> ser::SerializeTuple for SerializeTuple<'a, 'b> {
     }
 }
 
-pub struct SerializeStruct<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeStruct<'a> {
+    serializer: &'a mut Serializer,
     name: &'static str,
     len: usize,
 }
 
-impl<'a, 'b> ser::SerializeStruct for SerializeStruct<'a, 'b> {
+impl<'a> ser::SerializeStruct for SerializeStruct<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -475,8 +492,8 @@ impl<'a, 'b> ser::SerializeStruct for SerializeStruct<'a, 'b> {
     where
         T: Serialize,
     {
-        key.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        key.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -487,15 +504,15 @@ impl<'a, 'b> ser::SerializeStruct for SerializeStruct<'a, 'b> {
     }
 }
 
-pub struct SerializeStructVariant<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeStructVariant<'a> {
+    serializer: &'a mut Serializer,
     name: &'static str,
     variant_index: u32,
     variant: &'static str,
     len: usize,
 }
 
-impl<'a, 'b> ser::SerializeStructVariant for SerializeStructVariant<'a, 'b> {
+impl<'a> ser::SerializeStructVariant for SerializeStructVariant<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -507,8 +524,8 @@ impl<'a, 'b> ser::SerializeStructVariant for SerializeStructVariant<'a, 'b> {
     where
         T: Serialize,
     {
-        key.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        key.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -519,13 +536,13 @@ impl<'a, 'b> ser::SerializeStructVariant for SerializeStructVariant<'a, 'b> {
     }
 }
 
-pub struct SerializeTupleStruct<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeTupleStruct<'a> {
+    serializer: &'a mut Serializer,
     name: &'static str,
     len: usize,
 }
 
-impl<'a, 'b> ser::SerializeTupleStruct for SerializeTupleStruct<'a, 'b> {
+impl<'a> ser::SerializeTupleStruct for SerializeTupleStruct<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -533,7 +550,7 @@ impl<'a, 'b> ser::SerializeTupleStruct for SerializeTupleStruct<'a, 'b> {
     where
         T: Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
@@ -544,15 +561,15 @@ impl<'a, 'b> ser::SerializeTupleStruct for SerializeTupleStruct<'a, 'b> {
     }
 }
 
-pub struct SerializeTupleVariant<'a, 'b> {
-    serializer: &'b mut Serializer<'a>,
+pub struct SerializeTupleVariant<'a> {
+    serializer: &'a mut Serializer,
     name: &'static str,
     variant_index: u32,
     variant: &'static str,
     len: usize,
 }
 
-impl<'a, 'b> ser::SerializeTupleVariant for SerializeTupleVariant<'a, 'b> {
+impl<'a> ser::SerializeTupleVariant for SerializeTupleVariant<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -560,7 +577,7 @@ impl<'a, 'b> ser::SerializeTupleVariant for SerializeTupleVariant<'a, 'b> {
     where
         T: Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.serializer.buffer))?;
+        value.serialize(&mut Serializer::new(self.serializer.buffer.clone()))?;
 
         Ok(())
     }
