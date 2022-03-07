@@ -12,6 +12,8 @@ pub enum Error {
     NoAdaptor,
     #[error("RequestDevice {0}")]
     RequestDevice(#[from] wgpu::RequestDeviceError),
+    #[error("Surface {0}")]
+    Surface(#[from] wgpu::SurfaceError),
 }
 
 use wgpu_glyph::{ab_glyph, GlyphBrushBuilder, Section, Text};
@@ -23,7 +25,11 @@ pub fn handle(context: &'static Context) -> Result<(), Error> {
     let event_loop = winit::event_loop::EventLoop::new();
 
     let window = winit::window::WindowBuilder::new()
+        .with_title("Jago")
         .with_resizable(false)
+        .with_decorations(false)
+        .with_transparent(true)
+        .with_inner_size(winit::dpi::LogicalSize::new(600.0, 100.0))
         .build(&event_loop)
         .unwrap();
 
@@ -74,11 +80,40 @@ pub fn handle(context: &'static Context) -> Result<(), Error> {
 
     let mut glyph_brush = GlyphBrushBuilder::using_font(font).build(&device, render_format);
 
+    window.set_inner_size(winit::dpi::LogicalSize::new(800.0, 200.0));
+
+    let mut modifiers = winit::event::ModifiersState::default();
+
     // Render loop
     window.request_redraw();
 
     event_loop.run(move |event, _, control_flow| {
+        *control_flow = winit::event_loop::ControlFlow::Wait;
+
         match event {
+            winit::event::Event::WindowEvent {
+                event:
+                    winit::event::WindowEvent::KeyboardInput {
+                        input:
+                            winit::event::KeyboardInput {
+                                state: winit::event::ElementState::Released,
+                                virtual_keycode: Some(key),
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => {
+                use winit::event::VirtualKeyCode::*;
+                match key {
+                    C if modifiers.ctrl() => *control_flow = winit::event_loop::ControlFlow::Exit,
+                    _ => {}
+                }
+            }
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::ModifiersChanged(m),
+                ..
+            } => modifiers = m,
             winit::event::Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
                 ..
@@ -107,7 +142,8 @@ pub fn handle(context: &'static Context) -> Result<(), Error> {
                 });
 
                 // Get the next frame
-                let frame = surface.get_current_texture().expect("Get next frame");
+                let frame = surface.get_current_texture().map_err(Error::from).unwrap();
+
                 let view = &frame
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
@@ -121,10 +157,10 @@ pub fn handle(context: &'static Context) -> Result<(), Error> {
                             resolve_target: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.4,
-                                    g: 0.4,
-                                    b: 0.4,
-                                    a: 1.0,
+                                    r: 0.,
+                                    g: 0.,
+                                    b: 0.,
+                                    a: 0.5,
                                 }),
                                 store: true,
                             },
@@ -139,7 +175,7 @@ pub fn handle(context: &'static Context) -> Result<(), Error> {
                     screen_position: (30.0, 30.0),
                     bounds: (size.width as f32, size.height as f32),
                     text: vec![Text::new(&buffer)
-                        .with_color([0.0, 0.0, 0.0, 1.0])
+                        .with_color([1.0, 1.0, 1.0, 1.0])
                         .with_scale(40.0)],
                     ..Section::default()
                 });
