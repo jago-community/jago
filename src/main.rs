@@ -1,18 +1,10 @@
-mod context;
-mod document;
-mod mat;
-
-pub use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-
-pub use document::Document;
+mod logger;
 
 fn main() {
     let start = std::time::Instant::now();
     let mut code = 0;
 
-    let document = include_str!("./main.rs").chars().into();
-
-    if let Err(error) = context::watch(document) {
+    if let Err(error) = logger::before() {
         eprintln!("{:?}", error);
         code = 1;
     }
