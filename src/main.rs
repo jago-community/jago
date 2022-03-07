@@ -1,6 +1,6 @@
 mod context;
-mod gpu;
 mod logger;
+mod screen;
 
 use context::Context;
 
@@ -15,7 +15,7 @@ fn main() {
 
     let context = Context::get("Hello, stranger.");
 
-    if let Err(error) = gpu::handle(context) {
+    if let Err(error) = screen::watch(context) {
         eprintln!("{:?}", error);
         code = 1;
     }
