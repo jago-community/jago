@@ -1,7 +1,10 @@
+mod ansi;
 mod context;
+mod handle;
 mod logger;
 
-use context::Context;
+pub use context::Context;
+pub use handle::{Directive, Directives, Handle};
 
 fn main() {
     let start = std::time::Instant::now();
@@ -14,7 +17,10 @@ fn main() {
 
     let context = Context::get("Hello, stranger.");
 
-    log::info!("{}", context);
+    if let Err(error) = ansi::watch(&context) {
+        eprintln!("{:?}", error);
+        code = 1;
+    }
 
     log::info!("{:?} elapsed", start.elapsed());
 

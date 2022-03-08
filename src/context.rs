@@ -1,16 +1,45 @@
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Io {0}")]
+    Io(#[from] std::io::Error),
+}
+
 use ::{
     crdts::{CmRDT, List},
+    crossterm::{cursor::MoveToNextLine, event::Event, style::Print, Command},
+    once_cell::sync::OnceCell,
     std::{
         fmt,
         sync::{Arc, Mutex},
     },
 };
 
+use crate::{Directives, Handle};
+
 pub struct Context {
-    buffer: Arc<Mutex<List<char, u8>>>,
+    inner: Arc<Mutex<Inner>>,
 }
 
-use once_cell::sync::OnceCell;
+impl Handle for Context {
+    fn handle(&self, event: &Event) -> Directives {
+        match self.inner.lock() {
+            Ok(mut inner) => {
+                inner.apply(*event);
+
+                Directives::empty()
+            }
+            Err(error) => {
+                log::error!("context::handle inner lock: {}", error);
+
+                Directives::STOP
+            }
+        }
+    }
+}
+
+struct Inner {
+    buffer: List<char, u8>,
+}
 
 impl Context {
     pub fn get(buffer: &str) -> &'static Self {
@@ -32,15 +61,51 @@ impl From<&str> for Context {
         }
 
         Self {
-            buffer: Arc::new(Mutex::new(buffer)),
+            inner: Arc::new(Mutex::new(Inner { buffer })),
         }
     }
 }
 
 impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let buffer = self.buffer.lock().map_err(|_| fmt::Error)?.read::<String>();
+        let buffer = self
+            .inner
+            .lock()
+            .map_err(|_| fmt::Error)?
+            .buffer
+            .read::<String>();
 
         f.write_str(&buffer)
+    }
+}
+
+impl Command for Context {
+    fn write_ansi(&self, out: &mut impl fmt::Write) -> fmt::Result {
+        let inner = self.inner.lock().map_err(|_| fmt::Error)?;
+
+        for c in inner.buffer.iter() {
+            if c == &'\n' {
+                MoveToNextLine(1).write_ansi(out)?;
+            } else {
+                Print(*c).write_ansi(out)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl CmRDT for Inner {
+    type Op = Event;
+    type Validation = Error;
+
+    fn validate_op(&self, _: &Self::Op) -> Result<(), Self::Validation> {
+        Ok(())
+    }
+
+    fn apply(&mut self, op: Self::Op) {
+        match op {
+            _ => {}
+        }
     }
 }
