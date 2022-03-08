@@ -1,6 +1,5 @@
 mod context;
 mod logger;
-mod screen;
 
 use context::Context;
 
@@ -15,10 +14,7 @@ fn main() {
 
     let context = Context::get("Hello, stranger.");
 
-    if let Err(error) = screen::watch(context) {
-        eprintln!("{:?}", error);
-        code = 1;
-    }
+    log::info!("{}", context);
 
     log::info!("{:?} elapsed", start.elapsed());
 
