@@ -8,7 +8,13 @@ Plug 'challenger-deep-theme/vim'
 Plug 'tpope/vim-eunuch'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
+
+Plug 'kana/vim-textobj-user'
 Plug 'preservim/vim-pencil'
+Plug 'preservim/vim-lexical'
+Plug 'preservim/vim-litecorrect'
+Plug 'preservim/vim-textobj-quote'
+Plug 'preservim/vim-textobj-sentence'
 
 if has('nvim')
 

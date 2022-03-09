@@ -6,6 +6,8 @@ pub trait Handle {
     }
 
     fn handle_base(&self, event: &Event) -> Directives {
+        log::info!("{:?}", event);
+
         match event {
             Event::Key(KeyEvent {
                 code: KeyCode::Char('c'),

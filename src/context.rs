@@ -25,15 +25,17 @@ impl Handle for Context {
         match self.inner.lock() {
             Ok(mut inner) => {
                 inner.apply(*event);
-
-                Directives::empty()
             }
             Err(error) => {
                 log::error!("context::handle inner lock: {}", error);
 
-                Directives::STOP
+                panic!("context::handle inner lock: {}", error);
             }
         }
+
+        log::info!("{:?}", event);
+
+        self.handle_base(event)
     }
 }
 

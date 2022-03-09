@@ -6,7 +6,7 @@ To pass this course you have to feel like you are done.
 
 ## Projects
 
-You will work on a set of projects you find useful. The usefullness may be found in the process of figuring it out or in the result itself.
+You will work on a set of projects you find useful. The usefulness may be found in the process of figuring it out or in the result itself.
 
 If you can't think of anything or need some ideas for stepping stones to your big idea, just try to make your own version of something that already exists.
 

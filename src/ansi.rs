@@ -6,7 +6,7 @@ pub enum Error {
 
 use ::{
     crossterm::{
-        cursor::{Hide, MoveTo, Show},
+        cursor::MoveTo,
         event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
         terminal::{
             disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen,
@@ -18,7 +18,7 @@ use ::{
     tokio::runtime,
 };
 
-use crate::{Context, Handle};
+use crate::{Context, Directive, Handle};
 
 pub fn watch(context: &Context) -> Result<(), Error> {
     let runtime = runtime::Builder::new_current_thread().build()?;
@@ -30,20 +30,13 @@ pub fn watch(context: &Context) -> Result<(), Error> {
 
         buffer
             .queue(EnterAlternateScreen)?
-            .queue(Hide)?
             .queue(MoveTo(0, 0))?
             .queue(context)?
             .flush()?;
 
         loop {
-            match event::read() {
-                Ok(event) => match event {
-                    Event::Key(KeyEvent {
-                        code: KeyCode::Char('c'),
-                        modifiers: KeyModifiers::CONTROL,
-                    }) => break,
-                    _ => context.handle(&event),
-                },
+            let directives = match event::read() {
+                Ok(event) => context.handle(&event),
                 _ => break,
             };
 
@@ -52,9 +45,13 @@ pub fn watch(context: &Context) -> Result<(), Error> {
                 .queue(MoveTo(0, 0))?
                 .queue(context)?
                 .flush()?;
+
+            if directives.stop() {
+                break;
+            }
         }
 
-        buffer.queue(Show)?.queue(LeaveAlternateScreen)?.flush()?;
+        buffer.queue(LeaveAlternateScreen)?.flush()?;
 
         disable_raw_mode()?;
 

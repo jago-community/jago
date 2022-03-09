@@ -14,4 +14,6 @@ else
   source ~/jago/editor/vim
 endif
 
+source ~/jago/editor/writing.vim
+
 let g:rustfmt_autosave = 1

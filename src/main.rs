@@ -1,7 +1,9 @@
 mod ansi;
 mod context;
 mod handle;
-mod logger;
+mod logs;
+
+pub mod environment;
 
 pub use context::Context;
 pub use handle::{Directive, Directives, Handle};
@@ -10,7 +12,7 @@ fn main() {
     let start = std::time::Instant::now();
     let mut code = 0;
 
-    if let Err(error) = logger::before() {
+    if let Err(error) = logs::before() {
         eprintln!("{:?}", error);
         code = 1;
     }
