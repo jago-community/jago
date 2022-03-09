@@ -7,16 +7,17 @@ edition = "2021"
 
 [dependencies]
 log = "0.4.14"
-thiserror = "1.0.30"
-futures = "0.3.21"
-once_cell = "1.10.0"
-crdts = "7.0.0"
-dirs = "4.0.0"
-wgpu_glyph = "0.16.0"
-winit = "0.26.1"
-wgpu = "0.12.0"
-env_logger = "0.9.0"
-crossterm = { version = "0.23.0", features = ["event-stream"] }
-tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
-bitflags = "1.3.2"
 simplelog = "0.11.2"
+context = { path = "crates/context" }
+thiserror = "1.0.30"
+dirs = "4.0.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web = { path = "crates/web" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ansi = { path = "crates/ansi" }
+environment = { path = "crates/environment" }
+
+[workspace]
+members = ["crates/*"]

@@ -1,30 +1,35 @@
-mod ansi;
-mod context;
-mod handle;
-mod logs;
-
-pub mod environment;
-
-pub use context::Context;
-pub use handle::{Directive, Directives, Handle};
+use context::Context;
 
 fn main() {
     let start = std::time::Instant::now();
     let mut code = 0;
 
-    if let Err(error) = logs::before() {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Err(error) = ansi::before() {
         eprintln!("{:?}", error);
         code = 1;
     }
 
-    let context = Context::get("Hello, stranger.");
+    #[cfg(target_arch = "wasm32")]
+    if let Err(error) = web::before() {
+        eprintln!("{:?}", error);
+    }
 
-    if let Err(error) = ansi::watch(&context) {
+    let context = Context::from("Hello, stranger.");
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Err(error) = ansi::watch(context) {
         eprintln!("{:?}", error);
         code = 1;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    if let Err(error) = web::watch(context) {
+        eprintln!("{:?}", error);
     }
 
     log::info!("{:?} elapsed", start.elapsed());
 
+    #[cfg(not(target_arch = "wasm32"))]
     std::process::exit(code);
 }
