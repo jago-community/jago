@@ -7,5 +7,12 @@ edition = "2021"
 
 [dependencies]
 context = { path = "../context" }
-dioxus = "0.1.8"
+logs = { path = "../logs" }
+dioxus = { version = "0.2.1", features = ["web"] }
 console_log = "0.2.0"
+log = "0.4.14"
+thiserror = "1.0.30"
+
+[dependencies.web-sys]
+version = "0.3.56"
+features = ["Window", "Location"]

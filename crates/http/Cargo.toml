@@ -1,15 +1,13 @@
 [package]
-name = "ansi"
+name = "http"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-context = { path = "../context" }
-environment = { path = "../environment" }
 logs = { path = "../logs" }
-tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
-crossterm = "0.23.0"
-thiserror = "1.0.30"
 log = "0.4.14"
+simplelog = "0.11.2"
+warp = "0.3.2"
+thiserror = "1.0.30"
