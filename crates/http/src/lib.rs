@@ -6,12 +6,14 @@ pub enum Error {
     Pack(#[from] pack::Error),
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
+    #[error("Environment {0}")]
+    Environment(#[from] environment::Error),
 }
 
 use ::{
-    std::sync::{Arc, Mutex},
+    std::sync::{mpsc::channel, Arc, Mutex},
     tokio::runtime::Runtime,
-    warp::{fs::File, http::HeaderValue, Filter, Reply},
+    warp::Filter,
 };
 
 pub struct Context {
@@ -31,28 +33,31 @@ pub fn watch(_: impl Into<Context>) -> Result<(), Error> {
 
     let runtime = Runtime::new()?;
 
+    let (change_sender, change_receiver) = channel();
+
+    runtime.spawn(async move {
+        for _ in change_receiver.iter() {
+            log::info!("saw change, recompiling");
+
+            if let Err(error) = pack::browser() {
+                log::error!("pack::browser {}", error);
+            }
+        }
+    });
+
+    let browser = environment::component("browser").map(|path| path.join("src"))?;
+
+    runtime.spawn(async move {
+        if let Err(error) = pack::watch(&browser, change_sender) {
+            log::error!("pack::watch {}", error);
+        }
+    });
+
     runtime.block_on(async {
         let root =
             warp::path::end().map(|| warp::reply::html(include_str!("../../browser/browser.html")));
 
-        let bundle = warp::fs::dir(target).map(|file: File| match file.path().extension() {
-            //Some(ext) if ext == "js" => {
-            //let mut response = file.into_response();
-            //let headers = response.headers_mut();
-            //headers.insert("content-type", HeaderValue::from_static("text/javascript"));
-            //response
-            //}
-            //Some(ext) if ext == "wasm" => {
-            //let mut response = file.into_response();
-            //let headers = response.headers_mut();
-            //headers.insert(
-            //"X-Content-Type-Options",
-            //HeaderValue::from_static("application/wasm"),
-            //);
-            //response
-            //}
-            _ => file.into_response(),
-        });
+        let bundle = warp::fs::dir(target);
 
         warp::serve(root.or(bundle)).run(([0, 0, 0, 0], 3333)).await;
 

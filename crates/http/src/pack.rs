@@ -6,10 +6,17 @@ pub enum Error {
     Environment(#[from] environment::Error),
     #[error("WasmPack {0}")]
     WasmPack(Box<dyn std::error::Error + 'static>),
+    #[error("Notify {0}")]
+    Notify(#[from] notify::Error),
 }
 
 use ::{
-    std::path::PathBuf,
+    notify::{watcher, DebouncedEvent, RecursiveMode, Watcher},
+    std::{
+        path::{Path, PathBuf},
+        sync::mpsc::Sender,
+        time::Duration,
+    },
     wasm_pack::command::{
         build::{BuildOptions, Target},
         run_wasm_pack, Command,
@@ -29,4 +36,14 @@ pub fn browser() -> Result<PathBuf, Error> {
         .map_err(|error| Error::WasmPack(Box::new(error.compat())))?;
 
     Ok(target)
+}
+
+pub fn watch(component: &Path, sender: Sender<DebouncedEvent>) -> Result<(), Error> {
+    let mut watcher = watcher(sender, Duration::from_secs(10))?;
+
+    log::info!("recursively watching: {}", component.display());
+
+    watcher.watch(component, RecursiveMode::Recursive)?;
+
+    Ok(())
 }
