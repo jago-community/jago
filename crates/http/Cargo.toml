@@ -7,14 +7,12 @@ edition = "2021"
 
 [dependencies]
 environment = { path = "../environment" }
-logs = { path = "../logs" }
-log = "0.4.14"
-simplelog = "0.11.2"
-warp = "0.3.2"
+instrument = { path = "../instrument" }
 thiserror = "1.0.30"
 wasm-pack = "0.10.2"
 context = { path = "../context" }
 tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
-tower = { version = "0.4.12", features = ["full"] }
 hyper = "0.14.17"
+axum = "0.4.8"
+tower-http = { version = "0.2.5", features = ["fs", "trace"] }
 notify = "4.0.17"

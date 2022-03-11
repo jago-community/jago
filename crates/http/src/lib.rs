@@ -8,12 +8,21 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("Environment {0}")]
     Environment(#[from] environment::Error),
+    #[error("Server {0}")]
+    Server(#[from] hyper::Error),
+    #[error("Address {0}")]
+    Address(#[from] std::net::AddrParseError),
 }
 
 use ::{
-    std::sync::{mpsc::channel, Arc, Mutex},
+    axum::{http::StatusCode, response, routing::get, routing::get_service, Router},
+    instrument::prelude::*,
+    std::{
+        path::Path,
+        sync::{mpsc::channel, Arc, Mutex},
+    },
     tokio::runtime::Runtime,
-    warp::Filter,
+    tower_http::{services::ServeDir, trace::TraceLayer},
 };
 
 pub struct Context {
@@ -37,10 +46,10 @@ pub fn watch(_: impl Into<Context>) -> Result<(), Error> {
 
     runtime.spawn(async move {
         for _ in change_receiver.iter() {
-            log::info!("saw change, recompiling");
+            info!("saw change, recompiling");
 
             if let Err(error) = pack::browser() {
-                log::error!("pack::browser {}", error);
+                error!("pack::browser {}", error);
             }
         }
     });
@@ -49,18 +58,36 @@ pub fn watch(_: impl Into<Context>) -> Result<(), Error> {
 
     runtime.spawn(async move {
         if let Err(error) = pack::watch(&browser, change_sender) {
-            log::error!("pack::watch {}", error);
+            error!("pack::watch {}", error);
         }
     });
 
-    runtime.block_on(async {
-        let root =
-            warp::path::end().map(|| warp::reply::html(include_str!("../../browser/browser.html")));
+    runtime.block_on(async { serve(&target).await })
+}
 
-        let bundle = warp::fs::dir(target);
+static DOCUMENT: &'static str = include_str!("../../browser/browser.html");
 
-        warp::serve(root.or(bundle)).run(([0, 0, 0, 0], 3333)).await;
+async fn serve(target: &Path) -> Result<(), Error> {
+    let router = Router::new()
+        .route("/", get(|| async { response::Html(DOCUMENT) }))
+        .nest(
+            "/target",
+            get_service(ServeDir::new(target)).handle_error(|error: std::io::Error| async move {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("unhandled internal error: {}", error),
+                )
+            }),
+        )
+        .layer(TraceLayer::new_for_http());
 
-        Ok(())
-    })
+    let address = "0.0.0.0:3000".parse()?;
+
+    debug!("listening at http://{}", &address);
+
+    // run it with hyper on localhost:3000
+    axum::Server::bind(&address)
+        .serve(router.into_make_service())
+        .await
+        .map_err(Error::from)
 }

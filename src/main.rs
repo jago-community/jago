@@ -1,4 +1,4 @@
-use context::Context;
+use ::{context::Context, instrument::prelude::*};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -11,14 +11,9 @@ pub fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let mut code = 0;
 
-    if let Err(error) = logs::before() {
-        eprintln!("{:?}", error);
+    instrument::before();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        std::process::exit(1);
-    }
-
-    log::info!("Starting execution 🧨");
+    info!("Starting execution 🧨");
 
     let context = Context::from("Hello, stranger.");
 
@@ -40,7 +35,7 @@ pub fn main() {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    log::info!("{:?} elapsed", start.elapsed());
+    tracing::info!("{:?} elapsed", start.elapsed());
 
     #[cfg(not(target_arch = "wasm32"))]
     std::process::exit(code);

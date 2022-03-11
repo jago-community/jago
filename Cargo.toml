@@ -12,13 +12,12 @@ path = "src/main.rs"
 serve = ["http"]
 
 [dependencies]
-log = "0.4.14"
-simplelog = "0.11.2"
 context = { path = "crates/context" }
 http = { path = "crates/http", optional = true }
 thiserror = "1.0.30"
 dirs = "4.0.0"
-logs = { path = "crates/logs" }
+instrument = { path = "crates/instrument" }
+tracing = "0.1.32"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 browser = { path = "crates/browser" }

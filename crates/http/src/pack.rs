@@ -11,6 +11,7 @@ pub enum Error {
 }
 
 use ::{
+    instrument::prelude::*,
     notify::{watcher, DebouncedEvent, RecursiveMode, Watcher},
     std::{
         path::{Path, PathBuf},
@@ -41,7 +42,7 @@ pub fn browser() -> Result<PathBuf, Error> {
 pub fn watch(component: &Path, sender: Sender<DebouncedEvent>) -> Result<(), Error> {
     let mut watcher = watcher(sender, Duration::from_secs(10))?;
 
-    log::info!("recursively watching: {}", component.display());
+    info!("recursively watching: {}", component.display());
 
     watcher.watch(component, RecursiveMode::Recursive)?;
 
