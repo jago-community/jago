@@ -9,7 +9,20 @@ pub fn before() {
 pub fn before() {
     use tracing_subscriber::{layer::SubscriberExt, registry, util::SubscriberInitExt};
 
-    registry().with(tracing_subscriber::fmt::layer()).init();
+    let crate_names = workspace::crate_names!();
+
+    let default_filters = crate_names
+        .iter()
+        .map(|name| [name, "debug"].join("="))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| default_filters),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 }
 
 pub mod prelude {

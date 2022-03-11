@@ -26,3 +26,9 @@ pub fn component(name: &str) -> Result<PathBuf, Error> {
         .ok_or(Error::NoHome)
         .map(|home| home.join("jago").join("crates").join(name))
 }
+
+pub fn workspace() -> Result<PathBuf, Error> {
+    dirs::home_dir()
+        .ok_or(Error::NoHome)
+        .map(|home| home.join("jago"))
+}
