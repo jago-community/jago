@@ -1,6 +1,8 @@
 call plug#begin()
 
 Plug 'rust-lang/rust.vim'
+Plug 'fatih/vim-go'
+
 Plug 'easymotion/vim-easymotion'
 Plug 'preservim/nerdcommenter'
 Plug 'tpope/vim-fugitive'
@@ -15,6 +17,7 @@ Plug 'preservim/vim-lexical'
 Plug 'preservim/vim-litecorrect'
 Plug 'preservim/vim-textobj-quote'
 Plug 'preservim/vim-textobj-sentence'
+Plug 'preservim/vim-wordy'
 
 if has('nvim')
 

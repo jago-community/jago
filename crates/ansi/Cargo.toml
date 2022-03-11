@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 context = { path = "../context" }
 environment = { path = "../environment" }
-logs = { path = "../logs" }
 tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
 crossterm = "0.23.0"
 thiserror = "1.0.30"

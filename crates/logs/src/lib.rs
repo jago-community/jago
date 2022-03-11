@@ -14,7 +14,7 @@ pub enum Error {
 pub fn before() -> Result<(), Error> {
     use log::Level;
 
-    console_log::init_with_level(Level::Debug);
+    console_log::init_with_level(Level::Info);
 
     Ok(())
 }
@@ -28,7 +28,7 @@ pub fn before() -> Result<(), Error> {
         std::fs::OpenOptions,
     };
 
-    let path = environment::logs_directory(true).map(|path| path.join("current"))?;
+    let path = environment::target("logs", true).map(|path| path.join("current"))?;
 
     let file = OpenOptions::new().create(true).append(true).open(path)?;
 

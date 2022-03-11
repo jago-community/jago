@@ -8,10 +8,10 @@ pub enum Error {
 
 use std::{fs::create_dir_all, path::PathBuf};
 
-pub fn logs_directory(ensure: bool) -> Result<PathBuf, Error> {
+pub fn target(suffix: &str, ensure: bool) -> Result<PathBuf, Error> {
     dirs::home_dir()
         .ok_or(Error::NoHome)
-        .map(|home| home.join("jago").join("target").join("jago").join("logs"))
+        .map(|home| home.join("jago").join("target").join("jago").join(suffix))
         .and_then(|path| {
             if ensure {
                 create_dir_all(&path)?
@@ -19,4 +19,10 @@ pub fn logs_directory(ensure: bool) -> Result<PathBuf, Error> {
 
             Ok(path)
         })
+}
+
+pub fn component(name: &str) -> Result<PathBuf, Error> {
+    dirs::home_dir()
+        .ok_or(Error::NoHome)
+        .map(|home| home.join("jago").join("crates").join(name))
 }

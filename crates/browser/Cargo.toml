@@ -1,14 +1,15 @@
 [package]
-name = "web"
+name = "browser"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
 [dependencies]
 context = { path = "../context" }
 logs = { path = "../logs" }
-dioxus = { version = "0.2.1", features = ["web"] }
+#dioxus = { version = "0.2.1", features = ["web"] }
 console_log = "0.2.0"
 log = "0.4.14"
 thiserror = "1.0.30"

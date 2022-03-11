@@ -1,4 +1,6 @@
 function! Write()
+  set syntax=markdown
+
   call pencil#init()
   call lexical#init()
   call litecorrect#init()
@@ -31,11 +33,9 @@ function! Write()
   noremap <silent> <buffer> <F8> :<C-u>NextWordy<cr>
   xnoremap <silent> <buffer> <F8> :<C-u>NextWordy<cr>
   inoremap <silent> <buffer> <F8> <C-o>:NextWordy<cr>
-
 endfunction
 
-" automatically initialize buffer by file type
-autocmd FileType markdown,mkd,text,jago call Write()
+autocmd BufNewFile,BufRead *.j call Write()
 
 " invoke manually by command for other file types
 command! -nargs=0 Write call Write()

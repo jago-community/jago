@@ -2,16 +2,10 @@
 pub enum Error {
     #[error("NoHome")]
     NoHome,
-    #[error("Logs {0}")]
-    Logs(#[from] logs::Error),
     #[error("SetLogger {0}")]
     Environment(#[from] environment::Error),
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
-}
-
-pub fn before() -> Result<(), Error> {
-    logs::before().map_err(Error::from)
 }
 
 use ::{
