@@ -1,5 +1,6 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("SetLogger {0}")]
     SetLogger(#[from] log::SetLoggerError),
     #[cfg(not(target_arch = "wasm32"))]

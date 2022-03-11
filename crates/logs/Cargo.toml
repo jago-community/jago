@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-environment = { path = "../environment" }
 log = "0.4.14"
 thiserror = "1.0.30"
 
@@ -14,4 +13,5 @@ thiserror = "1.0.30"
 console_log = "0.2.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+environment = { path = "../environment" }
 simplelog = "0.11.2"

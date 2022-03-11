@@ -3,10 +3,12 @@ use context::Context;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub fn main() {
+    #[cfg(not(target_arch = "wasm32"))]
     let start = std::time::Instant::now();
 
+    #[cfg(not(target_arch = "wasm32"))]
     let mut code = 0;
 
     if let Err(error) = logs::before() {
@@ -37,6 +39,7 @@ pub fn main() {
         eprintln!("{:?}", error);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     log::info!("{:?} elapsed", start.elapsed());
 
     #[cfg(not(target_arch = "wasm32"))]
