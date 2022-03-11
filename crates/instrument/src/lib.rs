@@ -3,8 +3,6 @@ pub fn before() {
     use log::Level;
 
     console_log::init_with_level(Level::Info);
-
-    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

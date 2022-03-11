@@ -4,20 +4,22 @@ pub enum Error {
     Incomplete,
 }
 
-use ::std::sync::{Arc, Mutex};
+use dioxus::prelude::*;
 
-pub struct Context {
-    inner: Arc<Mutex<context::Context>>,
+use ::{context::Context, instrument::prelude::*};
+
+pub fn watch(context: Context) -> Result<(), Error> {
+    warn!("launching: {}", context);
+
+    dioxus::web::launch_with_props(app, context.into(), |c| c);
+
+    Ok(())
 }
 
-impl From<context::Context> for Context {
-    fn from(inner: context::Context) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(inner)),
-        }
-    }
-}
+fn app(scope: Scope<Context>) -> Element {
+    let context = scope.props;
 
-pub fn watch(context: impl Into<Context>) -> Result<(), Error> {
-    // ...
+    scope.render(rsx! {
+        div { "{context}" }
+    })
 }
