@@ -14,15 +14,7 @@ pub fn main() {
     instrument::before(&[
         #[cfg(feature = "serve")]
         "tower_http",
-        #[cfg(feature = "editor")]
-        "git2",
     ]);
-
-    #[cfg(all(feature = "editor", not(target_arch = "wasm32")))]
-    if let Err(error) = editor::before() {
-        eprintln!("{:?}", error);
-        code = 1;
-    }
 
     info!("Starting execution 🧨.");
 

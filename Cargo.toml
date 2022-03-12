@@ -26,7 +26,6 @@ wasm-bindgen = "0.2.79"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 environment = { path = "crates/environment" }
 ansi = { path = "crates/ansi", optional = true }
-editor = { path = "crates/editor", optional = true }
 
 [workspace]
 members = ["crates/*"]
