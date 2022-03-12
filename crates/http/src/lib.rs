@@ -42,32 +42,14 @@ pub fn watch(_: impl Into<Context>) -> Result<(), Error> {
 
     let runtime = Runtime::new()?;
 
-    let (change_sender, change_receiver) = channel();
-
-    runtime.spawn(async move {
-        for _ in change_receiver.iter() {
-            info!("saw change, recompiling");
-
-            if let Err(error) = pack::browser() {
-                error!("pack::browser {}", error);
-            }
-        }
-    });
-
-    let browser = environment::component("browser").map(|path| path.join("src"))?;
-
-    runtime.spawn(async move {
-        if let Err(error) = pack::watch(&browser, change_sender) {
-            error!("pack::watch {}", error);
-        }
-    });
-
     runtime.block_on(async { serve(&target).await })
 }
 
 static DOCUMENT: &'static str = include_str!("../../browser/browser.html");
 
 async fn serve(target: &Path) -> Result<(), Error> {
+    info!("target: {}", target.display());
+
     let router = Router::new()
         .route("/", get(|| async { response::Html(DOCUMENT) }))
         .nest(

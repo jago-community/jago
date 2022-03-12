@@ -11,9 +11,9 @@ pub fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let mut code = 0;
 
-    instrument::before();
+    instrument::before(&["tower_http"]);
 
-    info!("Starting execution 🧨");
+    info!("Starting execution 🧨.");
 
     let context = Context::from("Hello, stranger.");
 

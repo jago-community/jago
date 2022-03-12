@@ -38,13 +38,3 @@ pub fn browser() -> Result<PathBuf, Error> {
 
     Ok(target)
 }
-
-pub fn watch(component: &Path, sender: Sender<DebouncedEvent>) -> Result<(), Error> {
-    let mut watcher = watcher(sender, Duration::from_secs(10))?;
-
-    info!("recursively watching: {}", component.display());
-
-    watcher.watch(component, RecursiveMode::Recursive)?;
-
-    Ok(())
-}

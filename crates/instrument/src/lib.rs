@@ -7,20 +7,21 @@ pub mod prelude {
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn before() {
+pub fn before(_: &[&str]) {
     use log::Level;
 
     console_log::init_with_level(Level::Info);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn before() {
+pub fn before(other_crates: &[&str]) {
     use tracing_subscriber::{layer::SubscriberExt, registry, util::SubscriberInitExt};
 
     let crate_names = workspace::crate_names!();
 
     let default_filters = crate_names
         .iter()
+        .chain(other_crates)
         .map(|name| [name, "debug"].join("="))
         .collect::<Vec<_>>()
         .join(",");

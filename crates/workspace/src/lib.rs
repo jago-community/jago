@@ -17,7 +17,13 @@ use ::{
 
 #[derive(Deserialize)]
 struct CargoToml {
+    package: Package,
     workspace: Workspace,
+}
+
+#[derive(Deserialize)]
+struct Package {
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -52,11 +58,9 @@ fn read_crate_names(_: TokenStream) -> Result<TokenStream, Diagnostic> {
             })
         })?;
 
-    let mut crate_names = vec![];
+    let mut crate_names = vec![cargo_toml.package.name.clone()];
 
     for entry in cargo_toml.workspace.members {
-        dbg!(&entry);
-
         let based = root.join(entry);
 
         let paths = glob(&format!("{}", based.display())).map_err(|error| {
@@ -67,8 +71,6 @@ fn read_crate_names(_: TokenStream) -> Result<TokenStream, Diagnostic> {
         })?;
 
         for entry in paths {
-            dbg!(&entry);
-
             let member = entry.map_err(|error| {
                 Diagnostic::new(
                     Level::Error,
