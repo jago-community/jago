@@ -1,0 +1,12 @@
+[editor]
+target = ".vim/pack"
+dependencies = [
+  "rust-lang/rust.vim",
+  "fatih/vim-go",
+  "easymotion/vim-easymotion",
+  "preservim/nerdcommenter",
+  "tpope/vim-fugitive",
+  "challenger-deep-theme/vim",
+  "tpope/vim-eunuch",
+  { key = "neoclide/coc.nvim", version = "release" }
+]

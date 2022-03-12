@@ -8,6 +8,16 @@ pub enum Error {
 
 use std::{fs::create_dir_all, path::PathBuf};
 
+pub fn identity(name: Option<&str>) -> Result<PathBuf, Error> {
+    dirs::home_dir()
+        .ok_or(Error::NoHome)
+        .map(|home| home.join(".ssh").join(name.unwrap_or("id_rsa")))
+}
+
+pub fn home() -> Result<PathBuf, Error> {
+    dirs::home_dir().ok_or(Error::NoHome)
+}
+
 pub fn target(suffix: &str, ensure: bool) -> Result<PathBuf, Error> {
     dirs::home_dir()
         .ok_or(Error::NoHome)

@@ -11,7 +11,18 @@ pub fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let mut code = 0;
 
-    instrument::before(&["tower_http"]);
+    instrument::before(&[
+        #[cfg(feature = "serve")]
+        "tower_http",
+        #[cfg(feature = "editor")]
+        "git2",
+    ]);
+
+    #[cfg(all(feature = "editor", not(target_arch = "wasm32")))]
+    if let Err(error) = editor::before() {
+        eprintln!("{:?}", error);
+        code = 1;
+    }
 
     info!("Starting execution 🧨.");
 
@@ -23,7 +34,7 @@ pub fn main() {
         code = 1;
     }
 
-    #[cfg(all(not(feature = "serve"), not(target_arch = "wasm32")))]
+    #[cfg(feature = "ansi")]
     if let Err(error) = ansi::watch(context) {
         eprintln!("{:?}", error);
         code = 1;
