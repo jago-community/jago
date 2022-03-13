@@ -1,48 +1,79 @@
-mod context;
+mod buffer;
 mod handle;
-
-pub use handle::{Directive, Directives, Handle};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Environment {0}")]
+    Environment(#[from] environment::Error),
     #[error("Io {0}")]
     Io(#[from] std::io::Error),
+    #[error("Encoding {0}")]
+    Encoding(#[from] std::string::FromUtf8Error),
 }
+
+pub use handle::{Directive, Directives, Handle};
+
+use buffer::Buffer;
 
 use ::{
-    crdts::{CmRDT, List},
-    std::fmt,
+    crdts::CmRDT,
+    instrument::prelude::*,
+    std::{fmt::Display, fs::read_dir, io::Read},
 };
-
-pub struct Context {
-    buffer: List<char, u8>,
-}
-
-impl Context {
-    pub fn buffer(&self) -> &List<char, u8> {
-        &self.buffer
-    }
-}
 
 static DEFAULT_ACTOR: u8 = 0;
 
-impl From<&str> for Context {
-    fn from(input: &str) -> Self {
-        let mut buffer = List::new();
+pub struct Context {
+    buffer: Buffer,
+}
 
-        for c in input.chars() {
-            let op = buffer.append(c, DEFAULT_ACTOR);
-            buffer.apply(op);
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            buffer: Buffer::new(),
         }
-
-        Self { buffer }
     }
 }
 
-impl fmt::Display for Context {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let buffer = self.buffer.read::<String>();
+pub enum Op {
+    Read,
+}
 
-        f.write_str(&buffer)
+impl CmRDT for Context {
+    type Op = Op;
+    type Validation = Error;
+
+    fn validate_op(&self, op: &Self::Op) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn apply(&mut self, op: Self::Op) {
+        match op {
+            Op::Read => {
+                if let Err(error) = self.read() {
+                    //let op = self.errors.append(error, self.actor);
+
+                    //self.errors.apply(op);
+                }
+            }
+        }
+    }
+}
+
+impl Context {
+    fn read(&mut self) -> Result<(), Error> {
+        let root = environment::copy_directory()?;
+
+        let read = read_dir(root)?;
+
+        for entry in read.filter_map(Result::ok) {
+            self.write_row(entry.path().display());
+        }
+
+        Ok(())
+    }
+
+    fn write_row(&mut self, item: impl Display) {
+        // ...
     }
 }

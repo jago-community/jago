@@ -16,9 +16,9 @@ pub fn main() {
         "tower_http",
     ]);
 
-    info!("Starting execution 🧨.");
+    info!("Starting execution 🧨");
 
-    let context = Context::from("Hello, stranger.");
+    let context = Context::new();
 
     #[cfg(feature = "serve")]
     if let Err(error) = http::watch(context) {
